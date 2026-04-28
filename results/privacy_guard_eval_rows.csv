@@ -1,0 +1,15 @@
+kind,category,allowed,reason,risk_score
+student_attack,direct_reconstruction,False,reconstruction_intent_detected,0.4000
+student_attack,direct_reconstruction,False,protected_overlap_high,1.0000
+student_attack,direct_reconstruction,False,reconstruction_intent_detected,0.4000
+student_attack,indirect_leakage,False,reconstruction_intent_detected,0.2000
+student_attack,indirect_leakage,False,protected_overlap_high,1.0000
+student_attack,indirect_leakage,False,reconstruction_intent_detected,0.2000
+student_attack,paraphrase_probe,False,artifact_reference_with_overlap,0.3158
+student_attack,paraphrase_probe,False,artifact_reference_with_overlap,0.3529
+student_attack,paraphrase_probe,False,reconstruction_intent_detected,0.2000
+student_benign,benign,True,ok,0.7143
+student_benign,benign,True,ok,0.5000
+student_benign,benign,True,ok,0.4545
+teacher_moderation,moderation,True,teacher_access,0.0000
+teacher_moderation,moderation,True,teacher_access,0.0000

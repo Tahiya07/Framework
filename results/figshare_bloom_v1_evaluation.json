@@ -1,0 +1,1727 @@
+{
+  "dataset": "figshare",
+  "dataset_version": "figshare_bloom_v1",
+  "seed": 42,
+  "preprocessing_audit": {
+    "dataset_name": "figshare",
+    "dataset_path": "data\\figshare_combined_dataset.csv",
+    "dataset_version": "figshare_bloom_v1",
+    "label_mapping": {
+      "Knowledge": "Remember",
+      "Comprehension": "Understand",
+      "Application": "Apply",
+      "Analysis": "Analyze",
+      "Evaluation": "Evaluate",
+      "Synthesis": "Create"
+    },
+    "raw_rows": 2522,
+    "non_empty_rows": 2522,
+    "original_label_distribution": {
+      "Comprehension": 961,
+      "Knowledge": 344,
+      "Evaluation": 318,
+      "Application": 316,
+      "Analysis": 304,
+      "Synthesis": 279
+    },
+    "normalized_rows": 2522,
+    "normalized_label_distribution": {
+      "Understand": 961,
+      "Remember": 344,
+      "Evaluate": 318,
+      "Apply": 316,
+      "Analyze": 304,
+      "Create": 279
+    },
+    "rows_after_exact_dedup": 2330,
+    "conflicting_questions_removed": 0,
+    "final_rows": 2330,
+    "final_unique_questions": 2330,
+    "final_label_distribution": {
+      "Understand": 915,
+      "Remember": 321,
+      "Apply": 285,
+      "Evaluate": 284,
+      "Analyze": 274,
+      "Create": 251
+    },
+    "conflict_resolution_strategy": "Remove exact duplicates first, then remove any question text that maps to multiple Bloom labels, then keep one row per unique question."
+  },
+  "split_report": {
+    "train_size": 1631,
+    "val_size": 349,
+    "test_size": 350,
+    "train_distribution": {
+      "Understand": 640,
+      "Remember": 225,
+      "Evaluate": 199,
+      "Apply": 199,
+      "Analyze": 192,
+      "Create": 176
+    },
+    "val_distribution": {
+      "Understand": 137,
+      "Remember": 48,
+      "Apply": 43,
+      "Evaluate": 42,
+      "Analyze": 41,
+      "Create": 38
+    },
+    "test_distribution": {
+      "Understand": 138,
+      "Remember": 48,
+      "Apply": 43,
+      "Evaluate": 43,
+      "Analyze": 41,
+      "Create": 37
+    }
+  },
+  "evaluation_protocol": {
+    "train_val_test": [
+      70,
+      15,
+      15
+    ],
+    "class_balancing": "model-level class_weight='balanced' for learned classifiers",
+    "model_selection": "5-fold stratified cross-validation on the train split",
+    "validation_usage": "single held-out validation split for final model selection before test",
+    "final_metric_split": "held-out test set",
+    "features": "TF-IDF word 1-2 grams + char 3-5 grams",
+    "hierarchical_modeling": "candidate hierarchical lower-order vs higher-order pipeline included",
+    "ordinal_evaluation": "mean ordinal error, within-one-level accuracy, severe error rate"
+  },
+  "baselines": {
+    "majority_val": {
+      "accuracy": 0.39255014326647564,
+      "macro_f1": 0.09396433470507544,
+      "weighted_f1": 0.2213142783024986,
+      "mean_ordinal_error": 1.2922636103151863,
+      "within_one_level_accuracy": 0.6532951289398281,
+      "severe_error_rate": 0.3467048710601719,
+      "classification_report": {
+        "Remember": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 48.0
+        },
+        "Understand": {
+          "precision": 0.39255014326647564,
+          "recall": 1.0,
+          "f1-score": 0.5637860082304527,
+          "support": 137.0
+        },
+        "Apply": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 43.0
+        },
+        "Analyze": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 41.0
+        },
+        "Evaluate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 42.0
+        },
+        "Create": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 38.0
+        },
+        "accuracy": 0.39255014326647564,
+        "macro avg": {
+          "precision": 0.06542502387774594,
+          "recall": 0.16666666666666666,
+          "f1-score": 0.09396433470507544,
+          "support": 349.0
+        },
+        "weighted avg": {
+          "precision": 0.15409561497853055,
+          "recall": 0.39255014326647564,
+          "f1-score": 0.2213142783024986,
+          "support": 349.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          0,
+          48,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          137,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          43,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          41,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          42,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          38,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "top_misclassifications": [
+        {
+          "actual": "Remember",
+          "predicted": "Understand",
+          "count": 48
+        },
+        {
+          "actual": "Apply",
+          "predicted": "Understand",
+          "count": 43
+        },
+        {
+          "actual": "Evaluate",
+          "predicted": "Understand",
+          "count": 42
+        },
+        {
+          "actual": "Analyze",
+          "predicted": "Understand",
+          "count": 41
+        },
+        {
+          "actual": "Create",
+          "predicted": "Understand",
+          "count": 38
+        }
+      ],
+      "majority_class": "Understand"
+    },
+    "majority_test": {
+      "accuracy": 0.3942857142857143,
+      "macro_f1": 0.0942622950819672,
+      "weighted_f1": 0.2229976580796253,
+      "mean_ordinal_error": 1.2857142857142858,
+      "within_one_level_accuracy": 0.6542857142857142,
+      "severe_error_rate": 0.3457142857142857,
+      "classification_report": {
+        "Remember": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 48.0
+        },
+        "Understand": {
+          "precision": 0.3942857142857143,
+          "recall": 1.0,
+          "f1-score": 0.5655737704918032,
+          "support": 138.0
+        },
+        "Apply": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 43.0
+        },
+        "Analyze": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 41.0
+        },
+        "Evaluate": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 43.0
+        },
+        "Create": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 37.0
+        },
+        "accuracy": 0.3942857142857143,
+        "macro avg": {
+          "precision": 0.06571428571428571,
+          "recall": 0.16666666666666666,
+          "f1-score": 0.0942622950819672,
+          "support": 350.0
+        },
+        "weighted avg": {
+          "precision": 0.15546122448979593,
+          "recall": 0.3942857142857143,
+          "f1-score": 0.2229976580796253,
+          "support": 350.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          0,
+          48,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          138,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          43,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          41,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          43,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          37,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "top_misclassifications": [
+        {
+          "actual": "Remember",
+          "predicted": "Understand",
+          "count": 48
+        },
+        {
+          "actual": "Apply",
+          "predicted": "Understand",
+          "count": 43
+        },
+        {
+          "actual": "Evaluate",
+          "predicted": "Understand",
+          "count": 43
+        },
+        {
+          "actual": "Analyze",
+          "predicted": "Understand",
+          "count": 41
+        },
+        {
+          "actual": "Create",
+          "predicted": "Understand",
+          "count": 37
+        }
+      ],
+      "majority_class": "Understand"
+    },
+    "random_val": {
+      "accuracy": 0.20916905444126074,
+      "macro_f1": 0.14464252775256467,
+      "weighted_f1": 0.2098660792867929,
+      "mean_ordinal_error": 1.7163323782234956,
+      "within_one_level_accuracy": 0.5501432664756447,
+      "severe_error_rate": 0.4498567335243553,
+      "classification_report": {
+        "Remember": {
+          "precision": 0.08333333333333333,
+          "recall": 0.08333333333333333,
+          "f1-score": 0.08333333333333333,
+          "support": 48.0
+        },
+        "Understand": {
+          "precision": 0.3880597014925373,
+          "recall": 0.3795620437956204,
+          "f1-score": 0.3837638376383764,
+          "support": 137.0
+        },
+        "Apply": {
+          "precision": 0.12,
+          "recall": 0.13953488372093023,
+          "f1-score": 0.12903225806451613,
+          "support": 43.0
+        },
+        "Analyze": {
+          "precision": 0.075,
+          "recall": 0.07317073170731707,
+          "f1-score": 0.07407407407407407,
+          "support": 41.0
+        },
+        "Evaluate": {
+          "precision": 0.14285714285714285,
+          "recall": 0.14285714285714285,
+          "f1-score": 0.14285714285714285,
+          "support": 42.0
+        },
+        "Create": {
+          "precision": 0.05714285714285714,
+          "recall": 0.05263157894736842,
+          "f1-score": 0.0547945205479452,
+          "support": 38.0
+        },
+        "accuracy": 0.20916905444126074,
+        "macro avg": {
+          "precision": 0.1443988391376451,
+          "recall": 0.14518161906028537,
+          "f1-score": 0.14464252775256467,
+          "support": 349.0
+        },
+        "weighted avg": {
+          "precision": 0.2108040334553186,
+          "recall": 0.20916905444126074,
+          "f1-score": 0.20986607928679285,
+          "support": 349.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          4,
+          23,
+          4,
+          2,
+          7,
+          8
+        ],
+        [
+          22,
+          52,
+          21,
+          18,
+          12,
+          12
+        ],
+        [
+          3,
+          17,
+          6,
+          8,
+          4,
+          5
+        ],
+        [
+          6,
+          13,
+          8,
+          3,
+          5,
+          6
+        ],
+        [
+          8,
+          18,
+          3,
+          5,
+          6,
+          2
+        ],
+        [
+          5,
+          11,
+          8,
+          4,
+          8,
+          2
+        ]
+      ],
+      "top_misclassifications": [
+        {
+          "actual": "Remember",
+          "predicted": "Understand",
+          "count": 23
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Remember",
+          "count": 22
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Apply",
+          "count": 21
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Analyze",
+          "count": 18
+        },
+        {
+          "actual": "Evaluate",
+          "predicted": "Understand",
+          "count": 18
+        },
+        {
+          "actual": "Apply",
+          "predicted": "Understand",
+          "count": 17
+        },
+        {
+          "actual": "Analyze",
+          "predicted": "Understand",
+          "count": 13
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Evaluate",
+          "count": 12
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Create",
+          "count": 12
+        },
+        {
+          "actual": "Create",
+          "predicted": "Understand",
+          "count": 11
+        }
+      ],
+      "sampling_distribution": {
+        "Analyze": 0.11771919068056406,
+        "Apply": 0.1220110361741263,
+        "Create": 0.1079092581238504,
+        "Evaluate": 0.1220110361741263,
+        "Remember": 0.13795217657878603,
+        "Understand": 0.3923973022685469
+      }
+    },
+    "random_test": {
+      "accuracy": 0.19428571428571428,
+      "macro_f1": 0.1451814098311761,
+      "weighted_f1": 0.195756031444836,
+      "mean_ordinal_error": 1.76,
+      "within_one_level_accuracy": 0.5285714285714286,
+      "severe_error_rate": 0.4714285714285714,
+      "classification_report": {
+        "Remember": {
+          "precision": 0.08333333333333333,
+          "recall": 0.08333333333333333,
+          "f1-score": 0.08333333333333333,
+          "support": 48.0
+        },
+        "Understand": {
+          "precision": 0.3358208955223881,
+          "recall": 0.32608695652173914,
+          "f1-score": 0.33088235294117646,
+          "support": 138.0
+        },
+        "Apply": {
+          "precision": 0.08,
+          "recall": 0.09302325581395349,
+          "f1-score": 0.08602150537634409,
+          "support": 43.0
+        },
+        "Analyze": {
+          "precision": 0.14634146341463414,
+          "recall": 0.14634146341463414,
+          "f1-score": 0.14634146341463414,
+          "support": 41.0
+        },
+        "Evaluate": {
+          "precision": 0.14285714285714285,
+          "recall": 0.13953488372093023,
+          "f1-score": 0.1411764705882353,
+          "support": 43.0
+        },
+        "Create": {
+          "precision": 0.08571428571428572,
+          "recall": 0.08108108108108109,
+          "f1-score": 0.08333333333333333,
+          "support": 37.0
+        },
+        "accuracy": 0.19428571428571428,
+        "macro avg": {
+          "precision": 0.1456778534736307,
+          "recall": 0.14490016231427857,
+          "f1-score": 0.14518140983117614,
+          "support": 350.0
+        },
+        "weighted avg": {
+          "precision": 0.1974216265610722,
+          "recall": 0.19428571428571428,
+          "f1-score": 0.195756031444836,
+          "support": 350.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          4,
+          23,
+          4,
+          6,
+          8,
+          3
+        ],
+        [
+          24,
+          45,
+          22,
+          15,
+          16,
+          16
+        ],
+        [
+          5,
+          19,
+          4,
+          3,
+          7,
+          5
+        ],
+        [
+          6,
+          13,
+          10,
+          6,
+          3,
+          3
+        ],
+        [
+          2,
+          20,
+          4,
+          6,
+          6,
+          5
+        ],
+        [
+          7,
+          14,
+          6,
+          5,
+          2,
+          3
+        ]
+      ],
+      "top_misclassifications": [
+        {
+          "actual": "Understand",
+          "predicted": "Remember",
+          "count": 24
+        },
+        {
+          "actual": "Remember",
+          "predicted": "Understand",
+          "count": 23
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Apply",
+          "count": 22
+        },
+        {
+          "actual": "Evaluate",
+          "predicted": "Understand",
+          "count": 20
+        },
+        {
+          "actual": "Apply",
+          "predicted": "Understand",
+          "count": 19
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Evaluate",
+          "count": 16
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Create",
+          "count": 16
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Analyze",
+          "count": 15
+        },
+        {
+          "actual": "Create",
+          "predicted": "Understand",
+          "count": 14
+        },
+        {
+          "actual": "Analyze",
+          "predicted": "Understand",
+          "count": 13
+        }
+      ],
+      "sampling_distribution": {
+        "Analyze": 0.11767676767676767,
+        "Apply": 0.12222222222222222,
+        "Create": 0.10808080808080808,
+        "Evaluate": 0.12171717171717172,
+        "Remember": 0.13787878787878788,
+        "Understand": 0.3924242424242424
+      }
+    }
+  },
+  "candidate_models": {
+    "logreg_balanced": {
+      "macro_f1_mean": 0.7533849706784101,
+      "macro_f1_std": 0.01486666368184759,
+      "mean_ordinal_error": 0.454940807864768,
+      "fold_macro_f1": [
+        0.7472124596133248,
+        0.7734465748978683,
+        0.766987627598894,
+        0.7325120292019247,
+        0.7467661620800388
+      ]
+    },
+    "linear_svm_balanced": {
+      "macro_f1_mean": 0.7456881129920842,
+      "macro_f1_std": 0.01622833323361877,
+      "mean_ordinal_error": 0.44633684171028687,
+      "fold_macro_f1": [
+        0.7397335144547039,
+        0.7582119172816849,
+        0.7704198334960424,
+        0.7266495022323234,
+        0.7334257974956659
+      ]
+    },
+    "hierarchical_svm": {
+      "macro_f1_mean": 0.7336084697239217,
+      "macro_f1_std": 0.0342516093536779,
+      "mean_ordinal_error": 0.44207050524380404,
+      "fold_macro_f1": [
+        0.7374302019205796,
+        0.7728937285251303,
+        0.760991476308717,
+        0.6751936889817491,
+        0.7215332528834325
+      ]
+    },
+    "ordinal_threshold": {
+      "macro_f1_mean": 0.6844107926827373,
+      "macro_f1_std": 0.024213446503317127,
+      "mean_ordinal_error": 0.577587662520403,
+      "fold_macro_f1": [
+        0.7038531210249476,
+        0.69780227690081,
+        0.7100092618809196,
+        0.6527789142478935,
+        0.657610389359116
+      ]
+    }
+  },
+  "candidate_validation_metrics": {
+    "logreg_balanced": {
+      "accuracy": 0.7822349570200573,
+      "macro_f1": 0.7679596476271668,
+      "weighted_f1": 0.7829808529340411,
+      "mean_ordinal_error": 0.4355300859598854,
+      "within_one_level_accuracy": 0.8767908309455588,
+      "severe_error_rate": 0.12320916905444126,
+      "classification_report": {
+        "Remember": {
+          "precision": 0.7037037037037037,
+          "recall": 0.7916666666666666,
+          "f1-score": 0.7450980392156863,
+          "support": 48.0
+        },
+        "Understand": {
+          "precision": 0.8296296296296296,
+          "recall": 0.8175182481751825,
+          "f1-score": 0.8235294117647058,
+          "support": 137.0
+        },
+        "Apply": {
+          "precision": 0.6938775510204082,
+          "recall": 0.7906976744186046,
+          "f1-score": 0.7391304347826086,
+          "support": 43.0
+        },
+        "Analyze": {
+          "precision": 0.8285714285714286,
+          "recall": 0.7073170731707317,
+          "f1-score": 0.7631578947368421,
+          "support": 41.0
+        },
+        "Evaluate": {
+          "precision": 0.8421052631578947,
+          "recall": 0.7619047619047619,
+          "f1-score": 0.8,
+          "support": 42.0
+        },
+        "Create": {
+          "precision": 0.7368421052631579,
+          "recall": 0.7368421052631579,
+          "f1-score": 0.7368421052631579,
+          "support": 38.0
+        },
+        "accuracy": 0.7822349570200573,
+        "macro avg": {
+          "precision": 0.772454946891037,
+          "recall": 0.7676577549331841,
+          "f1-score": 0.7679596476271667,
+          "support": 349.0
+        },
+        "weighted avg": {
+          "precision": 0.7868585139111024,
+          "recall": 0.7822349570200573,
+          "f1-score": 0.7829808529340411,
+          "support": 349.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          38,
+          6,
+          3,
+          0,
+          0,
+          1
+        ],
+        [
+          14,
+          112,
+          3,
+          3,
+          1,
+          4
+        ],
+        [
+          0,
+          3,
+          34,
+          1,
+          3,
+          2
+        ],
+        [
+          1,
+          6,
+          2,
+          29,
+          1,
+          2
+        ],
+        [
+          1,
+          4,
+          3,
+          1,
+          32,
+          1
+        ],
+        [
+          0,
+          4,
+          4,
+          1,
+          1,
+          28
+        ]
+      ],
+      "top_misclassifications": [
+        {
+          "actual": "Understand",
+          "predicted": "Remember",
+          "count": 14
+        },
+        {
+          "actual": "Remember",
+          "predicted": "Understand",
+          "count": 6
+        },
+        {
+          "actual": "Analyze",
+          "predicted": "Understand",
+          "count": 6
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Create",
+          "count": 4
+        },
+        {
+          "actual": "Evaluate",
+          "predicted": "Understand",
+          "count": 4
+        },
+        {
+          "actual": "Create",
+          "predicted": "Understand",
+          "count": 4
+        },
+        {
+          "actual": "Create",
+          "predicted": "Apply",
+          "count": 4
+        },
+        {
+          "actual": "Remember",
+          "predicted": "Apply",
+          "count": 3
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Apply",
+          "count": 3
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Analyze",
+          "count": 3
+        }
+      ]
+    },
+    "linear_svm_balanced": {
+      "accuracy": 0.7936962750716332,
+      "macro_f1": 0.7774700083946658,
+      "weighted_f1": 0.7935143547248582,
+      "mean_ordinal_error": 0.4040114613180516,
+      "within_one_level_accuracy": 0.8882521489971347,
+      "severe_error_rate": 0.11174785100286533,
+      "classification_report": {
+        "Remember": {
+          "precision": 0.7307692307692307,
+          "recall": 0.7916666666666666,
+          "f1-score": 0.76,
+          "support": 48.0
+        },
+        "Understand": {
+          "precision": 0.8181818181818182,
+          "recall": 0.8540145985401459,
+          "f1-score": 0.8357142857142857,
+          "support": 137.0
+        },
+        "Apply": {
+          "precision": 0.7083333333333334,
+          "recall": 0.7906976744186046,
+          "f1-score": 0.7472527472527473,
+          "support": 43.0
+        },
+        "Analyze": {
+          "precision": 0.875,
+          "recall": 0.6829268292682927,
+          "f1-score": 0.7671232876712328,
+          "support": 41.0
+        },
+        "Evaluate": {
+          "precision": 0.868421052631579,
+          "recall": 0.7857142857142857,
+          "f1-score": 0.825,
+          "support": 42.0
+        },
+        "Create": {
+          "precision": 0.75,
+          "recall": 0.7105263157894737,
+          "f1-score": 0.7297297297297297,
+          "support": 38.0
+        },
+        "accuracy": 0.7936962750716332,
+        "macro avg": {
+          "precision": 0.7917842391526602,
+          "recall": 0.7692577283995782,
+          "f1-score": 0.777470008394666,
+          "support": 349.0
+        },
+        "weighted avg": {
+          "precision": 0.797922205477627,
+          "recall": 0.7936962750716332,
+          "f1-score": 0.7935143547248584,
+          "support": 349.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          38,
+          7,
+          2,
+          0,
+          0,
+          1
+        ],
+        [
+          12,
+          117,
+          3,
+          2,
+          0,
+          3
+        ],
+        [
+          0,
+          4,
+          34,
+          1,
+          2,
+          2
+        ],
+        [
+          1,
+          8,
+          1,
+          28,
+          2,
+          1
+        ],
+        [
+          1,
+          3,
+          3,
+          0,
+          33,
+          2
+        ],
+        [
+          0,
+          4,
+          5,
+          1,
+          1,
+          27
+        ]
+      ],
+      "top_misclassifications": [
+        {
+          "actual": "Understand",
+          "predicted": "Remember",
+          "count": 12
+        },
+        {
+          "actual": "Analyze",
+          "predicted": "Understand",
+          "count": 8
+        },
+        {
+          "actual": "Remember",
+          "predicted": "Understand",
+          "count": 7
+        },
+        {
+          "actual": "Create",
+          "predicted": "Apply",
+          "count": 5
+        },
+        {
+          "actual": "Apply",
+          "predicted": "Understand",
+          "count": 4
+        },
+        {
+          "actual": "Create",
+          "predicted": "Understand",
+          "count": 4
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Apply",
+          "count": 3
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Create",
+          "count": 3
+        },
+        {
+          "actual": "Evaluate",
+          "predicted": "Understand",
+          "count": 3
+        },
+        {
+          "actual": "Evaluate",
+          "predicted": "Apply",
+          "count": 3
+        }
+      ]
+    },
+    "hierarchical_svm": {
+      "accuracy": 0.7621776504297995,
+      "macro_f1": 0.7349604292873272,
+      "weighted_f1": 0.7608376462511552,
+      "mean_ordinal_error": 0.4785100286532951,
+      "within_one_level_accuracy": 0.8624641833810889,
+      "severe_error_rate": 0.13753581661891118,
+      "classification_report": {
+        "Remember": {
+          "precision": 0.7608695652173914,
+          "recall": 0.7291666666666666,
+          "f1-score": 0.7446808510638298,
+          "support": 48.0
+        },
+        "Understand": {
+          "precision": 0.8013698630136986,
+          "recall": 0.8540145985401459,
+          "f1-score": 0.8268551236749117,
+          "support": 137.0
+        },
+        "Apply": {
+          "precision": 0.6818181818181818,
+          "recall": 0.6976744186046512,
+          "f1-score": 0.6896551724137931,
+          "support": 43.0
+        },
+        "Analyze": {
+          "precision": 0.7941176470588235,
+          "recall": 0.6585365853658537,
+          "f1-score": 0.72,
+          "support": 41.0
+        },
+        "Evaluate": {
+          "precision": 0.7619047619047619,
+          "recall": 0.7619047619047619,
+          "f1-score": 0.7619047619047619,
+          "support": 42.0
+        },
+        "Create": {
+          "precision": 0.6756756756756757,
+          "recall": 0.6578947368421053,
+          "f1-score": 0.6666666666666666,
+          "support": 38.0
+        },
+        "accuracy": 0.7621776504297995,
+        "macro avg": {
+          "precision": 0.7459592824480888,
+          "recall": 0.7265319613206974,
+          "f1-score": 0.7349604292873272,
+          "support": 349.0
+        },
+        "weighted avg": {
+          "precision": 0.7617824968096869,
+          "recall": 0.7621776504297995,
+          "f1-score": 0.7608376462511552,
+          "support": 349.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          35,
+          8,
+          3,
+          1,
+          0,
+          1
+        ],
+        [
+          9,
+          117,
+          2,
+          3,
+          3,
+          3
+        ],
+        [
+          0,
+          7,
+          30,
+          0,
+          2,
+          4
+        ],
+        [
+          1,
+          6,
+          2,
+          27,
+          2,
+          3
+        ],
+        [
+          1,
+          4,
+          3,
+          1,
+          32,
+          1
+        ],
+        [
+          0,
+          4,
+          4,
+          2,
+          3,
+          25
+        ]
+      ],
+      "top_misclassifications": [
+        {
+          "actual": "Understand",
+          "predicted": "Remember",
+          "count": 9
+        },
+        {
+          "actual": "Remember",
+          "predicted": "Understand",
+          "count": 8
+        },
+        {
+          "actual": "Apply",
+          "predicted": "Understand",
+          "count": 7
+        },
+        {
+          "actual": "Analyze",
+          "predicted": "Understand",
+          "count": 6
+        },
+        {
+          "actual": "Apply",
+          "predicted": "Create",
+          "count": 4
+        },
+        {
+          "actual": "Evaluate",
+          "predicted": "Understand",
+          "count": 4
+        },
+        {
+          "actual": "Create",
+          "predicted": "Understand",
+          "count": 4
+        },
+        {
+          "actual": "Create",
+          "predicted": "Apply",
+          "count": 4
+        },
+        {
+          "actual": "Remember",
+          "predicted": "Apply",
+          "count": 3
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Analyze",
+          "count": 3
+        }
+      ]
+    },
+    "ordinal_threshold": {
+      "accuracy": 0.7277936962750716,
+      "macro_f1": 0.7098625955712979,
+      "weighted_f1": 0.7302569353602529,
+      "mean_ordinal_error": 0.5730659025787965,
+      "within_one_level_accuracy": 0.8424068767908309,
+      "severe_error_rate": 0.15759312320916904,
+      "classification_report": {
+        "Remember": {
+          "precision": 0.6212121212121212,
+          "recall": 0.8541666666666666,
+          "f1-score": 0.7192982456140351,
+          "support": 48.0
+        },
+        "Understand": {
+          "precision": 0.8110236220472441,
+          "recall": 0.7518248175182481,
+          "f1-score": 0.7803030303030303,
+          "support": 137.0
+        },
+        "Apply": {
+          "precision": 0.8181818181818182,
+          "recall": 0.627906976744186,
+          "f1-score": 0.7105263157894737,
+          "support": 43.0
+        },
+        "Analyze": {
+          "precision": 0.875,
+          "recall": 0.5121951219512195,
+          "f1-score": 0.6461538461538462,
+          "support": 41.0
+        },
+        "Evaluate": {
+          "precision": 0.8333333333333334,
+          "recall": 0.7142857142857143,
+          "f1-score": 0.7692307692307693,
+          "support": 42.0
+        },
+        "Create": {
+          "precision": 0.5079365079365079,
+          "recall": 0.8421052631578947,
+          "f1-score": 0.6336633663366337,
+          "support": 38.0
+        },
+        "accuracy": 0.7277936962750716,
+        "macro avg": {
+          "precision": 0.7444479004518375,
+          "recall": 0.7170807600539882,
+          "f1-score": 0.7098625955712979,
+          "support": 349.0
+        },
+        "weighted avg": {
+          "precision": 0.7629994943325494,
+          "recall": 0.7277936962750716,
+          "f1-score": 0.7302569353602528,
+          "support": 349.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          41,
+          5,
+          1,
+          0,
+          0,
+          1
+        ],
+        [
+          20,
+          103,
+          1,
+          2,
+          2,
+          9
+        ],
+        [
+          0,
+          4,
+          27,
+          1,
+          3,
+          8
+        ],
+        [
+          4,
+          8,
+          1,
+          21,
+          1,
+          6
+        ],
+        [
+          1,
+          3,
+          1,
+          0,
+          30,
+          7
+        ],
+        [
+          0,
+          4,
+          2,
+          0,
+          0,
+          32
+        ]
+      ],
+      "top_misclassifications": [
+        {
+          "actual": "Understand",
+          "predicted": "Remember",
+          "count": 20
+        },
+        {
+          "actual": "Understand",
+          "predicted": "Create",
+          "count": 9
+        },
+        {
+          "actual": "Apply",
+          "predicted": "Create",
+          "count": 8
+        },
+        {
+          "actual": "Analyze",
+          "predicted": "Understand",
+          "count": 8
+        },
+        {
+          "actual": "Evaluate",
+          "predicted": "Create",
+          "count": 7
+        },
+        {
+          "actual": "Analyze",
+          "predicted": "Create",
+          "count": 6
+        },
+        {
+          "actual": "Remember",
+          "predicted": "Understand",
+          "count": 5
+        },
+        {
+          "actual": "Apply",
+          "predicted": "Understand",
+          "count": 4
+        },
+        {
+          "actual": "Analyze",
+          "predicted": "Remember",
+          "count": 4
+        },
+        {
+          "actual": "Create",
+          "predicted": "Understand",
+          "count": 4
+        }
+      ]
+    }
+  },
+  "selected_model": "linear_svm_balanced",
+  "fit_seconds_on_dev": 0.546,
+  "validation_metrics": {
+    "accuracy": 0.7936962750716332,
+    "macro_f1": 0.7774700083946658,
+    "weighted_f1": 0.7935143547248582,
+    "mean_ordinal_error": 0.4040114613180516,
+    "within_one_level_accuracy": 0.8882521489971347,
+    "severe_error_rate": 0.11174785100286533,
+    "classification_report": {
+      "Remember": {
+        "precision": 0.7307692307692307,
+        "recall": 0.7916666666666666,
+        "f1-score": 0.76,
+        "support": 48.0
+      },
+      "Understand": {
+        "precision": 0.8181818181818182,
+        "recall": 0.8540145985401459,
+        "f1-score": 0.8357142857142857,
+        "support": 137.0
+      },
+      "Apply": {
+        "precision": 0.7083333333333334,
+        "recall": 0.7906976744186046,
+        "f1-score": 0.7472527472527473,
+        "support": 43.0
+      },
+      "Analyze": {
+        "precision": 0.875,
+        "recall": 0.6829268292682927,
+        "f1-score": 0.7671232876712328,
+        "support": 41.0
+      },
+      "Evaluate": {
+        "precision": 0.868421052631579,
+        "recall": 0.7857142857142857,
+        "f1-score": 0.825,
+        "support": 42.0
+      },
+      "Create": {
+        "precision": 0.75,
+        "recall": 0.7105263157894737,
+        "f1-score": 0.7297297297297297,
+        "support": 38.0
+      },
+      "accuracy": 0.7936962750716332,
+      "macro avg": {
+        "precision": 0.7917842391526602,
+        "recall": 0.7692577283995782,
+        "f1-score": 0.777470008394666,
+        "support": 349.0
+      },
+      "weighted avg": {
+        "precision": 0.797922205477627,
+        "recall": 0.7936962750716332,
+        "f1-score": 0.7935143547248584,
+        "support": 349.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        38,
+        7,
+        2,
+        0,
+        0,
+        1
+      ],
+      [
+        12,
+        117,
+        3,
+        2,
+        0,
+        3
+      ],
+      [
+        0,
+        4,
+        34,
+        1,
+        2,
+        2
+      ],
+      [
+        1,
+        8,
+        1,
+        28,
+        2,
+        1
+      ],
+      [
+        1,
+        3,
+        3,
+        0,
+        33,
+        2
+      ],
+      [
+        0,
+        4,
+        5,
+        1,
+        1,
+        27
+      ]
+    ],
+    "top_misclassifications": [
+      {
+        "actual": "Understand",
+        "predicted": "Remember",
+        "count": 12
+      },
+      {
+        "actual": "Analyze",
+        "predicted": "Understand",
+        "count": 8
+      },
+      {
+        "actual": "Remember",
+        "predicted": "Understand",
+        "count": 7
+      },
+      {
+        "actual": "Create",
+        "predicted": "Apply",
+        "count": 5
+      },
+      {
+        "actual": "Apply",
+        "predicted": "Understand",
+        "count": 4
+      },
+      {
+        "actual": "Create",
+        "predicted": "Understand",
+        "count": 4
+      },
+      {
+        "actual": "Understand",
+        "predicted": "Apply",
+        "count": 3
+      },
+      {
+        "actual": "Understand",
+        "predicted": "Create",
+        "count": 3
+      },
+      {
+        "actual": "Evaluate",
+        "predicted": "Understand",
+        "count": 3
+      },
+      {
+        "actual": "Evaluate",
+        "predicted": "Apply",
+        "count": 3
+      }
+    ]
+  },
+  "test_metrics": {
+    "accuracy": 0.7685714285714286,
+    "macro_f1": 0.7442535242845394,
+    "weighted_f1": 0.7684194278159092,
+    "mean_ordinal_error": 0.4257142857142857,
+    "within_one_level_accuracy": 0.9028571428571428,
+    "severe_error_rate": 0.09714285714285714,
+    "classification_report": {
+      "Remember": {
+        "precision": 0.74,
+        "recall": 0.7708333333333334,
+        "f1-score": 0.7551020408163265,
+        "support": 48.0
+      },
+      "Understand": {
+        "precision": 0.8321167883211679,
+        "recall": 0.8260869565217391,
+        "f1-score": 0.8290909090909091,
+        "support": 138.0
+      },
+      "Apply": {
+        "precision": 0.6511627906976745,
+        "recall": 0.6511627906976745,
+        "f1-score": 0.6511627906976745,
+        "support": 43.0
+      },
+      "Analyze": {
+        "precision": 0.8048780487804879,
+        "recall": 0.8048780487804879,
+        "f1-score": 0.8048780487804879,
+        "support": 41.0
+      },
+      "Evaluate": {
+        "precision": 0.75,
+        "recall": 0.7674418604651163,
+        "f1-score": 0.7586206896551724,
+        "support": 43.0
+      },
+      "Create": {
+        "precision": 0.6857142857142857,
+        "recall": 0.6486486486486487,
+        "f1-score": 0.6666666666666666,
+        "support": 37.0
+      },
+      "accuracy": 0.7685714285714286,
+      "macro avg": {
+        "precision": 0.7439786522522693,
+        "recall": 0.7448419397411666,
+        "f1-score": 0.7442535242845395,
+        "support": 350.0
+      },
+      "weighted avg": {
+        "precision": 0.7684958438849993,
+        "recall": 0.7685714285714286,
+        "f1-score": 0.7684194278159092,
+        "support": 350.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        37,
+        10,
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        8,
+        114,
+        8,
+        4,
+        2,
+        2
+      ],
+      [
+        0,
+        5,
+        28,
+        2,
+        3,
+        5
+      ],
+      [
+        0,
+        3,
+        4,
+        33,
+        1,
+        0
+      ],
+      [
+        3,
+        1,
+        2,
+        0,
+        33,
+        4
+      ],
+      [
+        2,
+        4,
+        1,
+        1,
+        5,
+        24
+      ]
+    ],
+    "top_misclassifications": [
+      {
+        "actual": "Remember",
+        "predicted": "Understand",
+        "count": 10
+      },
+      {
+        "actual": "Understand",
+        "predicted": "Remember",
+        "count": 8
+      },
+      {
+        "actual": "Understand",
+        "predicted": "Apply",
+        "count": 8
+      },
+      {
+        "actual": "Apply",
+        "predicted": "Understand",
+        "count": 5
+      },
+      {
+        "actual": "Apply",
+        "predicted": "Create",
+        "count": 5
+      },
+      {
+        "actual": "Create",
+        "predicted": "Evaluate",
+        "count": 5
+      },
+      {
+        "actual": "Understand",
+        "predicted": "Analyze",
+        "count": 4
+      },
+      {
+        "actual": "Analyze",
+        "predicted": "Apply",
+        "count": 4
+      },
+      {
+        "actual": "Evaluate",
+        "predicted": "Create",
+        "count": 4
+      },
+      {
+        "actual": "Create",
+        "predicted": "Understand",
+        "count": 4
+      }
+    ]
+  }
+}

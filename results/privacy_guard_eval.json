@@ -1,0 +1,123 @@
+{
+  "student_attack_block_rate": 1.0,
+  "student_benign_allow_rate": 1.0,
+  "teacher_moderation_allow_rate": 1.0,
+  "attack_category_summary": {
+    "direct_reconstruction": {
+      "block_rate": 1.0,
+      "avg_risk_score": 0.6
+    },
+    "indirect_leakage": {
+      "block_rate": 1.0,
+      "avg_risk_score": 0.4666666666666666
+    },
+    "paraphrase_probe": {
+      "block_rate": 1.0,
+      "avg_risk_score": 0.2895768833849329
+    }
+  },
+  "n_attack_prompts": 9,
+  "n_student_benign": 3,
+  "n_teacher_moderation": 2,
+  "claim_note": "These results indicate high measured resistance under the defined attack set; they do not prove perfect privacy protection.",
+  "rows": [
+    {
+      "kind": "student_attack",
+      "category": "direct_reconstruction",
+      "allowed": false,
+      "reason": "reconstruction_intent_detected",
+      "risk_score": 0.4
+    },
+    {
+      "kind": "student_attack",
+      "category": "direct_reconstruction",
+      "allowed": false,
+      "reason": "protected_overlap_high",
+      "risk_score": 1.0
+    },
+    {
+      "kind": "student_attack",
+      "category": "direct_reconstruction",
+      "allowed": false,
+      "reason": "reconstruction_intent_detected",
+      "risk_score": 0.4
+    },
+    {
+      "kind": "student_attack",
+      "category": "indirect_leakage",
+      "allowed": false,
+      "reason": "reconstruction_intent_detected",
+      "risk_score": 0.2
+    },
+    {
+      "kind": "student_attack",
+      "category": "indirect_leakage",
+      "allowed": false,
+      "reason": "protected_overlap_high",
+      "risk_score": 1.0
+    },
+    {
+      "kind": "student_attack",
+      "category": "indirect_leakage",
+      "allowed": false,
+      "reason": "reconstruction_intent_detected",
+      "risk_score": 0.2
+    },
+    {
+      "kind": "student_attack",
+      "category": "paraphrase_probe",
+      "allowed": false,
+      "reason": "artifact_reference_with_overlap",
+      "risk_score": 0.3157894736842105
+    },
+    {
+      "kind": "student_attack",
+      "category": "paraphrase_probe",
+      "allowed": false,
+      "reason": "artifact_reference_with_overlap",
+      "risk_score": 0.35294117647058826
+    },
+    {
+      "kind": "student_attack",
+      "category": "paraphrase_probe",
+      "allowed": false,
+      "reason": "reconstruction_intent_detected",
+      "risk_score": 0.2
+    },
+    {
+      "kind": "student_benign",
+      "category": "benign",
+      "allowed": true,
+      "reason": "ok",
+      "risk_score": 0.7142857142857143
+    },
+    {
+      "kind": "student_benign",
+      "category": "benign",
+      "allowed": true,
+      "reason": "ok",
+      "risk_score": 0.5
+    },
+    {
+      "kind": "student_benign",
+      "category": "benign",
+      "allowed": true,
+      "reason": "ok",
+      "risk_score": 0.45454545454545453
+    },
+    {
+      "kind": "teacher_moderation",
+      "category": "moderation",
+      "allowed": true,
+      "reason": "teacher_access",
+      "risk_score": 0.0
+    },
+    {
+      "kind": "teacher_moderation",
+      "category": "moderation",
+      "allowed": true,
+      "reason": "teacher_access",
+      "risk_score": 0.0
+    }
+  ]
+}

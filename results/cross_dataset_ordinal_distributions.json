@@ -1,0 +1,130 @@
+{
+  "binary": {
+    "figshare_to_moocradar": {
+      "selected_model": "logreg_balanced",
+      "labels": [
+        "Lower",
+        "Higher"
+      ],
+      "distance_counts": {
+        "distance_0": 8063,
+        "distance_1": 1261,
+        "distance_2plus": 0
+      },
+      "mean_ordinal_error": 0.13524238524238524,
+      "within_one_level_accuracy": 1.0,
+      "severe_error_rate": 0.0
+    },
+    "moocradar_to_figshare": {
+      "selected_model": "logreg_balanced",
+      "labels": [
+        "Lower",
+        "Higher"
+      ],
+      "distance_counts": {
+        "distance_0": 1302,
+        "distance_1": 1028,
+        "distance_2plus": 0
+      },
+      "mean_ordinal_error": 0.4412017167381974,
+      "within_one_level_accuracy": 1.0,
+      "severe_error_rate": 0.0
+    },
+    "within_dataset_figshare": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Lower",
+        "Higher"
+      ],
+      "distance_counts": {
+        "distance_0": 424,
+        "distance_1": 42,
+        "distance_2plus": 0
+      },
+      "mean_ordinal_error": 0.09012875536480687,
+      "within_one_level_accuracy": 1.0,
+      "severe_error_rate": 0.0
+    },
+    "within_dataset_moocradar": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Lower",
+        "Higher"
+      ],
+      "distance_counts": {
+        "distance_0": 1608,
+        "distance_1": 257,
+        "distance_2plus": 0
+      },
+      "mean_ordinal_error": 0.13780160857908846,
+      "within_one_level_accuracy": 1.0,
+      "severe_error_rate": 0.0
+    }
+  },
+  "ternary": {
+    "figshare_to_moocradar": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "distance_counts": {
+        "distance_0": 6214,
+        "distance_1": 2641,
+        "distance_2plus": 469
+      },
+      "mean_ordinal_error": 0.3838481338481338,
+      "within_one_level_accuracy": 0.9496996996996997,
+      "severe_error_rate": 0.0503003003003003
+    },
+    "moocradar_to_figshare": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "distance_counts": {
+        "distance_0": 949,
+        "distance_1": 1050,
+        "distance_2plus": 331
+      },
+      "mean_ordinal_error": 0.7347639484978541,
+      "within_one_level_accuracy": 0.8579399141630901,
+      "severe_error_rate": 0.14206008583690988
+    },
+    "within_dataset_figshare": {
+      "selected_model": "logreg_balanced",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "distance_counts": {
+        "distance_0": 404,
+        "distance_1": 47,
+        "distance_2plus": 15
+      },
+      "mean_ordinal_error": 0.16523605150214593,
+      "within_one_level_accuracy": 0.9678111587982833,
+      "severe_error_rate": 0.032188841201716736
+    },
+    "within_dataset_moocradar": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "distance_counts": {
+        "distance_0": 1572,
+        "distance_1": 238,
+        "distance_2plus": 55
+      },
+      "mean_ordinal_error": 0.1865951742627346,
+      "within_one_level_accuracy": 0.9705093833780161,
+      "severe_error_rate": 0.029490616621983913
+    }
+  }
+}
