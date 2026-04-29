@@ -14,7 +14,15 @@ from sklearn.base import clone
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
 
-from bloom_models import make_linear_svm_pipeline, make_logreg_pipeline
+from bloom_models import (
+    BLOOM_LEVELS,
+    OrdinalThresholdClassifier,
+    make_domain_robust_linear_svm_pipeline,
+    make_domain_robust_logreg_pipeline,
+    make_embedding_logreg_classifier,
+    make_linear_svm_pipeline,
+    make_logreg_pipeline,
+)
 from classifier import _normalise_bloom
 
 
@@ -33,6 +41,8 @@ LOWER = {"Remember", "Understand", "Apply"}
 HIGHER = {"Analyze", "Evaluate", "Create"}
 MID3 = {"Apply", "Analyze"}
 HIGH3 = {"Evaluate", "Create"}
+
+DEFAULT_TRANSFER_MAX_PER_LABEL = int(os.environ.get("BLOOM_TRANSFER_MAX_PER_LABEL", "1500"))
 
 
 def _clean_text(value: object) -> str:
@@ -196,6 +206,8 @@ def _normalise_mooc_label(value: object) -> Optional[str]:
 
 
 def _collapse_label(label: str, scheme: str) -> str:
+    if scheme == "six_class":
+        return label
     if scheme == "binary":
         return "Lower" if label in LOWER else "Higher"
     if scheme == "ternary":
@@ -208,7 +220,55 @@ def _collapse_label(label: str, scheme: str) -> str:
     raise ValueError(f"unknown scheme: {scheme}")
 
 
-def _metric_bundle(y_true: List[str], y_pred: List[str], labels: Sequence[str]) -> Dict[str, object]:
+def _entropy_confidence(proba: np.ndarray) -> np.ndarray:
+    p = np.asarray(proba, dtype=np.float64)
+    p = p / np.clip(p.sum(axis=1, keepdims=True), 1e-12, None)
+    ent = -(p * np.log(np.clip(p, 1e-12, 1.0))).sum(axis=1)
+    return (1.0 - ent / np.log(p.shape[1])).clip(0.0, 1.0)
+
+
+def _confidence_gate_report(
+    y_true: List[str],
+    y_pred: List[str],
+    labels: Sequence[str],
+    proba: np.ndarray,
+    thresholds: Sequence[float] = (0.40, 0.50, 0.60),
+) -> Dict[str, object]:
+    order = {label: idx for idx, label in enumerate(labels)}
+    y_true_idx = np.array([order[y] for y in y_true], dtype=np.int32)
+    y_pred_idx = np.array([order[y] for y in y_pred], dtype=np.int32)
+    distances = np.abs(y_true_idx - y_pred_idx)
+    severe = distances >= 2
+    top1 = np.max(proba, axis=1)
+    entropy_conf = _entropy_confidence(proba)
+    y_true_arr = np.asarray(y_true)
+    y_pred_arr = np.asarray(y_pred)
+    out: Dict[str, object] = {
+        "mean_top1_probability": float(top1.mean()),
+        "mean_entropy_confidence": float(entropy_conf.mean()),
+        "thresholds": {},
+    }
+    for threshold in thresholds:
+        accepted = (top1 >= threshold) & (entropy_conf >= max(0.0, threshold - 0.25))
+        rejected = ~accepted
+        accepted_n = int(accepted.sum())
+        severe_n = int(severe.sum())
+        out["thresholds"][f"{threshold:.2f}"] = {
+            "human_loop_rate": float(rejected.mean()),
+            "accepted_coverage": float(accepted.mean()),
+            "accepted_accuracy": float(0.0 if accepted_n == 0 else np.mean(y_true_arr[accepted] == y_pred_arr[accepted])),
+            "accepted_severe_error_rate": float(0.0 if accepted_n == 0 else np.mean(severe[accepted])),
+            "severe_error_caught_rate": float(0.0 if severe_n == 0 else np.mean(rejected[severe])),
+        }
+    return out
+
+
+def _metric_bundle(
+    y_true: List[str],
+    y_pred: List[str],
+    labels: Sequence[str],
+    proba: Optional[np.ndarray] = None,
+) -> Dict[str, object]:
     cm = confusion_matrix(y_true, y_pred, labels=list(labels))
     order = {label: idx for idx, label in enumerate(labels)}
     y_true_idx = np.array([order[y] for y in y_true], dtype=np.int32)
@@ -221,7 +281,7 @@ def _metric_bundle(y_true: List[str], y_pred: List[str], labels: Sequence[str]) 
                 continue
             mis.append({"actual": actual, "predicted": predicted, "count": int(cm[i, j])})
     mis.sort(key=lambda item: -item["count"])
-    return {
+    out: Dict[str, object] = {
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "macro_f1": float(f1_score(y_true, y_pred, average="macro")),
         "weighted_f1": float(f1_score(y_true, y_pred, average="weighted")),
@@ -238,6 +298,38 @@ def _metric_bundle(y_true: List[str], y_pred: List[str], labels: Sequence[str]) 
         "confusion_matrix": cm.tolist(),
         "top_misclassifications": mis[:10],
     }
+    if proba is not None:
+        out["confidence_gate"] = _confidence_gate_report(y_true, y_pred, labels, proba)
+    return out
+
+
+def _predict_proba_for_labels(model: object, x_test: List[str], labels: Sequence[str]) -> Optional[np.ndarray]:
+    classes = list(getattr(model, "classes_", []))
+    if not classes and hasattr(model, "named_steps"):
+        classes = list(getattr(model.named_steps.get("clf"), "classes_", []))
+    raw: Optional[np.ndarray] = None
+    if hasattr(model, "predict_proba"):
+        raw = np.asarray(model.predict_proba(x_test), dtype=np.float64)
+    elif hasattr(model, "decision_function"):
+        scores = np.asarray(model.decision_function(x_test), dtype=np.float64)
+        if scores.ndim == 1:
+            scores = np.vstack([-scores, scores]).T
+        scores = scores - scores.max(axis=1, keepdims=True)
+        exp_scores = np.exp(scores)
+        raw = exp_scores / np.clip(exp_scores.sum(axis=1, keepdims=True), 1e-12, None)
+    if raw is None or not classes:
+        return None
+
+    aligned = np.zeros((len(x_test), len(labels)), dtype=np.float64)
+    class_to_col = {str(label): idx for idx, label in enumerate(classes)}
+    for out_col, label in enumerate(labels):
+        src_col = class_to_col.get(str(label))
+        if src_col is not None and src_col < raw.shape[1]:
+            aligned[:, out_col] = raw[:, src_col]
+    row_sum = aligned.sum(axis=1, keepdims=True)
+    if np.any(row_sum <= 1e-12):
+        return None
+    return aligned / row_sum
 
 
 def _read_figshare() -> pd.DataFrame:
@@ -322,6 +414,27 @@ def _make_reduced(df: pd.DataFrame, scheme: str) -> pd.DataFrame:
     return out
 
 
+def _stratified_cap(
+    df: pd.DataFrame,
+    label_col: str = "label",
+    max_per_label: int = DEFAULT_TRANSFER_MAX_PER_LABEL,
+    seed: int = SEED,
+) -> pd.DataFrame:
+    if max_per_label <= 0:
+        return df.reset_index(drop=True)
+    parts = []
+    for _, group in df.groupby(label_col, sort=True):
+        n = min(len(group), int(max_per_label))
+        parts.append(group.sample(n=n, random_state=seed))
+    if not parts:
+        return df.head(0).copy()
+    return (
+        pd.concat(parts)
+        .sample(frac=1.0, random_state=seed)
+        .reset_index(drop=True)
+    )
+
+
 def _fit_predict(train_df: pd.DataFrame, test_df: pd.DataFrame, labels: Sequence[str]) -> Dict[str, object]:
     x_train = train_df["question"].tolist()
     y_train = train_df["label"].tolist()
@@ -331,20 +444,49 @@ def _fit_predict(train_df: pd.DataFrame, test_df: pd.DataFrame, labels: Sequence
     models = {
         "logreg_balanced": make_logreg_pipeline(class_weight="balanced"),
         "linear_svm_balanced": make_linear_svm_pipeline(class_weight="balanced"),
+        "ordinal_threshold": OrdinalThresholdClassifier(
+            class_weight="balanced",
+            levels=tuple(labels),
+        ),
     }
+    if os.environ.get("BLOOM_RUN_DOMAIN_ROBUST_BASELINES", "0") != "0":
+        models["domain_robust_logreg"] = make_domain_robust_logreg_pipeline(class_weight="balanced")
+        models["domain_robust_linear_svm"] = make_domain_robust_linear_svm_pipeline(class_weight="balanced")
+    if os.environ.get("BLOOM_RUN_EMBEDDING_BASELINE", "0") != "0":
+        models["semantic_embedding_logreg"] = make_embedding_logreg_classifier(
+            encoder_name=os.environ.get("BLOOM_ENCODER_NAME", "all-MiniLM-L6-v2"),
+            class_weight="balanced",
+        )
     scored = {}
+    failures = {}
     for name, model in models.items():
-        fitted = clone(model)
-        fitted.fit(x_train, y_train)
-        pred = fitted.predict(x_test)
-        scored[name] = _metric_bundle(y_test, pred, labels)
-    best_name = max(scored.items(), key=lambda kv: (kv[1]["macro_f1"], kv[1]["within_one_level_accuracy"], -kv[1]["mean_ordinal_error"]))[0]
+        try:
+            fitted = clone(model)
+            fitted.fit(x_train, y_train)
+            pred = fitted.predict(x_test)
+            proba = _predict_proba_for_labels(fitted, x_test, labels)
+            scored[name] = _metric_bundle(y_test, pred, labels, proba=proba)
+        except Exception as exc:
+            failures[name] = repr(exc)
+    if not scored:
+        raise RuntimeError(f"all candidate models failed: {failures}")
+    best_name = max(
+        scored.items(),
+        key=lambda kv: (
+            kv[1]["macro_f1"],
+            -kv[1]["severe_error_rate"],
+            -kv[1]["mean_ordinal_error"],
+            kv[1]["within_one_level_accuracy"],
+        ),
+    )[0]
     best_model = clone(models[best_name]).fit(x_train, y_train)
     best_pred = best_model.predict(x_test)
+    best_proba = _predict_proba_for_labels(best_model, x_test, labels)
     return {
         "candidate_metrics": scored,
+        "candidate_failures": failures,
         "selected_model": best_name,
-        "selected_metrics": _metric_bundle(y_test, best_pred, labels),
+        "selected_metrics": _metric_bundle(y_test, best_pred, labels, proba=best_proba),
     }
 
 
@@ -382,17 +524,33 @@ def main() -> None:
         "schemes": {},
     }
 
-    for scheme, labels in [("binary", ["Lower", "Higher"]), ("ternary", ["Low", "Mid", "High"])]:
+    scheme_specs = [
+        ("binary", ["Lower", "Higher"]),
+        ("ternary", ["Low", "Mid", "High"]),
+    ]
+    if os.environ.get("BLOOM_INCLUDE_SIX_CLASS_TRANSFER", "0") != "0":
+        scheme_specs.insert(0, ("six_class", BLOOM_LEVELS))
+
+    for scheme, labels in scheme_specs:
         fig_r = _make_reduced(fig, scheme)
         mooc_r = _make_reduced(mooc, scheme)
+        fig_eval = _stratified_cap(fig_r)
+        mooc_eval = _stratified_cap(mooc_r)
         report["schemes"][scheme] = {
             "labels": list(labels),
             "figshare_distribution": fig_r["label"].value_counts().to_dict(),
             "moocradar_distribution": mooc_r["label"].value_counts().to_dict(),
-            "figshare_to_moocradar": _fit_predict(fig_r, mooc_r, labels),
-            "moocradar_to_figshare": _fit_predict(mooc_r, fig_r, labels),
-            "within_dataset_figshare": _within_dataset_eval(fig_r, labels),
-            "within_dataset_moocradar": _within_dataset_eval(mooc_r, labels),
+            "evaluation_cap": {
+                "max_per_label": int(DEFAULT_TRANSFER_MAX_PER_LABEL),
+                "figshare_rows_used": int(len(fig_eval)),
+                "moocradar_rows_used": int(len(mooc_eval)),
+                "figshare_used_distribution": fig_eval["label"].value_counts().to_dict(),
+                "moocradar_used_distribution": mooc_eval["label"].value_counts().to_dict(),
+            },
+            "figshare_to_moocradar": _fit_predict(fig_eval, mooc_eval, labels),
+            "moocradar_to_figshare": _fit_predict(mooc_eval, fig_eval, labels),
+            "within_dataset_figshare": _within_dataset_eval(fig_eval, labels),
+            "within_dataset_moocradar": _within_dataset_eval(mooc_eval, labels),
         }
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)

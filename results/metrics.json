@@ -61,9 +61,9 @@
         "n": 4
       },
       "latency_s": {
-        "mean": 4.323816624993924,
-        "ci_lo": 3.4607371499878354,
-        "ci_hi": 5.186896100000013,
+        "mean": 10.124477074947208,
+        "ci_lo": 6.049971999949776,
+        "ci_hi": 14.19898214994464,
         "n": 4
       }
     },
@@ -93,9 +93,9 @@
         "n": 4
       },
       "latency_s": {
-        "mean": 5.552876799993101,
-        "ci_lo": 3.763027900015004,
-        "ci_hi": 7.342725699971197,
+        "mean": 7.430231275036931,
+        "ci_lo": 5.905042350059375,
+        "ci_hi": 9.018008975079283,
         "n": 4
       }
     },
@@ -125,9 +125,9 @@
         "n": 4
       },
       "latency_s": {
-        "mean": 4.980852450011298,
-        "ci_lo": 4.3646613500022795,
-        "ci_hi": 5.827081450028345,
+        "mean": 7.797913475020323,
+        "ci_lo": 6.382033350062557,
+        "ci_hi": 9.79784297500737,
         "n": 4
       }
     },
@@ -157,17 +157,49 @@
         "n": 4
       },
       "latency_s": {
-        "mean": 4.629077700010384,
-        "ci_lo": 3.724468650005292,
-        "ci_hi": 5.351823799996055,
+        "mean": 7.287032499967609,
+        "ci_lo": 5.343341474974295,
+        "ci_hi": 9.158024424948962,
         "n": 4
       }
     },
-    "paired_ttest_f1__Proposed_vs_VanillaRAG": {
-      "t": 0.0,
-      "df": 3.0,
-      "p": 1.0,
-      "mean_diff": 0.0
+    "paired_tests": {
+      "Proposed_vs_VanillaRAG__f1": {
+        "t": 0.0,
+        "df": 3.0,
+        "p": 1.0,
+        "mean_diff": 0.0
+      },
+      "Proposed_vs_VanillaRAG__leak_full_ratio": {
+        "t": 0.0,
+        "df": 3.0,
+        "p": 1.0,
+        "mean_diff": 0.0
+      },
+      "Proposed_vs_BM25__f1": {
+        "t": -0.9568407631831998,
+        "df": 3.0,
+        "p": 0.40923621134230254,
+        "mean_diff": -0.04587553423513493
+      },
+      "Proposed_vs_BM25__leak_full_ratio": {
+        "t": -0.2613996612077353,
+        "df": 3.0,
+        "p": 0.810702985986565,
+        "mean_diff": -0.030621114996115
+      },
+      "Proposed_vs_NoRAG__f1": {
+        "t": 1.0845241443733933,
+        "df": 3.0,
+        "p": 0.35750680545193486,
+        "mean_diff": 0.07775782590999983
+      },
+      "Proposed_vs_NoRAG__leak_full_ratio": {
+        "t": 3.369038620403992,
+        "df": 3.0,
+        "p": 0.043441706752297506,
+        "mean_diff": 0.3075108027142911
+      }
     }
   },
   "qa_per_query": {
@@ -178,7 +210,7 @@
         "f1": 0.04,
         "rouge_l": 0.12373225152129817,
         "meteor": 0.19354838709471797,
-        "latency_s": 5.037363099982031,
+        "latency_s": 16.504686399945058,
         "answer": "Organelles are essential components within cells that perform specific functions. They provide foundational intuition for Cell Biology problems by connecting definitions with practical computations, helping students understand how different parts of a cell work together to maintain life processes.",
         "top_k_doc_ids": [
           0,
@@ -199,7 +231,7 @@
         "f1": 0.28985507246376807,
         "rouge_l": 0.16776677667766776,
         "meteor": 0.30674846625541796,
-        "latency_s": 5.336429100017995,
+        "latency_s": 11.893277899944223,
         "answer": "DNA is a key concept in Genetics within Biology because it connects definitions with practical computations, much like how organelles provide foundational intuition for Cell Biology problems. Just as understanding the role of temperature in Thermodynamics helps build towards more advanced theorems, DNA's importance in Genetics lies in its fundamental role in heredity",
         "top_k_doc_ids": [
           1,
@@ -220,7 +252,7 @@
         "f1": 0.28571428571428575,
         "rouge_l": 0.3469852104664391,
         "meteor": 0.35460992907695793,
-        "latency_s": 2.952626099984627,
+        "latency_s": 5.991835599998012,
         "answer": "One application of Eigenvalues in Linear Algebra is solving standard exercises and real-world applications.",
         "top_k_doc_ids": [
           2,
@@ -241,7 +273,7 @@
         "f1": 0.14814814814814814,
         "rouge_l": 0.19934640522875816,
         "meteor": 0.2238805970136946,
-        "latency_s": 3.9688481999910437,
+        "latency_s": 6.108108399901539,
         "answer": "One application of Series in Calculus is connecting definitions with practical computations, as seen in the context provided.",
         "top_k_doc_ids": [
           3,
@@ -264,7 +296,7 @@
         "f1": 0.04,
         "rouge_l": 0.12373225152129817,
         "meteor": 0.19354838709471797,
-        "latency_s": 6.6580632999539375,
+        "latency_s": 7.8301504999399185,
         "answer": "Organelles are essential components within cells that perform specific functions. They provide foundational intuition for Cell Biology problems by connecting definitions with practical computations, helping students understand how different parts of a cell work together to maintain life processes.",
         "top_k_doc_ids": [
           0,
@@ -285,7 +317,7 @@
         "f1": 0.28985507246376807,
         "rouge_l": 0.16776677667766776,
         "meteor": 0.30674846625541796,
-        "latency_s": 8.027388099988457,
+        "latency_s": 10.080689900089055,
         "answer": "DNA is a key concept in Genetics within Biology because it connects definitions with practical computations, much like how organelles provide foundational intuition for Cell Biology problems. Just as understanding the role of temperature in Thermodynamics helps build towards more advanced theorems, DNA's importance in Genetics lies in its fundamental role in heredity",
         "top_k_doc_ids": [
           1,
@@ -306,7 +338,7 @@
         "f1": 0.28571428571428575,
         "rouge_l": 0.3469852104664391,
         "meteor": 0.35460992907695793,
-        "latency_s": 3.5893690999946557,
+        "latency_s": 5.829966200049967,
         "answer": "One application of Eigenvalues in Linear Algebra is solving standard exercises and real-world applications.",
         "top_k_doc_ids": [
           2,
@@ -327,7 +359,7 @@
         "f1": 0.14814814814814814,
         "rouge_l": 0.19934640522875816,
         "meteor": 0.2238805970136946,
-        "latency_s": 3.9366867000353523,
+        "latency_s": 5.980118500068784,
         "answer": "One application of Series in Calculus is connecting definitions with practical computations, as seen in the context provided.",
         "top_k_doc_ids": [
           3,
@@ -350,7 +382,7 @@
         "f1": 0.07272727272727272,
         "rouge_l": 0.1901496259351621,
         "meteor": 0.31847133757750823,
-        "latency_s": 6.298967000038829,
+        "latency_s": 10.699486400000751,
         "answer": "Organelles are essential components within cells that perform specific functions. They provide foundational intuition for Cell Biology problems in Biology by connecting definitions with practical computations, helping students understand the structure and function of different cell organelles such as mitochondria, endoplasmic reticulum, and lysosomes.",
         "top_k_doc_ids": [
           0,
@@ -371,7 +403,7 @@
         "f1": 0.43902439024390244,
         "rouge_l": 0.2728085867620751,
         "meteor": 0.4195804195787668,
-        "latency_s": 4.411424799996894,
+        "latency_s": 7.334815499954857,
         "answer": "DNA is a key concept in Genetics within Biology because it connects definitions with practical computations, providing foundational intuition for understanding genetic processes and their applications.",
         "top_k_doc_ids": [
           1,
@@ -392,7 +424,7 @@
         "f1": 0.20689655172413793,
         "rouge_l": 0.3373893805309734,
         "meteor": 0.3521126760552272,
-        "latency_s": 4.317897900007665,
+        "latency_s": 6.064439300098456,
         "answer": "One application of Eigenvalues in Linear Algebra is to solve standard exercises and real-world applications.",
         "top_k_doc_ids": [
           2,
@@ -413,7 +445,7 @@
         "f1": 0.2285714285714286,
         "rouge_l": 0.2728085867620751,
         "meteor": 0.35460992907644484,
-        "latency_s": 4.8951201000018045,
+        "latency_s": 7.092912700027227,
         "answer": "One application of Series in Calculus is its use in approximating functions using polynomial series, which can be useful for practical computations and simplifying complex calculations.",
         "top_k_doc_ids": [
           3,
@@ -436,7 +468,7 @@
         "f1": 0.08333333333333334,
         "rouge_l": 0.21343596920923721,
         "meteor": 0.3333333333314266,
-        "latency_s": 5.574362799990922,
+        "latency_s": 9.763507299940102,
         "answer": "Organelles in cell biology are specialized structures within a cell that perform specific functions. One common application is the endoplasmic reticulum (ER), which is involved in protein synthesis and transport, lipid metabolism, and detoxification of harmful substances.",
         "top_k_doc_ids": [],
         "leak_retrieved_tokens": 0.0,
@@ -452,7 +484,7 @@
         "f1": 0.25396825396825395,
         "rouge_l": 0.21942446043165467,
         "meteor": 0.37735849056387805,
-        "latency_s": 4.9376745000481606,
+        "latency_s": 7.341575799975544,
         "answer": "DNA is crucial in Genetics for Biology because it carries the genetic instructions used in the development and functioning of all known living organisms. It contains the code that determines how traits are passed from parents to offspring, enabling life processes like growth, reproduction, and response to stimuli.",
         "top_k_doc_ids": [],
         "leak_retrieved_tokens": 0.0,
@@ -468,7 +500,7 @@
         "f1": 0.0,
         "rouge_l": 0.11856171039844508,
         "meteor": 0.13698630136854945,
-        "latency_s": 3.3200666999910027,
+        "latency_s": 4.665159499971196,
         "answer": "Eigenvalues are used in Principal Component Analysis (PCA) to reduce the dimensionality of data while preserving as much variance as possible.",
         "top_k_doc_ids": [],
         "leak_retrieved_tokens": 0.0,
@@ -484,7 +516,7 @@
         "f1": 0.11538461538461539,
         "rouge_l": 0.15813350615683733,
         "meteor": 0.25974025973823156,
-        "latency_s": 4.684206800011452,
+        "latency_s": 7.377887399983592,
         "answer": "One application of series in calculus is the use of Taylor series to approximate functions using polynomials. This allows for the calculation of function values at points where an exact solution might be difficult or impossible, such as near discontinuities or at infinity.",
         "top_k_doc_ids": [],
         "leak_retrieved_tokens": 0.0,
@@ -596,8 +628,8 @@
     ]
   },
   "classification_accuracy": 0.13333333333333333,
-  "classification_kl": 1.1645969648909484,
-  "wall_clock_s": 136.767068199988,
+  "classification_kl": 1.1550941085317445,
+  "wall_clock_s": 235.27446290000807,
   "dataset_type": "obe",
   "dataset_info": null
 }

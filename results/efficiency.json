@@ -1,33 +1,33 @@
 {
-  "rss_mb_now": 1100.06640625,
-  "uss_mb_now": 709.09375,
+  "rss_mb_now": 1119.4453125,
+  "uss_mb_now": 722.7890625,
   "model_mmap_mb": 940.369384765625,
-  "private_mb_now": 709.09375,
+  "private_mb_now": 722.7890625,
   "private_metric": "uss",
   "ram_budget_mb": 1024.0,
   "per_system": {
     "Proposed": {
-      "latency_mean_s": 4.323816624993924,
-      "latency_p50_s": 4.503105649986537,
-      "latency_p95_s": 5.2915692000126,
+      "latency_mean_s": 10.124477074947208,
+      "latency_p50_s": 9.000693149922881,
+      "latency_p95_s": 15.81297512494493,
       "n": 4
     },
     "VanillaRAG": {
-      "latency_mean_s": 5.552876799993101,
-      "latency_p50_s": 5.297374999994645,
-      "latency_p95_s": 7.821989379983278,
+      "latency_mean_s": 7.430231275036931,
+      "latency_p50_s": 6.905134500004351,
+      "latency_p95_s": 9.743108990066684,
       "n": 4
     },
     "BM25": {
-      "latency_mean_s": 4.980852450011298,
-      "latency_p50_s": 4.653272449999349,
-      "latency_p95_s": 6.088389965033275,
+      "latency_mean_s": 7.797913475020323,
+      "latency_p50_s": 7.213864099991042,
+      "latency_p95_s": 10.194785764993865,
       "n": 4
     },
     "NoRAG": {
-      "latency_mean_s": 4.629077700010384,
-      "latency_p50_s": 4.810940650029806,
-      "latency_p95_s": 5.478859554999508,
+      "latency_mean_s": 7.287032499967609,
+      "latency_p50_s": 7.359731599979568,
+      "latency_p95_s": 9.405664314946625,
       "n": 4
     }
   },

@@ -41,9 +41,13 @@ def _err(msg: str) -> None:
 REQUIRED_RESULTS: Tuple[str, ...] = (
     "metrics.json",
     "privacy_curve.json",
+    "privacy_guard_eval.json",
     "calibration.json",
     "efficiency.json",
     "uncertainty_analysis.json",
+    "cross_dataset_bloom_transfer.json",
+    "bloom_domain_shift_cue_analysis.json",
+    "unified_results_table.json",
 )
 
 DATASET_REQUIRED_RESULTS: Dict[str, Tuple[str, ...]] = {
@@ -57,11 +61,12 @@ DATASET_REQUIRED_RESULTS: Dict[str, Tuple[str, ...]] = {
 
 FIGURE_MAP: List[Tuple[str, str, str]] = [
     ("system_architecture.png", "Fig. 1", "System architecture of the proposed CPU-only, privacy-preserving cognitive RAG pipeline."),
-    ("asr_lambda_curve.png", "Fig. 2", "Privacy curve showing Attack Success Rate (ASR) as a function of the privacy coefficient $\\lambda$."),
-    ("reliability_diagram.png", "Fig. 3", "Reliability diagram for Bloom-level classification (Expected Calibration Error, ECE)."),
-    ("uncertainty_error_curve.png", "Fig. 4", "Uncertainty–error analysis linking Bloom uncertainty to empirical error rate."),
-    ("accuracy_privacy_pareto.png", "Fig. 5", "Privacy–utility Pareto plot comparing the proposed system to retrieval baselines."),
-    ("memory_latency_plot.png", "Fig. 6", "Efficiency analysis: latency by system and memory footprint under the <1GB private-RAM constraint."),
+    ("domain_shift_preserves_ordinal_structure.png", "Fig. 2", "Cross-domain Bloom transfer showing class-level degradation with stronger ordinal preservation."),
+    ("asr_lambda_curve.png", "Fig. 3", "Privacy curve showing Attack Success Rate (ASR) as a function of the privacy coefficient $\\lambda$."),
+    ("reliability_diagram.png", "Fig. 4", "Reliability diagram for Bloom-level classification (Expected Calibration Error, ECE)."),
+    ("uncertainty_error_curve.png", "Fig. 5", "Uncertainty–error analysis linking Bloom uncertainty to empirical error rate."),
+    ("accuracy_privacy_pareto.png", "Fig. 6", "Privacy–utility Pareto plot comparing the proposed system to retrieval baselines."),
+    ("memory_latency_plot.png", "Fig. 7", "Efficiency analysis: latency by system and memory footprint under the <1GB private-RAM constraint."),
 ]
 
 
@@ -358,7 +363,7 @@ def build(repo_root: Path | None = None, *, force: bool = False) -> None:
     seed = cfg.get("seed", 42)
 
     meta = {
-        "system_name": "A Lightweight Multi-Modal Tiny LLM Framework for Privacy-Preserving Academic Assistance in University Environments",
+        "system_name": "Cognitive Robustness and Privacy-Constrained Local Academic Assistance Under Domain Shift",
         "datasets_used": sorted(list(configs_by_dataset.keys())) or [str(dataset_type)],
         "classifier_type": "MiniLM (frozen) + linear LDL head (6-class) with ordinal constraints",
         "retriever_type": "FAISS IndexFlatL2 + InfoNCE risk penalty (score = cos − λ·risk)",
@@ -427,26 +432,23 @@ def build(repo_root: Path | None = None, *, force: bool = False) -> None:
         repro_ok = False
     if not eff_ok:
         repro_ok = False
-    # Ordinal MAE: compute quickly (no retraining) via classifier + OBE subset
+    # Ordinal transfer metrics should already be materialised by the
+    # consolidation pipeline. Packaging is pure file I/O; it should not import
+    # the model/evaluation stack or re-run encoders.
     try:
-        import evaluate as _evaluate  # local import; no network
-
-        cfg_obj = _evaluate.EvalConfig.smoke_profile()
-        # Restore config fields used by load_dataset()/setup_modules()
-        for k, v in cfg.items():
-            if hasattr(cfg_obj, k):
-                setattr(cfg_obj, k, v)
-        cfg_obj.run_llm = False
-        pipe = _evaluate.EvaluationPipeline(cfg_obj)
-        pipe.load_dataset()
-        pipe.setup_modules()
-        texts = [s.question for s in pipe.unc_pool]
-        labels = [s.bloom_level for s in pipe.unc_pool]
-        P = pipe.classifier.predict_distribution(texts)  # type: ignore[union-attr]
-        pred_idx = P.argmax(axis=1)
-        true_idx = _evaluate.np.array([_evaluate.BLOOM_INDEX[l.lower()] for l in labels])
-        ord_mae = float(_evaluate.np.abs(pred_idx - true_idx).mean())
-        if not _is_finite(ord_mae):
+        ordinal_path = results_dir / "cross_dataset_ordinal_distributions.json"
+        if ordinal_path.is_file():
+            ordinal = _load_json(ordinal_path)
+            ternary = ordinal.get("ternary", {})
+            for key in ("figshare_to_moocradar", "moocradar_to_figshare"):
+                item = ternary.get(key, {})
+                if not _is_finite(item.get("mean_ordinal_error")):
+                    repro_ok = False
+                if not _is_finite(item.get("within_one_level_accuracy")):
+                    repro_ok = False
+                if not _is_finite(item.get("severe_error_rate")):
+                    repro_ok = False
+        else:
             repro_ok = False
     except Exception:
         repro_ok = False

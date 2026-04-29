@@ -1,26 +1,26 @@
 {
   "binary": {
     "figshare_to_moocradar": {
-      "macro_f1_drop_vs_figshare_in_domain": 0.4199687643613882,
+      "macro_f1_drop_vs_figshare_in_domain": 0.5261816465408866,
       "within_one_level_drop_vs_figshare_in_domain": 0.0,
       "severe_error_increase_vs_figshare_in_domain": 0.0
     },
     "moocradar_to_figshare": {
-      "macro_f1_drop_vs_moocradar_in_domain": 0.22149871454450576,
+      "macro_f1_drop_vs_moocradar_in_domain": 0.3114961806237293,
       "within_one_level_drop_vs_moocradar_in_domain": 0.0,
       "severe_error_increase_vs_moocradar_in_domain": 0.0
     }
   },
   "ternary": {
     "figshare_to_moocradar": {
-      "macro_f1_drop_vs_figshare_in_domain": 0.5421315207550732,
-      "within_one_level_drop_vs_figshare_in_domain": 0.018111459098583582,
-      "severe_error_increase_vs_figshare_in_domain": 0.01811145909858356
+      "macro_f1_drop_vs_figshare_in_domain": 0.477613014025721,
+      "within_one_level_drop_vs_figshare_in_domain": 0.22606714628297364,
+      "severe_error_increase_vs_figshare_in_domain": 0.2260671462829736
     },
     "moocradar_to_figshare": {
-      "macro_f1_drop_vs_moocradar_in_domain": 0.37886203572341987,
-      "within_one_level_drop_vs_moocradar_in_domain": 0.11256946921492594,
-      "severe_error_increase_vs_moocradar_in_domain": 0.11256946921492597
+      "macro_f1_drop_vs_moocradar_in_domain": 0.3848032551004018,
+      "within_one_level_drop_vs_moocradar_in_domain": -0.023122302158273378,
+      "severe_error_increase_vs_moocradar_in_domain": -0.023122302158273392
     }
   }
 }

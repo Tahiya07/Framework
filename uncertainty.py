@@ -163,6 +163,22 @@ class UncertaintySummary:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class BloomGateDecision:
+    """Decision returned by the confidence threshold gate."""
+
+    accepted: bool
+    action: str
+    dominant_level: str
+    fallback_level: str
+    confidence: float
+    top1_probability: float
+    bloom_uncertainty: float
+    severe_jump_mass: float
+    top_alternatives: List[Tuple[str, float]]
+    reason: str
+
+
 # ----------------------------------------------------------------------------
 # UncertaintyEngine
 # ----------------------------------------------------------------------------
@@ -436,6 +452,113 @@ class UncertaintyEngine:
         )
 
     # ------------------------------------------------------------------ #
+    # 7) Confidence gate for human-in-the-loop / generalized fallback
+    # ------------------------------------------------------------------ #
+    def confidence_threshold_gate(
+        self,
+        bloom_distribution: Union[Sequence[float], np.ndarray],
+        *,
+        levels: Optional[Sequence[str]] = None,
+        confidence_threshold: float = 0.35,
+        top1_threshold: float = 0.40,
+        ambiguity_margin: float = 0.08,
+        severe_mass_threshold: float = 0.25,
+        fallback_level: str = "understand",
+    ) -> BloomGateDecision:
+        """Route unreliable Bloom predictions away from hard specialization.
+
+        The gate uses the full LDL distribution rather than only ``argmax``:
+        low entropy-confidence, weak top-1 probability, or large probability
+        mass two-or-more ordinal levels away from the argmax triggers a
+        human-in-the-loop/generalized response path. Adjacent uncertainty is
+        kept explicit as soft feedback instead of being hidden behind a hard
+        label.
+        """
+        if not (0.0 <= confidence_threshold <= 1.0):
+            raise ValueError("confidence_threshold must be in [0, 1]")
+        if not (0.0 <= top1_threshold <= 1.0):
+            raise ValueError("top1_threshold must be in [0, 1]")
+        if ambiguity_margin < 0:
+            raise ValueError("ambiguity_margin must be >= 0")
+        if not (0.0 <= severe_mass_threshold <= 1.0):
+            raise ValueError("severe_mass_threshold must be in [0, 1]")
+
+        names = list(levels) if levels is not None else [str(i) for i in range(self.K)]
+        if len(names) != self.K:
+            raise ValueError(f"expected {self.K} level names, got {len(names)}")
+
+        p = _as_prob(np.asarray(bloom_distribution, dtype=np.float64).reshape(-1), eps=self.eps)
+        if p.size != self.K:
+            raise ValueError(f"expected {self.K}-dim distribution, got {p.size}")
+
+        order = np.argsort(-p)
+        top_idx = int(order[0])
+        second_idx = int(order[1]) if self.K > 1 else top_idx
+        top1 = float(p[top_idx])
+        margin = float(p[top_idx] - p[second_idx])
+        bloom_unc = self.compute_bloom_uncertainty(p)
+        confidence = float(1.0 - bloom_unc)
+        distances = np.abs(np.arange(self.K) - top_idx)
+        severe_mass = float(p[distances >= 2].sum())
+
+        top_alternatives = [(names[int(i)], float(p[int(i)])) for i in order[: min(3, self.K)]]
+        low_confidence = confidence < confidence_threshold or top1 < top1_threshold
+        severe_risk = severe_mass >= severe_mass_threshold
+        adjacent_ambiguity = margin <= ambiguity_margin and abs(top_idx - second_idx) <= 1
+
+        if severe_risk:
+            return BloomGateDecision(
+                accepted=False,
+                action="human_in_loop",
+                dominant_level=names[top_idx],
+                fallback_level=fallback_level,
+                confidence=confidence,
+                top1_probability=top1,
+                bloom_uncertainty=float(bloom_unc),
+                severe_jump_mass=severe_mass,
+                top_alternatives=top_alternatives,
+                reason="severe_jump_risk",
+            )
+        if low_confidence:
+            return BloomGateDecision(
+                accepted=False,
+                action="generalized_fallback",
+                dominant_level=names[top_idx],
+                fallback_level=fallback_level,
+                confidence=confidence,
+                top1_probability=top1,
+                bloom_uncertainty=float(bloom_unc),
+                severe_jump_mass=severe_mass,
+                top_alternatives=top_alternatives,
+                reason="low_confidence",
+            )
+        if adjacent_ambiguity:
+            return BloomGateDecision(
+                accepted=True,
+                action="soft_feedback",
+                dominant_level=names[top_idx],
+                fallback_level=names[top_idx].lower(),
+                confidence=confidence,
+                top1_probability=top1,
+                bloom_uncertainty=float(bloom_unc),
+                severe_jump_mass=severe_mass,
+                top_alternatives=top_alternatives,
+                reason="adjacent_level_ambiguity",
+            )
+        return BloomGateDecision(
+            accepted=True,
+            action="auto",
+            dominant_level=names[top_idx],
+            fallback_level=names[top_idx].lower(),
+            confidence=confidence,
+            top1_probability=top1,
+            bloom_uncertainty=float(bloom_unc),
+            severe_jump_mass=severe_mass,
+            top_alternatives=top_alternatives,
+            reason="accepted",
+        )
+
+    # ------------------------------------------------------------------ #
     # Internal: input validation for calibration arrays
     # ------------------------------------------------------------------ #
     @staticmethod
@@ -649,7 +772,22 @@ def _self_test() -> None:
     assert int(rep.bin_counts.sum()) == 1000
 
     # ------------------------------------------------------------------ #
-    # 8. Bad-input handling
+    # 8. Confidence gate
+    # ------------------------------------------------------------------ #
+    gate = eng.confidence_threshold_gate(
+        np.array([0.05, 0.05, 0.72, 0.12, 0.03, 0.03]),
+        levels=["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"],
+    )
+    assert gate.accepted and gate.action in {"auto", "soft_feedback"}
+    assert gate.dominant_level == "Apply"
+    risky = eng.confidence_threshold_gate(
+        np.array([0.36, 0.08, 0.06, 0.05, 0.10, 0.35]),
+        levels=["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"],
+    )
+    assert not risky.accepted and risky.action == "human_in_loop"
+
+    # ------------------------------------------------------------------ #
+    # 9. Bad-input handling
     # ------------------------------------------------------------------ #
     for kwargs in ({"K": 1}, {"n_bins": 1}, {"eps": 0.0}, {"eps": -1.0}):
         try:

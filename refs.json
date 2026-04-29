@@ -1,0 +1,160 @@
+[
+  {
+    "key": "good_bad_rag",
+    "title": "The Good and The Bad: Exploring Privacy Issues in Retrieval-Augmented Generation (RAG)",
+    "authors": "Zeng, Zhang, He, Liu, Xing, Xu, Ren, Wang, Yin, Chang, and Tang",
+    "year": "2024"
+  },
+  {
+    "key": "remoterag",
+    "title": "RemoteRAG: A Privacy-Preserving LLM Cloud RAG Service",
+    "authors": "Cheng, Zhang, Wang, Yuan, and Yao",
+    "year": "2025"
+  },
+  {
+    "key": "trip_rag",
+    "title": "Privacy-Preserving Retrieval-Augmented Generation with Differential Privacy",
+    "authors": "Koga, Wu, Zhang, and Chaudhuri",
+    "year": "2025"
+  },
+  {
+    "key": "beyond_text",
+    "title": "Beyond Text: Unveiling Privacy Vulnerabilities in Multi-modal Retrieval-Augmented Generation",
+    "authors": "Zhang, Zeng, Ren, Zheng, Liu, Tang, Liu, and Chang",
+    "year": "2025"
+  },
+  {
+    "key": "extracting_training_data_llms",
+    "title": "Extracting Training Data from Large Language Models",
+    "authors": "Carlini, Tramer, Wallace, Jagielski, Herbert-Voss, Lee, Roberts, Brown, Song, Erlingsson, Oprea, and Raffel",
+    "year": "2021"
+  },
+  {
+    "key": "membership_inference_ml",
+    "title": "Membership Inference Attacks Against Machine Learning Models",
+    "authors": "Shokri, Stronati, Song, and Shmatikov",
+    "year": "2017"
+  },
+  {
+    "key": "prompt_extraction_attacks",
+    "title": "Prompt Extraction Attacks Against LLMs",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  },
+
+  {
+    "key": "rag_knowledge_intensive",
+    "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+    "authors": "Lewis et al.",
+    "year": "2020"
+  },
+  {
+    "key": "retro",
+    "title": "RETRO: Improving Language Models with Retrieval",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  },
+  {
+    "key": "multidocfusion",
+    "title": "MultiDocFusion: Advanced Multi-Document Retrieval for LLMs",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  },
+
+  {
+    "key": "qlora",
+    "title": "QLoRA: Efficient Finetuning of Quantized LLMs",
+    "authors": "Dettmers et al.",
+    "year": "2023"
+  },
+  {
+    "key": "awq",
+    "title": "AWQ: Activation-aware Weight Quantization for LLMs",
+    "authors": "Lin et al.",
+    "year": "2023/2024"
+  },
+  {
+    "key": "tinyllama",
+    "title": "TinyLlama: Open Small-Scale Language Models",
+    "authors": "Zhang et al.",
+    "year": "2024"
+  },
+  {
+    "key": "phi2",
+    "title": "Phi-2: Microsoft Small Language Model",
+    "authors": "Microsoft Research",
+    "year": "2023"
+  },
+
+  {
+    "key": "blip2",
+    "title": "BLIP-2: Bootstrapping Language-Image Pretraining with Frozen Image Encoders and Large Language Models",
+    "authors": "Li et al.",
+    "year": "2023"
+  },
+  {
+    "key": "llava",
+    "title": "LLaVA: Large Language and Vision Assistant",
+    "authors": "Liu et al.",
+    "year": "2023"
+  },
+  {
+    "key": "layoutlmv3",
+    "title": "LayoutLMv3: Pre-training for Document AI with State-of-the-Art Layout Understanding",
+    "authors": "Huang et al.",
+    "year": "2022"
+  },
+
+  {
+    "key": "bloom_bert",
+    "title": "Automated Bloom’s Taxonomy Classification Using BERT",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  },
+  {
+    "key": "obe_based_learning_outcome",
+    "title": "OBE-Based Learning Outcome Classification",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  },
+
+  {
+    "key": "domain_adaptation_survey",
+    "title": "Domain Adaptation for NLP: A Survey",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  },
+  {
+    "key": "ood_glm",
+    "title": "Out-of-Distribution Generalization in LLMs",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  },
+
+  {
+    "key": "selfcheckgpt",
+    "title": "SelfCheckGPT: Zero-Resource Hallucination Detection",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  },
+  {
+    "key": "faithfulness_rag",
+    "title": "Faithfulness in Retrieval-Augmented Generation",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  },
+
+  {
+    "key": "privacy_utility_tradeoff_ml",
+    "title": "On the Privacy-Utility Trade-off in Machine Learning",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  },
+  {
+    "key": "eval_privacy_vs_utility_llm",
+    "title": "Evaluating Privacy vs Utility in LLM Systems",
+    "authors": "[Author(s)]",
+    "year": "[Year]"
+  }
+]
+

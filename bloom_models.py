@@ -1,13 +1,17 @@
 from __future__ import annotations
 
-from typing import Dict, List
+import re
+from typing import Dict, List, Sequence
 
 import numpy as np
-from sklearn.base import BaseEstimator, ClassifierMixin, clone
+from scipy import sparse
+from sklearn.base import BaseEstimator, ClassifierMixin, TransformerMixin
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.svm import LinearSVC
+
+from encoder_backends import StableTextEncoder
 
 
 BLOOM_LEVELS: List[str] = [
@@ -21,6 +25,96 @@ BLOOM_LEVELS: List[str] = [
 
 LOWER_ORDER = ["Remember", "Understand", "Apply"]
 HIGHER_ORDER = ["Analyze", "Evaluate", "Create"]
+
+BLOOM_ACTION_VERBS: Dict[str, List[str]] = {
+    "Remember": [
+        "define", "describe", "identify", "label", "list", "match", "name",
+        "recall", "recognize", "select", "state",
+    ],
+    "Understand": [
+        "classify", "compare", "contrast", "discuss", "explain", "illustrate",
+        "interpret", "outline", "paraphrase", "summarize",
+    ],
+    "Apply": [
+        "apply", "calculate", "demonstrate", "determine", "execute",
+        "implement", "solve", "use",
+    ],
+    "Analyze": [
+        "analyze", "differentiate", "distinguish", "examine", "infer",
+        "investigate", "organize", "relate",
+    ],
+    "Evaluate": [
+        "appraise", "argue", "assess", "critique", "defend", "evaluate",
+        "judge", "justify", "recommend",
+    ],
+    "Create": [
+        "compose", "construct", "create", "design", "develop", "formulate",
+        "generate", "plan", "produce", "propose", "synthesize",
+    ],
+}
+
+_QUESTION_STARTERS = {"what", "why", "how", "when", "where", "which", "who"}
+
+
+class BloomCueTransformer(BaseEstimator, TransformerMixin):
+    """Domain-light Bloom cue features focused on verbs and question form.
+
+    TF-IDF baselines tend to learn subject vocabulary. These features provide a
+    compact domain-invariant channel that emphasizes cognitive demand cues.
+    """
+
+    def __init__(self, normalize: bool = True) -> None:
+        self.normalize = bool(normalize)
+        self.feature_names_: List[str] = []
+
+    def fit(self, X: Sequence[str], y: Sequence[str] | None = None):
+        del X, y
+        names: List[str] = []
+        for level in BLOOM_LEVELS:
+            names.append(f"cue_count_{level.lower()}")
+        for level in BLOOM_LEVELS:
+            names.append(f"cue_present_{level.lower()}")
+        names.extend(
+            [
+                "starts_with_question_word",
+                "has_question_mark",
+                "token_count_log",
+                "first_token_is_bloom_verb",
+            ]
+        )
+        self.feature_names_ = names
+        return self
+
+    def transform(self, X: Sequence[str]):
+        rows = []
+        for text in X:
+            raw = str(text).lower()
+            tokens = re.findall(r"[a-z]+", raw)
+            token_count = max(1, len(tokens))
+            token_set = set(tokens)
+
+            counts = []
+            present = []
+            for level in BLOOM_LEVELS:
+                verbs = BLOOM_ACTION_VERBS[level]
+                count = sum(1 for token in tokens if token in verbs)
+                value = count / token_count if self.normalize else float(count)
+                counts.append(float(value))
+                present.append(1.0 if token_set.intersection(verbs) else 0.0)
+
+            first = tokens[0] if tokens else ""
+            all_verbs = {verb for verbs in BLOOM_ACTION_VERBS.values() for verb in verbs}
+            rows.append(
+                counts
+                + present
+                + [
+                    1.0 if first in _QUESTION_STARTERS else 0.0,
+                    1.0 if "?" in raw else 0.0,
+                    float(np.log1p(token_count)),
+                    1.0 if first in all_verbs else 0.0,
+                ]
+            )
+        return sparse.csr_matrix(np.asarray(rows, dtype=np.float32))
 
 
 def make_feature_union() -> FeatureUnion:
@@ -52,10 +146,44 @@ def make_feature_union() -> FeatureUnion:
     )
 
 
+def make_domain_robust_feature_union() -> FeatureUnion:
+    return FeatureUnion(
+        [
+            ("lexical", make_feature_union()),
+            ("bloom_cues", BloomCueTransformer(normalize=True)),
+        ]
+    )
+
+
+def make_bloom_cue_logreg_pipeline(class_weight: str | None = "balanced") -> Pipeline:
+    return Pipeline(
+        [
+            ("features", BloomCueTransformer(normalize=True)),
+            (
+                "clf",
+                LogisticRegression(
+                    max_iter=2000,
+                    solver="lbfgs",
+                    class_weight=class_weight,
+                ),
+            ),
+        ]
+    )
+
+
 def make_linear_svm_pipeline(class_weight: str | None = "balanced") -> Pipeline:
     return Pipeline(
         [
             ("features", make_feature_union()),
+            ("clf", LinearSVC(class_weight=class_weight)),
+        ]
+    )
+
+
+def make_domain_robust_linear_svm_pipeline(class_weight: str | None = "balanced") -> Pipeline:
+    return Pipeline(
+        [
+            ("features", make_domain_robust_feature_union()),
             ("clf", LinearSVC(class_weight=class_weight)),
         ]
     )
@@ -74,6 +202,98 @@ def make_logreg_pipeline(class_weight: str | None = "balanced") -> Pipeline:
                 ),
             ),
         ]
+    )
+
+
+def make_domain_robust_logreg_pipeline(class_weight: str | None = "balanced") -> Pipeline:
+    return Pipeline(
+        [
+            ("features", make_domain_robust_feature_union()),
+            (
+                "clf",
+                LogisticRegression(
+                    max_iter=2000,
+                    solver="lbfgs",
+                    class_weight=class_weight,
+                ),
+            ),
+        ]
+    )
+
+
+class EmbeddingLogisticClassifier(BaseEstimator, ClassifierMixin):
+    """Logistic head over compact transformer embeddings.
+
+    Set ``encoder_name`` to a local MiniLM/SmolLM-style encoder snapshot through
+    the constructor or ``BLOOM_ENCODER_NAME`` in the evaluator. The encoder is
+    offline-first and falls back to hashing if a transformer checkpoint is not
+    available, preserving reproducible CPU-only execution.
+    """
+
+    def __init__(
+        self,
+        encoder_name: str = "all-MiniLM-L6-v2",
+        class_weight: str | None = "balanced",
+        max_iter: int = 2000,
+        batch_size: int = 64,
+        n_features: int = 384,
+        local_files_only: bool = True,
+    ) -> None:
+        self.encoder_name = encoder_name
+        self.class_weight = class_weight
+        self.max_iter = int(max_iter)
+        self.batch_size = int(batch_size)
+        self.n_features = int(n_features)
+        self.local_files_only = bool(local_files_only)
+
+    def fit(self, X: Sequence[str], y: Sequence[str]):
+        self.encoder_ = StableTextEncoder(
+            self.encoder_name,
+            device="cpu",
+            local_files_only=self.local_files_only,
+            n_features=self.n_features,
+        )
+        X_emb = self.encoder_.encode(
+            list(X),
+            batch_size=self.batch_size,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+            normalize_embeddings=True,
+        )
+        self.clf_ = LogisticRegression(
+            max_iter=self.max_iter,
+            solver="lbfgs",
+            class_weight=self.class_weight,
+        )
+        self.clf_.fit(X_emb, list(y))
+        self.classes_ = self.clf_.classes_
+        return self
+
+    def _encode(self, X: Sequence[str]) -> np.ndarray:
+        if not hasattr(self, "encoder_"):
+            raise RuntimeError("classifier is not fitted")
+        return self.encoder_.encode(
+            list(X),
+            batch_size=self.batch_size,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+            normalize_embeddings=True,
+        )
+
+    def predict(self, X: Sequence[str]) -> np.ndarray:
+        return self.clf_.predict(self._encode(X))
+
+    def predict_proba(self, X: Sequence[str]) -> np.ndarray:
+        return self.clf_.predict_proba(self._encode(X))
+
+
+def make_embedding_logreg_classifier(
+    encoder_name: str = "all-MiniLM-L6-v2",
+    class_weight: str | None = "balanced",
+) -> EmbeddingLogisticClassifier:
+    return EmbeddingLogisticClassifier(
+        encoder_name=encoder_name,
+        class_weight=class_weight,
     )
 
 
@@ -138,19 +358,25 @@ class HierarchicalBloomClassifier(BaseEstimator, ClassifierMixin):
 
 
 class OrdinalThresholdClassifier(BaseEstimator, ClassifierMixin):
-    def __init__(self, class_weight: str | None = "balanced") -> None:
+    def __init__(
+        self,
+        class_weight: str | None = "balanced",
+        levels: Sequence[str] | None = None,
+    ) -> None:
         self.class_weight = class_weight
+        self.levels = levels
         self.vectorizer_ = make_feature_union()
         self.threshold_models_: List[LogisticRegression] = []
-        self.classes_ = np.array(BLOOM_LEVELS)
+        self.classes_ = np.array(list(self.levels) if self.levels is not None else BLOOM_LEVELS)
 
     def fit(self, X: List[str], y: List[str]):
         X_list = list(X)
-        y_idx = np.array([BLOOM_LEVELS.index(label) for label in y], dtype=np.int32)
+        levels = list(self.levels) if self.levels is not None else BLOOM_LEVELS
+        y_idx = np.array([levels.index(label) for label in y], dtype=np.int32)
         self.vectorizer_ = make_feature_union()
         X_vec = self.vectorizer_.fit_transform(X_list)
         self.threshold_models_ = []
-        for threshold in range(len(BLOOM_LEVELS) - 1):
+        for threshold in range(len(levels) - 1):
             binary = (y_idx > threshold).astype(np.int32)
             clf = LogisticRegression(
                 max_iter=2000,
@@ -159,6 +385,7 @@ class OrdinalThresholdClassifier(BaseEstimator, ClassifierMixin):
             )
             clf.fit(X_vec, binary)
             self.threshold_models_.append(clf)
+        self.classes_ = np.array(levels)
         return self
 
     def predict_proba(self, X: List[str]) -> np.ndarray:
@@ -171,9 +398,10 @@ class OrdinalThresholdClassifier(BaseEstimator, ClassifierMixin):
         # Enforce monotonic decreasing P(y > k)
         cum = np.minimum.accumulate(cum, axis=1)
 
-        out = np.zeros((len(X), len(BLOOM_LEVELS)), dtype=np.float64)
+        levels = list(self.classes_)
+        out = np.zeros((len(X), len(levels)), dtype=np.float64)
         out[:, 0] = 1.0 - cum[:, 0]
-        for idx in range(1, len(BLOOM_LEVELS) - 1):
+        for idx in range(1, len(levels) - 1):
             out[:, idx] = np.clip(cum[:, idx - 1] - cum[:, idx], 0.0, 1.0)
         out[:, -1] = np.clip(cum[:, -1], 0.0, 1.0)
         out = out / np.clip(out.sum(axis=1, keepdims=True), 1e-9, None)
@@ -182,7 +410,8 @@ class OrdinalThresholdClassifier(BaseEstimator, ClassifierMixin):
     def predict(self, X: List[str]) -> np.ndarray:
         probs = self.predict_proba(X)
         idx = np.argmax(probs, axis=1)
-        return np.array([BLOOM_LEVELS[i] for i in idx])
+        levels = list(self.classes_)
+        return np.array([levels[i] for i in idx])
 
 
 def _softmax_rows(scores: np.ndarray) -> np.ndarray:

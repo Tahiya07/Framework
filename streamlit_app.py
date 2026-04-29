@@ -16,7 +16,7 @@ from classifier import (
     LocalOBEClassifier,
     OBEClassifierOutput,
 )
-from evaluate import (
+from runtime_utils import (
     DEFAULT_N_CTX,
     DEFAULT_N_THREADS,
     _apply_retrieval_governor,
@@ -438,12 +438,34 @@ def main() -> None:
                 st.stop()
 
             class_out = classifier.predict(query)
-            bloom_level = class_out.dominant_level.lower()
             bloom_uncertainty = uncertainty.compute_bloom_uncertainty(class_out.distribution)
+            bloom_gate = uncertainty.confidence_threshold_gate(
+                class_out.distribution,
+                levels=BLOOM_LEVELS,
+                confidence_threshold=0.35,
+                top1_threshold=0.40,
+                fallback_level="understand",
+            )
+            bloom_level = (
+                class_out.dominant_level.lower()
+                if bloom_gate.accepted
+                else bloom_gate.fallback_level
+            )
+            gate_instruction = ""
+            if not bloom_gate.accepted:
+                gate_instruction = (
+                    "Bloom classifier uncertainty is high; use a generalized academic "
+                    "response and avoid over-specializing to a single Bloom level."
+                )
 
             if mode == "Exam Question Classification":
                 st.subheader("Exam Classification")
                 _show_obe_result(obe_classifier.predict(query))
+                if not bloom_gate.accepted:
+                    st.warning(
+                        "Bloom prediction routed to human-in-the-loop/generalized fallback "
+                        f"({bloom_gate.reason})."
+                    )
                 with st.expander("Bloom Distribution", expanded=False):
                     rows = [
                         {"level": level, "probability": round(float(prob), 4)}
@@ -460,7 +482,9 @@ def main() -> None:
                     top_k=top_k,
                     governor_preset=governor_preset,
                     retriever=runtime["protected_retriever"] if role_key == "teacher" and search_scope == "protected" else runtime["retriever"],
-                    safety_instruction=policy_instruction(role_key, search_scope),
+                    safety_instruction="\n".join(
+                        part for part in [policy_instruction(role_key, search_scope), gate_instruction] if part
+                    ),
                 )
             else:
                 result = _run_summary(
@@ -470,7 +494,9 @@ def main() -> None:
                     max_tokens=max_tokens,
                     governor_preset=governor_preset,
                     retriever=runtime["protected_retriever"] if role_key == "teacher" and search_scope == "protected" else runtime["retriever"],
-                    safety_instruction=policy_instruction(role_key, search_scope),
+                    safety_instruction="\n".join(
+                        part for part in [policy_instruction(role_key, search_scope), gate_instruction] if part
+                    ),
                 )
 
             output_policy = screen_generation_output(role_key, query, result["text"], protected_chunks)
@@ -495,6 +521,17 @@ def main() -> None:
             metric_cols[2].metric("Bloom Uncertainty", f"{bloom_uncertainty:.3f}")
             metric_cols[3].metric("Latency", f"{result['latency_s']:.2f} s")
             metric_cols[4].metric("Retrieved Chunks", len(result["chunks"]))
+            if not bloom_gate.accepted:
+                st.warning(
+                    "Bloom gate used generalized fallback "
+                    f"'{bloom_gate.fallback_level}' because {bloom_gate.reason} "
+                    f"(severe jump mass={bloom_gate.severe_jump_mass:.3f})."
+                )
+            elif bloom_gate.action == "soft_feedback":
+                st.info(
+                    "Bloom gate kept the automatic route but marked adjacent-level "
+                    "ambiguity for soft feedback."
+                )
 
             infra_cols = st.columns(4)
             infra_cols[0].metric("RSS", f"{rss_mb:.1f} MB")

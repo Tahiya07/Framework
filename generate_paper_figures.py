@@ -27,6 +27,11 @@ def _rows(data: dict) -> list[dict]:
             "moocradar_to_figshare",
         ]:
             m = block[name]["selected_metrics"]
+            gate_050 = (
+                m.get("confidence_gate", {})
+                .get("thresholds", {})
+                .get("0.50", {})
+            )
             rows.append(
                 {
                     "scheme": scheme,
@@ -37,6 +42,9 @@ def _rows(data: dict) -> list[dict]:
                     "mean_ordinal_error": m["mean_ordinal_error"],
                     "within_one_level_accuracy": m["within_one_level_accuracy"],
                     "severe_error_rate": m["severe_error_rate"],
+                    "gate_050_human_loop_rate": gate_050.get("human_loop_rate", np.nan),
+                    "gate_050_accepted_severe_error_rate": gate_050.get("accepted_severe_error_rate", np.nan),
+                    "gate_050_severe_error_caught_rate": gate_050.get("severe_error_caught_rate", np.nan),
                 }
             )
     return rows
@@ -47,9 +55,18 @@ def _save_performance_table(df: pd.DataFrame) -> None:
     df.to_csv(out_csv, index=False)
 
     disp = df.copy()
-    for col in ["accuracy", "macro_f1", "mean_ordinal_error", "within_one_level_accuracy", "severe_error_rate"]:
+    for col in [
+        "accuracy",
+        "macro_f1",
+        "mean_ordinal_error",
+        "within_one_level_accuracy",
+        "severe_error_rate",
+        "gate_050_human_loop_rate",
+        "gate_050_accepted_severe_error_rate",
+        "gate_050_severe_error_caught_rate",
+    ]:
         disp[col] = disp[col].map(lambda x: f"{x:.3f}")
-    fig, ax = plt.subplots(figsize=(15, 4.8))
+    fig, ax = plt.subplots(figsize=(18, 4.8))
     ax.axis("off")
     table = ax.table(
         cellText=disp.values,
@@ -161,7 +178,7 @@ def _plot_key_figure(df: pd.DataFrame) -> None:
     ax.set_xticks(x, labels)
     ax.set_ylim(0, 1.0)
     ax.set_ylabel("Score")
-    ax.set_title("Domain Shift Preserves Ordinal Structure Despite Classification Collapse")
+    ax.set_title("Domain Shift Retains More Ordinal Than Exact Bloom Signal")
     ax.legend()
     for xi, v in zip(x - w / 2, sub["macro_f1"]):
         ax.text(xi, v + 0.02, f"{v:.2f}", ha="center", va="bottom", fontsize=9)

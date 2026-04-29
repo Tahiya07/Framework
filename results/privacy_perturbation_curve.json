@@ -1,0 +1,25 @@
+{
+  "sigma": [
+    0.0,
+    0.05,
+    0.1,
+    0.15
+  ],
+  "asr_doc": [
+    1.0,
+    1.0,
+    1.0,
+    0.9
+  ],
+  "asr_cos": [
+    1.0,
+    1.0,
+    1.0,
+    0.9
+  ],
+  "n_samples": 10,
+  "threshold": 0.85,
+  "query_perturb_mode": "add_gaussian_noise_to_query_then_renormalize",
+  "auc_asr_doc": 0.1475,
+  "auc_asr_cos": 0.1475
+}

@@ -47,8 +47,8 @@ CLI
 ---
 ::
 
-    python evaluate.py                   # full pipeline (slow, hits Qwen)
-    python evaluate.py --smoke           # fast self-test on 10 samples (default)
+    python evaluate.py                   # full pipeline (default for paper artifacts)
+    python evaluate.py --smoke           # fast self-test on 10 samples
     python evaluate.py --no-llm          # skip LLM-bound runs (no QA / SPU)
 """
 
@@ -73,7 +73,6 @@ from typing import (
 
 import numpy as np
 
-print("EVALUATE STARTED")
 # ----------------------------------------------------------------------------
 # Reproducibility (mandated global rule)
 # ----------------------------------------------------------------------------
@@ -192,6 +191,9 @@ SYSTEM_COLOR: Dict[str, str] = {
 # λ values used for the privacy curve.
 LAMBDA_GRID: List[float] = [0.0, 0.25, 0.5, 0.75, 1.0]
 
+# σ values used for the RemoteRAG-style query-embedding perturbation curve.
+SIGMA_GRID: List[float] = [0.0, 0.05, 0.10, 0.15]
+
 
 # ============================================================================
 # Configuration
@@ -213,25 +215,25 @@ class EvalConfig:
     figures_dir: str = "figures"
 
     # ---- sample budgets ------------------------------------------------
-    n_total: int = 10                          # number of OBE rows used end-to-end
-    n_test_qa: int = 4                         # how many to run through Qwen RAG
-    n_uncertainty_pool: int = 60               # how many for cheap Bloom analysis
-    n_spu: int = 2                             # # queries to run SPU on (very slow)
-    n_stochastic: int = 2                      # # stochastic forwards per SPU query
+    n_total: int = 200                         # number of OBE rows used end-to-end
+    n_test_qa: int = 40                        # how many to run through Qwen RAG
+    n_uncertainty_pool: int = 300              # how many for cheap Bloom analysis
+    n_spu: int = 10                            # # queries to run SPU on (very slow)
+    n_stochastic: int = 3                      # # stochastic forwards per SPU query
     train_per_class: int = 60                  # for classifier (only if untrained)
 
     # ---- generation -----------------------------------------------------
-    max_tokens: int = 64
+    max_tokens: int = 128
     n_ctx: int = DEFAULT_N_CTX
     n_threads: int = DEFAULT_N_THREADS
     seed: int = 42
-    top_k_retrieve: int = 4
+    top_k_retrieve: int = 5
     # FAISS pool size before governor trims to ``top_k_retrieve`` (must be >> k).
     faiss_top_n: int = 20
     # Retrieval governor: off | mild | strong (snippet caps + optional diversify).
-    governor_preset: str = "off"
+    governor_preset: str = "mild"
     # Extra Proposed-only sweep across presets (writes governor_ablation.json).
-    run_governor_ablation: bool = False
+    run_governor_ablation: bool = True
     # Bloom classifier training: "obe" (data/obe_dataset.csv) or "figshare".
     bloom_train_source: str = "obe"
     # If True, fail when governor_ablation shows no leakage drop strong vs off.
@@ -248,7 +250,7 @@ class EvalConfig:
 
     # ---- modes ----------------------------------------------------------
     run_llm: bool = True                       # gate Qwen-bound experiments
-    smoke: bool = True                         # self-test profile
+    smoke: bool = False                        # self-test profile
 
     # ---- benchmark routing (Phase-7 extension) -------------------------
     # When ``dataset_type`` is left None the pipeline behaves *exactly* as
@@ -281,9 +283,9 @@ class EvalConfig:
     @classmethod
     def full_profile(cls) -> "EvalConfig":
         return cls(
-            n_total=200,
-            n_test_qa=40,
-            n_uncertainty_pool=300,
+            n_total=650,
+            n_test_qa=250,
+            n_uncertainty_pool=600,
             n_spu=10,
             n_stochastic=3,
             max_tokens=128,
@@ -448,6 +450,17 @@ def _leakage_scores(answer: str, retrieved_union: str, full_source: str) -> Dict
         "leak_retrieved_ratio": float(rt / n_out),
         "leak_full_corpus_ratio": float(ft / n_out),
     }
+
+
+def _token_coverage(needle: str, haystack: str) -> float:
+    """Fraction of needle tokens present in haystack tokens (set-based)."""
+    n_toks = _norm_tokens(needle)
+    if not n_toks:
+        return 1.0
+    h_set = set(_norm_tokens(haystack))
+    if not h_set:
+        return 0.0
+    return float(sum(1 for t in n_toks if t in h_set) / len(n_toks))
 
 
 def _apply_retrieval_governor(
@@ -886,6 +899,9 @@ class GenResult:
     leak_full_corpus_tokens: float = 0.0
     leak_retrieved_ratio: float = 0.0
     leak_full_corpus_ratio: float = 0.0
+    # Retrieval grounding / faithfulness proxies (cheap + deterministic).
+    retrieval_hit: float = 0.0
+    ref_answer_coverage_in_retrieval: float = 0.0
     context_char_count: int = 0
     avg_snippet_chars: float = 0.0
 
@@ -908,7 +924,7 @@ class EvaluationPipeline:
     _shared_qwen_path: Optional[str] = None
 
     def __init__(self, config: Optional[EvalConfig] = None) -> None:
-        self.cfg = config or EvalConfig.smoke_profile()
+        self.cfg = config or EvalConfig.full_profile()
         # When a benchmark dataset_type is set, partition outputs into
         # per-dataset subfolders (results/<type>/, figures/<type>/) so
         # parallel benchmarks never overwrite one another.
@@ -1208,7 +1224,50 @@ class EvaluationPipeline:
                 self.classifier._enc = encoder
         elif weights.is_file():
             logger.info(f"Loading classifier from {weights}")
-            self.classifier = BloomLDLClassifier.load(weights, encoder=encoder)
+            try:
+                self.classifier = BloomLDLClassifier.load(weights, encoder=encoder)
+            except Exception as e:
+                logger.warning(
+                    "Classifier weights at %s are unreadable (%s); retraining fresh.",
+                    weights,
+                    e,
+                )
+                try:
+                    weights.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                texts: List[str] = []
+                labels: List[str] = []
+                src = (self.cfg.bloom_train_source or "obe").lower()
+                trained = False
+                if src == "obe":
+                    try:
+                        csv_p = self.cfg.obe_csv
+                        if not csv_p:
+                            fo = _find_obe_dataset()
+                            csv_p = str(fo) if fo else None
+                        texts, labels = load_obe_dataset(
+                            path=csv_p,
+                            max_per_class=self.cfg.train_per_class,
+                            seed=self.cfg.seed,
+                        )
+                        trained = True
+                    except Exception as e_obe:
+                        logger.warning(
+                            "OBE Bloom training failed (%s); falling back to Figshare.",
+                            e_obe,
+                        )
+                if not trained:
+                    from classifier import load_figshare_exam_dataset
+
+                    texts, labels = load_figshare_exam_dataset(
+                        max_per_class=self.cfg.train_per_class,
+                        seed=self.cfg.seed,
+                    )
+                self.classifier = BloomLDLClassifier(encoder=encoder)
+                self.classifier.fit(texts, labels)
+                weights.parent.mkdir(parents=True, exist_ok=True)
+                self.classifier.save(weights)
         else:
             logger.info(
                 "Classifier weights missing; training fresh "
@@ -1398,14 +1457,14 @@ class EvaluationPipeline:
     ) -> List[RetrievalResult]:
         """Retrieve a large FAISS/BM25 pool, then apply the retrieval governor."""
         pool_n = max(int(self.cfg.faiss_top_n), int(top_k))
-        gov = (self.cfg.governor_preset or "off").lower()
+        proposed_gov = (self.cfg.governor_preset or "off").lower()
         if system == "Proposed":
             assert self.proposed_retr is not None
             pool = self.proposed_retr.retrieve(
                 query, top_k=pool_n, candidate_pool=pool_n,
             )
             out, _ = _apply_retrieval_governor(
-                pool, gov, query, final_k=top_k, retr=self.proposed_retr,
+                pool, proposed_gov, query, final_k=top_k, retr=self.proposed_retr,
             )
             return out
         if system == "VanillaRAG":
@@ -1414,14 +1473,14 @@ class EvaluationPipeline:
                 query, top_k=pool_n, candidate_pool=pool_n,
             )
             out, _ = _apply_retrieval_governor(
-                pool, gov, query, final_k=top_k, retr=self.vanilla_retr,
+                pool, "off", query, final_k=top_k, retr=self.vanilla_retr,
             )
             return out
         if system == "BM25":
             assert self.bm25 is not None
             pool = self.bm25.retrieve(query, top_k=pool_n)
             out, _ = _apply_retrieval_governor(
-                pool, gov, query, final_k=top_k, retr=None,
+                pool, "off", query, final_k=top_k, retr=None,
             )
             return out
         if system == "NoRAG":
@@ -1459,6 +1518,8 @@ class EvaluationPipeline:
                 mt = float(meteor_lite(ans, sm.summary))
                 retr_union = "\n\n".join(c.text for c in chunks) if chunks else ""
                 leaks = _leakage_scores(ans, retr_union, sm.source_text or "")
+                retrieval_hit = 1.0 if any(int(c.doc_id) == int(sm.idx) for c in chunks) else 0.0
+                ref_cov = _token_coverage(sm.answer, retr_union)
                 ctx_chars = sum(len(c.text) for c in chunks)
                 avg_sn = (
                     float(np.mean([len(c.text) for c in chunks]))
@@ -1478,6 +1539,8 @@ class EvaluationPipeline:
                     leak_full_corpus_tokens=leaks["leak_full_corpus_tokens"],
                     leak_retrieved_ratio=leaks["leak_retrieved_ratio"],
                     leak_full_corpus_ratio=leaks["leak_full_corpus_ratio"],
+                    retrieval_hit=retrieval_hit,
+                    ref_answer_coverage_in_retrieval=ref_cov,
                     context_char_count=int(ctx_chars),
                     avg_snippet_chars=avg_sn,
                 ))
@@ -1490,7 +1553,16 @@ class EvaluationPipeline:
         agg: Dict[str, Dict[str, Any]] = {}
         for s_name, results in per_system.items():
             metrics: Dict[str, Any] = {}
-            for key in ("em", "f1", "rouge_l", "meteor", "latency_s"):
+            for key in (
+                "em",
+                "f1",
+                "rouge_l",
+                "meteor",
+                "latency_s",
+                "leak_retrieved_ratio",
+                "retrieval_hit",
+                "ref_answer_coverage_in_retrieval",
+            ):
                 vals = [getattr(r, key) for r in results]
                 m, lo, hi = bootstrap_ci(
                     vals, n=self.cfg.bootstrap_n,
@@ -1499,12 +1571,24 @@ class EvaluationPipeline:
                 metrics[key] = {"mean": m, "ci_lo": lo, "ci_hi": hi, "n": len(vals)}
             agg[s_name] = metrics
 
-        # Paired t-test: Proposed vs VanillaRAG on F1
-        if "Proposed" in per_system and "VanillaRAG" in per_system:
-            a = [r.f1 for r in per_system["Proposed"]]
-            b = [r.f1 for r in per_system["VanillaRAG"]]
-            t = paired_ttest(a, b)
-            agg["paired_ttest_f1__Proposed_vs_VanillaRAG"] = t
+        # Paired tests for reviewer-facing significance reporting.
+        paired: Dict[str, Dict[str, float]] = {}
+        comparisons = [
+            ("Proposed", "VanillaRAG"),
+            ("Proposed", "BM25"),
+            ("Proposed", "NoRAG"),
+        ]
+        for left, right in comparisons:
+            if left not in per_system or right not in per_system:
+                continue
+            l_f1 = [r.f1 for r in per_system[left]]
+            r_f1 = [r.f1 for r in per_system[right]]
+            l_leak = [r.leak_full_corpus_ratio for r in per_system[left]]
+            r_leak = [r.leak_full_corpus_ratio for r in per_system[right]]
+            paired[f"{left}_vs_{right}__f1"] = paired_ttest(l_f1, r_f1)
+            paired[f"{left}_vs_{right}__leak_full_ratio"] = paired_ttest(l_leak, r_leak)
+        if paired:
+            agg["paired_tests"] = paired
 
         self.results["qa"] = agg
         self.results["qa_per_query"] = {
@@ -1520,6 +1604,8 @@ class EvaluationPipeline:
                     "leak_full_corpus_tokens": r.leak_full_corpus_tokens,
                     "leak_retrieved_ratio": r.leak_retrieved_ratio,
                     "leak_full_corpus_ratio": r.leak_full_corpus_ratio,
+                    "retrieval_hit": r.retrieval_hit,
+                    "ref_answer_coverage_in_retrieval": r.ref_answer_coverage_in_retrieval,
                     "context_char_count": r.context_char_count,
                     "avg_snippet_chars": r.avg_snippet_chars,
                 }
@@ -1538,6 +1624,12 @@ class EvaluationPipeline:
                 ),
                 "max_leak_retrieved_ratio": float(
                     np.max([r.leak_retrieved_ratio for r in res])
+                ),
+                "mean_retrieval_hit": float(
+                    np.mean([r.retrieval_hit for r in res])
+                ),
+                "mean_ref_answer_coverage_in_retrieval": float(
+                    np.mean([r.ref_answer_coverage_in_retrieval for r in res])
                 ),
                 "mean_leak_full_corpus_ratio": float(
                     np.mean([r.leak_full_corpus_ratio for r in res])
@@ -1730,6 +1822,93 @@ class EvaluationPipeline:
         out["auc_asr_doc"] = float(_trap(out["asr_doc"], out["lambda"]))
         out["auc_asr_cos"] = float(_trap(out["asr_cos"], out["lambda"]))
         self.results["privacy"] = out
+        return out
+
+    # =================================================================== #
+    # 5.5 Privacy perturbation curve (RemoteRAG-style)
+    # =================================================================== #
+    def run_privacy_perturbation_curve(self) -> Dict[str, Any]:
+        """Sweep σ and measure retrieval re-identification risk.
+
+        RemoteRAG-style analogue: add Gaussian noise to query embeddings
+        before FAISS search (deterministic per query text), then measure
+        ASR(doc-match) and ASR(cos>=threshold) on the resulting top-1.
+        """
+        if self.proposed_retr is None:
+            raise RuntimeError("setup_modules() not called")
+
+        encoder = self.proposed_retr.model
+        emb = self.proposed_retr._embeddings
+        assert emb is not None
+
+        out: Dict[str, Any] = {
+            "sigma": [],
+            "asr_doc": [],
+            "asr_cos": [],
+            "n_samples": len(self.samples),
+            "threshold": self.cfg.asr_threshold,
+            "query_perturb_mode": "add_gaussian_noise_to_query_then_renormalize",
+        }
+
+        for sig in SIGMA_GRID:
+            r = PrivacyRetriever(
+                temperature=0.07,
+                lambda_privacy=0.0,
+                model=encoder,
+                query_perturb_sigma=float(sig),
+                query_perturb_seed_base=self.cfg.seed,
+            )
+            # Reuse the already-built corpus embeddings / FAISS index.
+            r._docs = self.proposed_retr._docs
+            r._embeddings = self.proposed_retr._embeddings
+            r._dim = self.proposed_retr._dim
+            import faiss  # type: ignore[import-not-found]
+            idx = faiss.IndexFlatL2(r._dim)
+            idx.add(r._embeddings)
+            r._index = idx
+
+            doc_hits = 0
+            cos_hits = 0
+            pool_n = max(int(self.cfg.faiss_top_n), 5)
+            for s in self.samples:
+                results = r.retrieve(s.question, top_k=1, candidate_pool=pool_n)
+                if not results:
+                    continue
+                top = results[0]
+                if top.doc_id == s.idx:
+                    doc_hits += 1
+                # Cosine vs ground-truth source for the fallback metric
+                gt_emb = emb[s.idx][None, :]
+                top_emb = emb[top.doc_id][None, :]
+                cos = float((gt_emb @ top_emb.T).squeeze())
+                if cos >= self.cfg.asr_threshold:
+                    cos_hits += 1
+
+            asr_doc = doc_hits / max(1, len(self.samples))
+            asr_cos = cos_hits / max(1, len(self.samples))
+            out["sigma"].append(float(sig))
+            out["asr_doc"].append(float(asr_doc))
+            out["asr_cos"].append(float(asr_cos))
+            logger.info(
+                "  σ=%.2f -> ASR(doc-match)=%.2f  ASR(cos≥%.2f)=%.2f",
+                sig,
+                asr_doc,
+                self.cfg.asr_threshold,
+                asr_cos,
+            )
+
+        # AUC of ASR vs σ (trapezoidal). Lower = better privacy on average.
+        _trap = getattr(np, "trapezoid", getattr(np, "trapz", None))
+        if _trap is None:  # pragma: no cover
+            def _trap(y: Sequence[float], x: Sequence[float]) -> float:
+                y_a = np.asarray(y, dtype=np.float64)
+                x_a = np.asarray(x, dtype=np.float64)
+                return float(np.sum((y_a[:-1] + y_a[1:]) * np.diff(x_a) / 2.0))
+
+        out["auc_asr_doc"] = float(_trap(out["asr_doc"], out["sigma"]))
+        out["auc_asr_cos"] = float(_trap(out["asr_cos"], out["sigma"]))
+
+        self.results["privacy_perturbation"] = out
         return out
 
     # =================================================================== #
@@ -2545,6 +2724,7 @@ class EvaluationPipeline:
         })
         for name, payload in (
             ("privacy_curve", self.results.get("privacy")),
+            ("privacy_perturbation_curve", self.results.get("privacy_perturbation")),
             ("calibration", self.results.get("calibration")),
             ("efficiency", self.results.get("efficiency")),
             ("uncertainty_analysis", self.results.get("uncertainty")),
@@ -2982,6 +3162,7 @@ class EvaluationPipeline:
             if self.cfg.run_governor_ablation and self.cfg.run_llm:
                 self.run_governor_ablation_qa()
             self.run_privacy_curve()
+            self.run_privacy_perturbation_curve()
             self.run_uncertainty_and_calibration()
         elif dt_name == "bloom":
             self.run_classification_only()
@@ -3038,6 +3219,7 @@ class EvaluationPipeline:
         if self.cfg.run_governor_ablation and self.cfg.run_llm:
             self.run_governor_ablation_qa()
         self.run_privacy_curve()
+        self.run_privacy_perturbation_curve()
         self.run_uncertainty_and_calibration()
         self.run_efficiency()
 
@@ -3176,7 +3358,7 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     p.add_argument("--full", action="store_true",
                    help="Use the full profile (large samples, hours-scale).")
     p.add_argument("--smoke", action="store_true",
-                   help="Use the smoke profile (fast self-test, default).")
+                   help="Use the smoke profile (fast self-test).")
     p.add_argument("--no-llm", action="store_true",
                    help="Skip Qwen-bound experiments (QA / SPU disabled).")
     p.add_argument("--obe-csv", type=str, default=None,
@@ -3221,6 +3403,12 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--faiss-top-n", type=int, default=None,
         help="FAISS pool size before governor trims to top_k_retrieve (default 20).",
     )
+    p.add_argument("--n-total", type=int, default=None,
+                   help="Override end-to-end sample budget.")
+    p.add_argument("--n-test-qa", type=int, default=None,
+                   help="Override number of QA prompts evaluated with LLM.")
+    p.add_argument("--n-uncertainty-pool", type=int, default=None,
+                   help="Override uncertainty/calibration evaluation pool size.")
     return p.parse_args(argv)
 
 
@@ -3228,7 +3416,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parse_args(argv)
     if args.full and args.smoke:
         raise SystemExit("--full and --smoke are mutually exclusive")
-    cfg = EvalConfig.full_profile() if args.full else EvalConfig.smoke_profile()
+    cfg = EvalConfig.smoke_profile() if args.smoke else EvalConfig.full_profile()
     if args.no_llm:
         cfg.run_llm = False
     if args.obe_csv:
@@ -3249,6 +3437,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         cfg.strict_execution_fidelity = True
     if args.faiss_top_n is not None:
         cfg.faiss_top_n = int(args.faiss_top_n)
+    if args.n_total is not None:
+        cfg.n_total = int(args.n_total)
+    if args.n_test_qa is not None:
+        cfg.n_test_qa = int(args.n_test_qa)
+    if args.n_uncertainty_pool is not None:
+        cfg.n_uncertainty_pool = int(args.n_uncertainty_pool)
 
     if args.build_paper:
         # Must not re-run experiments; only audit + pack existing outputs.

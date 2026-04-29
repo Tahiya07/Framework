@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import logging
 import os
+import hashlib
 import random
 import sys
 from dataclasses import dataclass
@@ -93,6 +94,13 @@ DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
 EMBED_DIM = 384
 
 
+def _stable_seed_from_text(text: str, seed_base: int) -> int:
+    """Deterministic 32-bit seed from text (for query perturbation)."""
+    msg = f"{seed_base}|{text or ''}".encode("utf-8")
+    digest = hashlib.blake2b(msg, digest_size=4).digest()
+    return int.from_bytes(digest, "little", signed=False)
+
+
 # ----------------------------------------------------------------------------
 # Result container
 # ----------------------------------------------------------------------------
@@ -134,16 +142,22 @@ class PrivacyRetriever:
         lambda_privacy: float = 0.5,
         normalize: bool = True,
         model: Optional[StableTextEncoder] = None,
+        query_perturb_sigma: float = 0.0,
+        query_perturb_seed_base: int = 42,
     ) -> None:
         if temperature <= 0:
             raise ValueError("temperature must be > 0")
         if lambda_privacy < 0:
             raise ValueError("lambda_privacy must be >= 0")
+        if query_perturb_sigma < 0:
+            raise ValueError("query_perturb_sigma must be >= 0")
 
         self.model_name = model_name
         self.temperature = float(temperature)
         self.lambda_privacy = float(lambda_privacy)
         self.normalize = bool(normalize)
+        self.query_perturb_sigma = float(query_perturb_sigma)
+        self.query_perturb_seed_base = int(query_perturb_seed_base)
 
         self._model: Optional[StableTextEncoder] = model
         self._index: Optional[faiss.Index] = None
@@ -269,6 +283,7 @@ class PrivacyRetriever:
         """Retrieve top-k documents under the privacy-aware score.
 
         1. Encode the query.
+        1. Optionally perturb the query embedding (RemoteRAG-style analogue).
         2. FAISS L2 search over a candidate pool (default 4 * top_k).
         3. Re-rank by ``cosine - lambda * infonce_risk``.
         """
@@ -287,6 +302,21 @@ class PrivacyRetriever:
                 )
 
         q_emb = self.encode(queries)              # (1, D)
+        if self.query_perturb_sigma > 0.0:
+            # RemoteRAG-style analogue: perturb query embedding before ANN search.
+            # Determinism comes from seeding off the query text.
+            q_text = queries[0]
+            seed = _stable_seed_from_text(q_text, self.query_perturb_seed_base)
+            rng = np.random.default_rng(seed)
+            noise = rng.normal(
+                loc=0.0,
+                scale=self.query_perturb_sigma,
+                size=q_emb.shape,
+            ).astype(np.float32)
+            q_emb = q_emb + noise
+            if self.normalize:
+                denom = np.linalg.norm(q_emb, axis=1, keepdims=True)
+                q_emb = q_emb / (denom + 1e-12)
         N = self._embeddings.shape[0]
         pool = min(max(candidate_pool or top_k * 4, top_k), N)
 

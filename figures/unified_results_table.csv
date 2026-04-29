@@ -1,0 +1,40 @@
+evidence_area,protocol,setting,model,primary_metric,primary_value,accuracy,within_one_level_accuracy,severe_error_rate,interpretation
+cognitive robustness,binary Bloom transfer,Figshare in-domain,linear_svm_balanced,macro_f1,0.9099639855942376,0.91,1.0,0.0,in-domain reference point
+cognitive robustness,binary Bloom transfer,MoocRadar in-domain,linear_svm_balanced,macro_f1,0.7740453415681253,0.775,1.0,0.0,in-domain reference point
+cognitive robustness,binary Bloom transfer,Figshare -> MoocRadar,linear_svm_balanced,macro_f1,0.3837823390533511,0.502,1.0,0.0,cross-domain class-level degradation
+cognitive robustness,binary Bloom transfer,MoocRadar -> Figshare,linear_svm_balanced,macro_f1,0.462549160944396,0.49,1.0,0.0,cross-domain class-level degradation
+cognitive robustness,ternary Bloom transfer,Figshare in-domain,linear_svm_balanced,macro_f1,0.7794220544276375,0.78,0.9433333333333334,0.056666666666666664,in-domain reference point
+cognitive robustness,ternary Bloom transfer,MoocRadar in-domain,linear_svm_balanced,macro_f1,0.7328651359585713,0.7338129496402878,0.9028776978417267,0.09712230215827339,in-domain reference point
+cognitive robustness,ternary Bloom transfer,Figshare -> MoocRadar,logreg_balanced,macro_f1,0.3018090404019165,0.4064748201438849,0.7172661870503597,0.2827338129496403,cross-domain class-level degradation
+cognitive robustness,ternary Bloom transfer,MoocRadar -> Figshare,ordinal_threshold,macro_f1,0.34806188085816947,0.4053333333333333,0.926,0.074,cross-domain class-level degradation
+domain-shift explanation,cue vs content ablation,Figshare -> MoocRadar,cue_only - content_tfidf,delta_severe_error,-0.024460431654676262,,0.024460431654676262,-0.024460431654676262,negative severe-error delta means Bloom cue features reduce severe ordinal jumps
+domain-shift explanation,cue plus content ablation,Figshare -> MoocRadar,combined - content_tfidf,delta_macro_f1,0.020390094863651897,,0.02086330935251801,-0.020863309352517956,tests whether cognitive cues add stable signal beyond topic vocabulary
+domain-shift explanation,cue vs content ablation,MoocRadar -> Figshare,cue_only - content_tfidf,delta_severe_error,-0.002000000000000001,,0.0020000000000000018,-0.002000000000000001,negative severe-error delta means Bloom cue features reduce severe ordinal jumps
+domain-shift explanation,cue plus content ablation,MoocRadar -> Figshare,combined - content_tfidf,delta_macro_f1,0.15480899211770424,,-0.01200000000000001,0.011999999999999999,tests whether cognitive cues add stable signal beyond topic vocabulary
+privacy-constrained deployment,retrieval leakage sweep,InfoNCE lambda sweep,PrivacyRetriever,document_match_asr_auc,0.58,,,,proxy leakage did not improve with lambda; report as negative result
+privacy-constrained deployment,retrieval leakage sweep,InfoNCE lambda sweep,PrivacyRetriever,cosine_threshold_asr_auc,0.835,,,,proxy leakage did not improve with lambda; avoid over-claiming privacy
+privacy-constrained deployment,role-aware adversarial prompt taxonomy,student reconstruction attacks,PrivacyGuard,block_rate,0.9487179487179487,,,,"measured resistance under defined attack prompts, not proof of perfect privacy"
+privacy-constrained deployment,role-aware benign-use check,student benign prompts,PrivacyGuard,allow_rate,1.0,,,,guard preserves benign study assistance in the evaluated set
+privacy-constrained deployment,attack taxonomy,direct_reconstruction,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
+privacy-constrained deployment,attack taxonomy,indirect_leakage,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
+privacy-constrained deployment,attack taxonomy,paraphrase_probe,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
+privacy-constrained deployment,attack taxonomy,partial_span_extraction,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
+privacy-constrained deployment,attack taxonomy,model_aware_jailbreak,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
+privacy-constrained deployment,attack taxonomy,gradient_free_paraphrase_optimization,PrivacyGuard,category_block_rate,0.8888888888888888,,,,category-level adversarial prompt result
+privacy-constrained deployment,attack taxonomy,multi_turn_probing,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
+privacy-constrained deployment,attack taxonomy,semantic_reconstruction,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
+privacy-constrained deployment,attack taxonomy,optimization_search_blackbox,PrivacyGuard,category_block_rate,0.5,,,,category-level adversarial prompt result
+privacy-constrained deployment,semantic leakage probe,protected concept overlap,PrivacyGuard,max_semantic_concept_ratio,1.0,,,,semantic-risk proxy for paraphrased leakage without long copied spans
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.2,PrivacyGuard,attack_block_rate / benign_allow_rate,1.0 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.3,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9871794871794872 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.4,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9743589743589743 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.5,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9487179487179487 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.62,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9487179487179487 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.75,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9487179487179487 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.9,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9487179487179487 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,integral summary,PrivacyGuard,attack_block_auc / benign_allow_auc,0.6730769230769231 / 0.7,,,,integrates strictness-vs-utility response across semantic thresholds
+deployment utility,bounded local QA,Proposed,Proposed,token_f1,0.1768958411534725,,,,utility reference under local/offline generation
+deployment utility,bounded local QA,VanillaRAG,VanillaRAG,token_f1,0.1768958411534725,,,,utility reference under local/offline generation
+deployment utility,bounded local QA,BM25,BM25,token_f1,0.17136643452674505,,,,utility reference under local/offline generation
+deployment utility,bounded local QA,NoRAG,NoRAG,token_f1,0.1439389888001012,,,,utility reference under local/offline generation
+deployment utility,resource constraint,private working-set memory,full framework,uss_mb,718.04296875,,,,private RAM footprint for CPU-only deployment

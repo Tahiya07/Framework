@@ -74,6 +74,7 @@ from classifier import (
     ClassifierOutput,
     DEFAULT_WEIGHTS_PATH as DEFAULT_CLASSIFIER_WEIGHTS,
 )
+from uncertainty import UncertaintyEngine
 
 # ----------------------------------------------------------------------------
 # Logging
@@ -151,6 +152,9 @@ class CognitiveSummarizer:
         classifier: Optional[BloomLDLClassifier] = None,
         hierarchical: bool = False,
         per_chunk_max_tokens: int = 64,
+        enable_uncertainty_gate: bool = True,
+        gate_confidence_threshold: float = 0.35,
+        gate_top1_threshold: float = 0.40,
     ) -> None:
         if not isinstance(retriever, PrivacyRetriever):
             raise TypeError("retriever must be a PrivacyRetriever instance")
@@ -166,6 +170,10 @@ class CognitiveSummarizer:
         self.classifier = classifier
         self.hierarchical = bool(hierarchical)
         self.per_chunk_max_tokens = int(per_chunk_max_tokens)
+        self.enable_uncertainty_gate = bool(enable_uncertainty_gate)
+        self.gate_confidence_threshold = float(gate_confidence_threshold)
+        self.gate_top1_threshold = float(gate_top1_threshold)
+        self._uncertainty = UncertaintyEngine(K=len(BLOOM_LEVELS), n_bins=10)
 
     # ------------------------------------------------------------------ #
     # Bloom inference
@@ -300,6 +308,29 @@ class CognitiveSummarizer:
             bloom_lc = self._validate_bloom(bloom_level)
             dist, conf, auto = None, None, False
 
+        gate_metadata: Dict[str, Any] = {"enabled": False}
+        if auto and dist is not None and self.enable_uncertainty_gate:
+            gate = self._uncertainty.confidence_threshold_gate(
+                dist,
+                levels=BLOOM_LEVELS,
+                confidence_threshold=self.gate_confidence_threshold,
+                top1_threshold=self.gate_top1_threshold,
+                fallback_level="understand",
+            )
+            gate_metadata = {
+                "enabled": True,
+                "accepted": gate.accepted,
+                "action": gate.action,
+                "reason": gate.reason,
+                "dominant_level": gate.dominant_level,
+                "fallback_level": gate.fallback_level,
+                "top1_probability": gate.top1_probability,
+                "severe_jump_mass": gate.severe_jump_mass,
+                "top_alternatives": gate.top_alternatives,
+            }
+            if not gate.accepted:
+                bloom_lc = self._validate_bloom(gate.fallback_level)
+
         style = self._style_for(bloom_lc)
 
         # 2. Retrieve context (Phase 1)
@@ -359,6 +390,7 @@ class CognitiveSummarizer:
                 "model_path": getattr(self.generator, "model_path", "<?>"),
                 "style_query": style_query,
                 "retrieved_chunks_supplied": bool(retrieved_chunks is not None),
+                "bloom_gate": gate_metadata,
             },
         )
 

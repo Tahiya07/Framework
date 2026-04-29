@@ -32,10 +32,12 @@ def main() -> None:
     confusions: Dict[str, object] = {}
     ordinal_distributions: Dict[str, object] = {}
     degradation: Dict[str, object] = {}
+    confidence_gates: Dict[str, object] = {}
 
     for scheme, block in data["schemes"].items():
         confusions[scheme] = {}
         ordinal_distributions[scheme] = {}
+        confidence_gates[scheme] = {}
         entries = {
             "figshare_to_moocradar": block["figshare_to_moocradar"],
             "moocradar_to_figshare": block["moocradar_to_figshare"],
@@ -57,6 +59,11 @@ def main() -> None:
                 "mean_ordinal_error": metrics["mean_ordinal_error"],
                 "within_one_level_accuracy": metrics["within_one_level_accuracy"],
                 "severe_error_rate": metrics["severe_error_rate"],
+            }
+            confidence_gates[scheme][name] = {
+                "selected_model": entry["selected_model"],
+                "labels": block["labels"],
+                "confidence_gate": metrics.get("confidence_gate", {}),
             }
 
         fig_in = _selected_metrics(block["within_dataset_figshare"])
@@ -84,6 +91,9 @@ def main() -> None:
     )
     (RESULTS_DIR / "cross_dataset_transfer_degradation_summary.json").write_text(
         json.dumps(degradation, indent=2), encoding="utf-8"
+    )
+    (RESULTS_DIR / "cross_dataset_confidence_gate_summary.json").write_text(
+        json.dumps(confidence_gates, indent=2), encoding="utf-8"
     )
     print("packaged")
 
