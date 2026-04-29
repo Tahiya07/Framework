@@ -2715,6 +2715,9 @@ class EvaluationPipeline:
             "classification_accuracy": self.results.get(
                 "uncertainty", {}
             ).get("classification_accuracy"),
+            "classification_macro_f1": self.results.get(
+                "uncertainty", {}
+            ).get("classification_macro_f1"),
             "classification_kl": self.results.get(
                 "uncertainty", {}
             ).get("classification_kl"),

@@ -11,9 +11,9 @@ domain-shift explanation,cue vs content ablation,Figshare -> MoocRadar,cue_only 
 domain-shift explanation,cue plus content ablation,Figshare -> MoocRadar,combined - content_tfidf,delta_macro_f1,0.020390094863651897,,0.02086330935251801,-0.020863309352517956,tests whether cognitive cues add stable signal beyond topic vocabulary
 domain-shift explanation,cue vs content ablation,MoocRadar -> Figshare,cue_only - content_tfidf,delta_severe_error,-0.002000000000000001,,0.0020000000000000018,-0.002000000000000001,negative severe-error delta means Bloom cue features reduce severe ordinal jumps
 domain-shift explanation,cue plus content ablation,MoocRadar -> Figshare,combined - content_tfidf,delta_macro_f1,0.15480899211770424,,-0.01200000000000001,0.011999999999999999,tests whether cognitive cues add stable signal beyond topic vocabulary
-privacy-constrained deployment,retrieval leakage sweep,InfoNCE lambda sweep,PrivacyRetriever,document_match_asr_auc,0.58,,,,proxy leakage did not improve with lambda; report as negative result
-privacy-constrained deployment,retrieval leakage sweep,InfoNCE lambda sweep,PrivacyRetriever,cosine_threshold_asr_auc,0.835,,,,proxy leakage did not improve with lambda; avoid over-claiming privacy
-privacy-constrained deployment,role-aware adversarial prompt taxonomy,student reconstruction attacks,PrivacyGuard,block_rate,0.9487179487179487,,,,"measured resistance under defined attack prompts, not proof of perfect privacy"
+privacy-constrained deployment,retrieval leakage sweep,InfoNCE lambda sweep,PrivacyRetriever,document_match_asr_auc,1.0,,,,proxy leakage did not improve with lambda; report as negative result
+privacy-constrained deployment,retrieval leakage sweep,InfoNCE lambda sweep,PrivacyRetriever,cosine_threshold_asr_auc,1.0,,,,proxy leakage did not improve with lambda; avoid over-claiming privacy
+privacy-constrained deployment,role-aware adversarial prompt taxonomy,student reconstruction attacks,PrivacyGuard,block_rate,0.9404761904761905,,,,"measured resistance under defined attack prompts, not proof of perfect privacy"
 privacy-constrained deployment,role-aware benign-use check,student benign prompts,PrivacyGuard,allow_rate,1.0,,,,guard preserves benign study assistance in the evaluated set
 privacy-constrained deployment,attack taxonomy,direct_reconstruction,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
 privacy-constrained deployment,attack taxonomy,indirect_leakage,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
@@ -24,17 +24,18 @@ privacy-constrained deployment,attack taxonomy,gradient_free_paraphrase_optimiza
 privacy-constrained deployment,attack taxonomy,multi_turn_probing,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
 privacy-constrained deployment,attack taxonomy,semantic_reconstruction,PrivacyGuard,category_block_rate,1.0,,,,category-level adversarial prompt result
 privacy-constrained deployment,attack taxonomy,optimization_search_blackbox,PrivacyGuard,category_block_rate,0.5,,,,category-level adversarial prompt result
+privacy-constrained deployment,attack taxonomy,embedding_guided_blackbox,PrivacyGuard,category_block_rate,0.8333333333333334,,,,category-level adversarial prompt result
 privacy-constrained deployment,semantic leakage probe,protected concept overlap,PrivacyGuard,max_semantic_concept_ratio,1.0,,,,semantic-risk proxy for paraphrased leakage without long copied spans
 privacy-constrained deployment,safety-utility curve,semantic_threshold=0.2,PrivacyGuard,attack_block_rate / benign_allow_rate,1.0 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
-privacy-constrained deployment,safety-utility curve,semantic_threshold=0.3,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9871794871794872 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
-privacy-constrained deployment,safety-utility curve,semantic_threshold=0.4,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9743589743589743 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
-privacy-constrained deployment,safety-utility curve,semantic_threshold=0.5,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9487179487179487 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
-privacy-constrained deployment,safety-utility curve,semantic_threshold=0.62,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9487179487179487 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
-privacy-constrained deployment,safety-utility curve,semantic_threshold=0.75,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9487179487179487 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
-privacy-constrained deployment,safety-utility curve,semantic_threshold=0.9,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9487179487179487 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
-privacy-constrained deployment,safety-utility curve,integral summary,PrivacyGuard,attack_block_auc / benign_allow_auc,0.6730769230769231 / 0.7,,,,integrates strictness-vs-utility response across semantic thresholds
-deployment utility,bounded local QA,Proposed,Proposed,token_f1,0.1768958411534725,,,,utility reference under local/offline generation
-deployment utility,bounded local QA,VanillaRAG,VanillaRAG,token_f1,0.1768958411534725,,,,utility reference under local/offline generation
-deployment utility,bounded local QA,BM25,BM25,token_f1,0.17136643452674505,,,,utility reference under local/offline generation
-deployment utility,bounded local QA,NoRAG,NoRAG,token_f1,0.1439389888001012,,,,utility reference under local/offline generation
-deployment utility,resource constraint,private working-set memory,full framework,uss_mb,718.04296875,,,,private RAM footprint for CPU-only deployment
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.3,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9761904761904762 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.4,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9642857142857143 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.5,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9404761904761905 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.62,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9404761904761905 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.75,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9404761904761905 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,semantic_threshold=0.9,PrivacyGuard,attack_block_rate / benign_allow_rate,0.9404761904761905 / 1.0,1.0,,,stricter semantic thresholds increase safety pressure and may reduce utility
+privacy-constrained deployment,safety-utility curve,integral summary,PrivacyGuard,attack_block_auc / benign_allow_auc,0.6672619047619047 / 0.7,,,,integrates strictness-vs-utility response across semantic thresholds
+deployment utility,bounded local QA,Proposed,Proposed,token_f1,0.1909293765815505,,,,utility reference under local/offline generation
+deployment utility,bounded local QA,VanillaRAG,VanillaRAG,token_f1,0.1909293765815505,,,,utility reference under local/offline generation
+deployment utility,bounded local QA,BM25,BM25,token_f1,0.23680491081668542,,,,utility reference under local/offline generation
+deployment utility,bounded local QA,NoRAG,NoRAG,token_f1,0.11317155067155069,,,,utility reference under local/offline generation
+deployment utility,resource constraint,private working-set memory,full framework,uss_mb,722.7890625,,,,private RAM footprint for CPU-only deployment

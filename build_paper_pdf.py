@@ -844,7 +844,7 @@ def build_story() -> list:
         "Table&nbsp;1b &mdash; Retrieval grounding / faithfulness proxies "
         f"on the same {qa_n}-query benchmark.",
         style_caption)]
-    g_rows = [["System", "Answer grounding (token overlap)", "Retrieval hit@k", "Ref answer coverage in retrieval"]]
+    g_rows = [["System", "Answer grounding (token overlap)", "Retrieval recall@k", "Ref answer coverage in retrieval"]]
     for s in ["Proposed", "VanillaRAG", "BM25", "NoRAG"]:
         d = qa[s]
         g_rows.append([
@@ -962,6 +962,12 @@ def build_story() -> list:
             "block rate",
             f"{PRIVACY_GUARD.get('student_attack_block_rate', 0.0):.3f}",
         ])
+        if "student_attack_success_rate" in PRIVACY_GUARD:
+            pg_rows.append([
+                "student attacks",
+                "attack success rate",
+                f"{PRIVACY_GUARD.get('student_attack_success_rate', 0.0):.3f}",
+            ])
         pg_rows.append([
             "student benign",
             "allow rate",
@@ -978,6 +984,12 @@ def build_story() -> list:
                 "category block rate",
                 f"{item.get('block_rate', 0.0):.3f}",
             ])
+            if "attack_success_rate" in item:
+                pg_rows.append([
+                    category.replace("_", " "),
+                    "category attack success rate",
+                    f"{item.get('attack_success_rate', 0.0):.3f}",
+                ])
         story.append(_table(pg_rows, col_widths=[2.0*inch, 1.7*inch, 0.9*inch]))
         story.append(_para(
             "These numbers should be read as role-policy evidence, not as "
@@ -1124,6 +1136,8 @@ def build_story() -> list:
         ["Metric", "Value"],
         ["Top-1 accuracy",
          f"{METRICS['classification_accuracy']:.4f}"],
+        ["Macro-F1",
+         f"{METRICS.get('classification_macro_f1', float('nan')):.4f}"],
         ["KL(predicted || one-hot gold)",
          f"{METRICS['classification_kl']:.4f}"],
         ["Expected Calibration Error",
