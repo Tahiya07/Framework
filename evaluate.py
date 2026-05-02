@@ -32,14 +32,6 @@ Outputs
     memory_latency_plot.{png,pdf}
     system_architecture.png
 
-Visual style
-------------
-Strict pastel palette (no other colours allowed):
-
-    mint      #98FF98
-    cyan      #AEEEEE
-    peach     #FFDAB9
-    limegreen #32CD32
 
 White background, sans-serif, no clutter. PNG + PDF for every plot.
 

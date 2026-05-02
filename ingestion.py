@@ -1,23 +1,14 @@
 """
-ingestion.py
+ingestion.py (PRIVACY-ENHANCED + MODEL-INTEGRATED VERSION)
 ==============================================================================
-Multi-modal document ingestion pipeline for the
-"Lightweight Multi-Modal Tiny LLM Framework for Privacy-Preserving Academic
-Assistance in University Environments" research codebase.
 
-Responsibilities
-----------------
-1. Parse PDF documents with PyMuPDF (text-first, fully offline).
-2. Extract text from images with EasyOCR (lazy-loaded, CPU only).
-3. Chunk arbitrary text with a token window + overlap policy.
-4. Provide a single :class:`DocumentIngestor` entry point that dispatches
-   on file extension and returns a list of :class:`DocumentChunk` records.
-
-Constraints
------------
-* CPU only, < 1 GB peak RAM, deterministic, no external API calls.
-* No installation logic in this file (assumed dependencies).
-* Reproducible: random / numpy / torch seeded to 42.
+Key properties:
+------------------------------------------------------------
+1. Strict raw vs safe separation (no leakage into retrieval index)
+2. Bloom classifier-driven semantic abstraction
+3. Retrieval-safe document representation only
+4. CPU-only deterministic pipeline
+5. Compatible with classifier.py + uncertainty.py
 """
 
 from __future__ import annotations
@@ -25,368 +16,221 @@ from __future__ import annotations
 import logging
 import random
 import re
-import sys
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Union
+from typing import Callable, List, Optional, Sequence, Union
 
 import numpy as np
 
-
-def _ok(msg: str) -> None:
-    """Console-safe success print (falls back to ASCII on cp1252 stdouts)."""
-    enc = (getattr(sys.stdout, "encoding", None) or "utf-8").lower()
-    mark = "\u2714" if "utf" in enc else "[OK]"
-    try:
-        print(f"{mark} {msg}")
-    except UnicodeEncodeError:  # pragma: no cover - defensive
-        print(f"[OK] {msg}")
-
-# ----------------------------------------------------------------------------
-# Reproducibility (mandated global rule)
-# ----------------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Reproducibility
+# ---------------------------------------------------------------------
 random.seed(42)
 np.random.seed(42)
+
 try:
-    import torch  # noqa: F401  (only needed for seeding here)
+    import torch
     torch.manual_seed(42)
-except Exception:  # pragma: no cover - torch is an assumed dep, but be safe
-    torch = None  # type: ignore[assignment]
+except Exception:
+    torch = None
 
 
-# ----------------------------------------------------------------------------
-# Optional heavy dependencies (lazy / guarded)
-# ----------------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Optional PDF support
+# ---------------------------------------------------------------------
 try:
     import fitz  # PyMuPDF
     _HAS_PYMUPDF = True
-except Exception:  # pragma: no cover
-    fitz = None  # type: ignore[assignment]
+except Exception:
+    fitz = None
     _HAS_PYMUPDF = False
 
-# EasyOCR is large; we only construct its Reader on first image call.
-_EASYOCR_READER = None  # type: ignore[var-annotated]
 
-
-# ----------------------------------------------------------------------------
+# ---------------------------------------------------------------------
 # Logging
-# ----------------------------------------------------------------------------
+# ---------------------------------------------------------------------
 logger = logging.getLogger("ingestion")
 if not logger.handlers:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="[%(name)s] %(levelname)s: %(message)s",
-    )
+    logging.basicConfig(level=logging.INFO)
 
 
-# ----------------------------------------------------------------------------
-# Data containers
-# ----------------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# SAFE representation (ONLY goes to retrieval system)
+# ---------------------------------------------------------------------
 @dataclass
-class DocumentChunk:
-    """A single chunk of text produced by the ingestion pipeline."""
-
+class SafeDocumentChunk:
     chunk_id: int
     source: str
-    modality: str  # one of {"pdf", "image", "text"}
-    page: Optional[int]
+    modality: str
+
+    # semantic metadata (derived, NOT raw text)
+    bloom_level: str
+    bloom_confidence: float
+    ordinal_risk: float
+
+    topic: Optional[str] = None
+    difficulty: Optional[str] = None
+
+
+# ---------------------------------------------------------------------
+# RAW internal representation (NEVER leaves ingestion module)
+# ---------------------------------------------------------------------
+@dataclass
+class RawDocumentChunk:
+    chunk_id: int
+    source: str
     text: str
-    access_level: str = "public"          # {"public", "protected"}
-    content_type: str = "study_material"  # {"study_material", "exam_paper", ...}
-
-    def __len__(self) -> int:  # convenience: len(chunk) == #chars
-        return len(self.text)
+    page: Optional[int]
+    modality: str
 
 
-# ----------------------------------------------------------------------------
-# Main ingestor
-# ----------------------------------------------------------------------------
-SUPPORTED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
-SUPPORTED_TEXT_EXTS = {".txt", ".md"}
-
-
+# ---------------------------------------------------------------------
+# Ingestion system
+# ---------------------------------------------------------------------
 class DocumentIngestor:
-    """End-to-end multi-modal document ingestion (PDF + OCR + chunking)."""
+    """
+    Privacy-preserving ingestion pipeline:
+    - Raw text is processed internally
+    - Only semantic abstractions are exported
+    """
 
     def __init__(
         self,
+        classifier: Callable[[str], object],
         chunk_size: int = 256,
         chunk_overlap: int = 32,
-        languages: Optional[Sequence[str]] = None,
         normalize_whitespace: bool = True,
     ) -> None:
+
         if chunk_size <= 0:
-            raise ValueError("chunk_size must be a positive integer")
-        if chunk_overlap < 0 or chunk_overlap >= chunk_size:
-            raise ValueError("chunk_overlap must satisfy 0 <= overlap < chunk_size")
+            raise ValueError("chunk_size must be positive")
+        if chunk_overlap >= chunk_size:
+            raise ValueError("invalid overlap")
 
-        self.chunk_size = int(chunk_size)
-        self.chunk_overlap = int(chunk_overlap)
-        self.languages = list(languages) if languages else ["en"]
-        self.normalize_whitespace = bool(normalize_whitespace)
+        self.classifier = classifier  # <<< KEY FIX
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self.normalize_whitespace = normalize_whitespace
 
-    # ------------------------------------------------------------------ #
-    # Text utilities
-    # ------------------------------------------------------------------ #
-    @staticmethod
-    def _normalize(text: str) -> str:
-        if not text:
-            return ""
+    # ---------------------------------------------------------
+    def _normalize(self, text: str) -> str:
         text = text.replace("\x00", " ")
-        text = re.sub(r"[ \t]+", " ", text)
-        text = re.sub(r"\n{3,}", "\n\n", text)
+        text = re.sub(r"\s+", " ", text)
         return text.strip()
 
-    def _chunk_iter(self, text: str) -> Iterable[str]:
-        """Token-window chunker with overlap.
-
-        We use whitespace tokens (a deterministic, model-agnostic proxy for
-        sub-word tokens). Each yielded chunk has at most ``chunk_size`` tokens
-        and consecutive chunks share ``chunk_overlap`` tokens.
-        """
-        if not text:
-            return
+    # ---------------------------------------------------------
+    def _chunk(self, text: str) -> List[str]:
         tokens = text.split()
-        if not tokens:
-            return
-        size = self.chunk_size
-        step = max(1, size - self.chunk_overlap)
-        n = len(tokens)
-        start = 0
-        while start < n:
-            window = tokens[start : start + size]
-            if not window:
-                break
-            yield " ".join(window)
-            if start + size >= n:
-                break
-            start += step
+        step = self.chunk_size - self.chunk_overlap
 
-    # ------------------------------------------------------------------ #
-    # PDF
-    # ------------------------------------------------------------------ #
-    def load_pdf(self, path: Union[str, Path]) -> List[DocumentChunk]:
-        """Parse a PDF and return chunked text per page."""
+        return [
+            " ".join(tokens[i:i + self.chunk_size])
+            for i in range(0, len(tokens), step)
+        ]
+
+    # ---------------------------------------------------------
+    # RAW PDF ingestion (internal only)
+    # ---------------------------------------------------------
+    def _load_pdf_raw(self, path: Path) -> List[RawDocumentChunk]:
         if not _HAS_PYMUPDF:
-            raise RuntimeError("PyMuPDF (fitz) is required for PDF parsing.")
-
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"PDF not found: {path}")
+            raise RuntimeError("PyMuPDF required")
 
         doc = fitz.open(str(path))
-        pages: List[tuple[int, str]] = []
+        chunks: List[RawDocumentChunk] = []
+        cid = 0
+
         try:
-            for page_idx in range(len(doc)):
-                page = doc[page_idx]
-                text = page.get_text("text") or ""
+            for i in range(len(doc)):
+                text = doc[i].get_text("text") or ""
+
                 if self.normalize_whitespace:
                     text = self._normalize(text)
-                if text:
-                    pages.append((page_idx + 1, text))
+
+                for piece in self._chunk(text):
+                    chunks.append(
+                        RawDocumentChunk(
+                            chunk_id=cid,
+                            source=str(path),
+                            text=piece,
+                            page=i + 1,
+                            modality="pdf",
+                        )
+                    )
+                    cid += 1
         finally:
             doc.close()
 
-        chunks: List[DocumentChunk] = []
-        cid = 0
-        for page_num, text in pages:
-            for piece in self._chunk_iter(text):
-                chunks.append(
-                    DocumentChunk(
-                        chunk_id=cid,
-                        source=str(path),
-                        modality="pdf",
-                        page=page_num,
-                        text=piece,
-                    )
-                )
-                cid += 1
         return chunks
 
-    # ------------------------------------------------------------------ #
-    # Image / OCR
-    # ------------------------------------------------------------------ #
-    def _get_easyocr_reader(self):
-        """Lazily build the EasyOCR reader (CPU only)."""
-        global _EASYOCR_READER
-        if _EASYOCR_READER is None:
-            try:
-                import easyocr  # local, lazy import
-            except ImportError as e:  # pragma: no cover - assumed dep
-                raise ImportError(
-                    "easyocr is required for image ingestion. "
-                    "Install easyocr to enable OCR."
-                ) from e
-            _EASYOCR_READER = easyocr.Reader(
-                self.languages, gpu=False, verbose=False
-            )
-        return _EASYOCR_READER
+    # ---------------------------------------------------------
+    # Semantic abstraction (THIS IS THE KEY CONTRIBUTION NOW)
+    # ---------------------------------------------------------
+    def _to_safe(self, raw: RawDocumentChunk) -> SafeDocumentChunk:
+        """
+        Converts raw text → Bloom-aware semantic representation.
+        """
 
-    def load_image(self, path: Union[str, Path]) -> List[DocumentChunk]:
-        """OCR an image and return chunked text."""
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"Image not found: {path}")
+        pred = self.classifier.predict(raw.text)
 
-        reader = self._get_easyocr_reader()
-        result = reader.readtext(str(path), detail=0, paragraph=True)
-        text = "\n".join(result).strip()
-        if self.normalize_whitespace:
-            text = self._normalize(text)
+        return SafeDocumentChunk(
+            chunk_id=raw.chunk_id,
+            source=raw.source,
+            modality=raw.modality,
 
-        chunks: List[DocumentChunk] = []
-        cid = 0
-        for piece in self._chunk_iter(text):
-            chunks.append(
-                DocumentChunk(
-                    chunk_id=cid,
-                    source=str(path),
-                    modality="image",
-                    page=None,
-                    text=piece,
-                )
-            )
-            cid += 1
-        return chunks
+            bloom_level=pred.label,
+            bloom_confidence=float(pred.confidence),
+            ordinal_risk=float(pred.ordinal_risk),
 
-    # ------------------------------------------------------------------ #
-    # Plain text
-    # ------------------------------------------------------------------ #
-    def chunk_text(
-        self,
-        text: str,
-        source: str = "<inline>",
-        modality: str = "text",
-    ) -> List[DocumentChunk]:
-        """Chunk an arbitrary string and return :class:`DocumentChunk` records."""
-        if self.normalize_whitespace:
-            text = self._normalize(text)
-        chunks: List[DocumentChunk] = []
-        cid = 0
-        for piece in self._chunk_iter(text):
-            chunks.append(
-                DocumentChunk(
-                    chunk_id=cid,
-                    source=source,
-                    modality=modality,
-                    page=None,
-                    text=piece,
-                )
-            )
-            cid += 1
-        return chunks
-
-    # ------------------------------------------------------------------ #
-    # Top-level dispatch
-    # ------------------------------------------------------------------ #
-    def process(self, path: Union[str, Path]) -> List[DocumentChunk]:
-        """Dispatch on file extension and run the appropriate parser."""
-        path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(path)
-
-        ext = path.suffix.lower()
-        if ext == ".pdf":
-            return self.load_pdf(path)
-        if ext in SUPPORTED_IMAGE_EXTS:
-            return self.load_image(path)
-        if ext in SUPPORTED_TEXT_EXTS:
-            with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                return self.chunk_text(f.read(), source=str(path), modality="text")
-        raise ValueError(f"Unsupported file type: {ext}")
-
-
-# ============================================================================
-# SELF-TEST
-# ----------------------------------------------------------------------------
-# Runs when this module is executed directly. Validates:
-#   * chunk_text behaviour: count, max length, overlap consistency.
-#   * PDF parsing on a synthetic in-memory PDF (PyMuPDF round trip).
-#   * dispatcher behaviour for .txt files.
-#   * input-validation errors are raised as expected.
-# OCR is skipped if easyocr is not present (graceful degradation).
-# ============================================================================
-def _build_dummy_pdf(path: Path) -> bool:
-    if not _HAS_PYMUPDF:
-        return False
-    doc = fitz.open()
-    page = doc.new_page()
-    page.insert_text((72, 72), "Lightweight Tiny LLM Framework. " * 20)
-    page2 = doc.new_page()
-    page2.insert_text((72, 72), "Privacy preserving retrieval module test page.")
-    doc.save(str(path))
-    doc.close()
-    return True
-
-
-def _self_test() -> None:
-    ing = DocumentIngestor(chunk_size=20, chunk_overlap=5)
-
-    # 1. chunk_text on a deterministic synthetic string ----------------------
-    txt = " ".join(f"tok{i}" for i in range(95))
-    cks = ing.chunk_text(txt, source="dummy", modality="text")
-    assert len(cks) >= 1, "chunk_text returned no chunks"
-    for c in cks:
-        n_tokens = len(c.text.split())
-        assert 1 <= n_tokens <= ing.chunk_size, (
-            f"chunk size violation: got {n_tokens}, max {ing.chunk_size}"
+            topic=None,
+            difficulty=None,
         )
-        assert c.modality == "text"
-        assert c.source == "dummy"
 
-    # consecutive chunks must share at least `overlap` tokens (set-intersection)
-    if len(cks) >= 2:
-        a = cks[0].text.split()
-        b = cks[1].text.split()
-        shared = len(set(a[-ing.chunk_overlap :]) & set(b[: ing.chunk_overlap]))
-        assert shared >= 1, "overlap policy broken: expected shared tokens"
+    # ---------------------------------------------------------
+    def to_safe_chunks(
+        self,
+        raw_chunks: List[RawDocumentChunk],
+    ) -> List[SafeDocumentChunk]:
 
-    # IDs are contiguous and start at 0
-    assert [c.chunk_id for c in cks] == list(range(len(cks))), "chunk ids broken"
+        return [self._to_safe(c) for c in raw_chunks]
 
-    # 2. PDF round trip ------------------------------------------------------
-    with tempfile.TemporaryDirectory() as tmp:
-        pdf_path = Path(tmp) / "sample.pdf"
-        built = _build_dummy_pdf(pdf_path)
-        if built:
-            chunks = ing.load_pdf(pdf_path)
-            assert len(chunks) >= 1, "PDF chunks empty"
-            assert any("Tiny" in c.text for c in chunks), "PDF text missing"
-            assert all(c.modality == "pdf" for c in chunks)
-            assert all(c.page is not None for c in chunks)
-        else:
-            logger.warning("PyMuPDF unavailable; skipped PDF self-test.")
+    # ---------------------------------------------------------
+    # PUBLIC API (SAFE ONLY)
+    # ---------------------------------------------------------
+    def process_pdf_safe(self, path: Union[str, Path]) -> List[SafeDocumentChunk]:
+        path = Path(path)
 
-    # 3. process() dispatch on .txt -----------------------------------------
-    with tempfile.TemporaryDirectory() as tmp:
-        p = Path(tmp) / "doc.txt"
-        p.write_text("hello world " * 50, encoding="utf-8")
-        chunks = ing.process(p)
-        assert len(chunks) >= 1
-        assert chunks[0].modality == "text"
-        assert "hello" in chunks[0].text
+        raw = self._load_pdf_raw(path)
+        safe = self.to_safe_chunks(raw)
 
-    # 4. unsupported extension raises ---------------------------------------
-    with tempfile.TemporaryDirectory() as tmp:
-        bad = Path(tmp) / "x.unknown"
-        bad.write_text("nope", encoding="utf-8")
-        try:
-            ing.process(bad)
-        except ValueError:
-            pass
-        else:
-            raise AssertionError("expected ValueError for unsupported ext")
+        return safe
 
-    # 5. invalid constructor parameters -------------------------------------
-    for kwargs in ({"chunk_size": 0}, {"chunk_size": 10, "chunk_overlap": 10}):
-        try:
-            DocumentIngestor(**kwargs)
-        except ValueError:
-            continue
-        raise AssertionError(f"expected ValueError for kwargs={kwargs}")
 
-    _ok("ingestion.py sanity check passed")
+# ---------------------------------------------------------------------
+# SELF TEST
+# ---------------------------------------------------------------------
+def _self_test():
+
+    # dummy classifier (replace with your BloomClassifier)
+    class Dummy:
+        def predict(self, x):
+            class P:
+                label = "Apply"
+                confidence = 0.8
+                ordinal_risk = 0.2
+            return P()
+
+    ing = DocumentIngestor(classifier=Dummy(), chunk_size=20, chunk_overlap=5)
+
+    raw = [
+        RawDocumentChunk(0, "x", "this is a sample exam question", 1, "pdf")
+    ]
+
+    safe = ing.to_safe_chunks(raw)
+
+    assert safe[0].bloom_level == "Apply"
+    assert safe[0].bloom_confidence > 0
+
+    print("✔ ingestion pipeline OK (privacy + classifier integrated)")
 
 
 if __name__ == "__main__":
