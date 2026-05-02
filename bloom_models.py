@@ -10,6 +10,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.svm import LinearSVC
+from sklearn.preprocessing import normalize
 
 from encoder_backends import StableTextEncoder
 
@@ -219,7 +220,14 @@ def make_domain_robust_logreg_pipeline(class_weight: str | None = "balanced") ->
             ),
         ]
     )
-
+def make_minilm_logreg_pipeline(
+    encoder_name: str = "all-MiniLM-L6-v2",
+    class_weight: str | None = "balanced",
+) -> MiniLMLogisticClassifier:
+    return MiniLMLogisticClassifier(
+        encoder_name=encoder_name,
+        class_weight=class_weight,
+    )
 
 class EmbeddingLogisticClassifier(BaseEstimator, ClassifierMixin):
     """Logistic head over compact transformer embeddings.
@@ -324,23 +332,36 @@ class HierarchicalBloomClassifier(BaseEstimator, ClassifierMixin):
         return self
 
     def predict(self, X: List[str]) -> np.ndarray:
+        root_scores = self.root_.decision_function(X)
+        p_lower = 1 / (1 + np.exp(-root_scores))  # sigmoid
+        p_higher = 1 - p_lower
+
         out = []
-        root_pred = self.root_.predict(X)
-        for text, branch in zip(X, root_pred):
-            if branch == "lower":
-                out.append(str(self.lower_.predict([text])[0]))
+
+        lower_preds = self.lower_.predict(X)
+        higher_preds = self.higher_.predict(X)
+
+        for i in range(len(X)):
+            if p_lower[i] >= 0.5:
+                out.append(str(lower_preds[i]))
             else:
-                out.append(str(self.higher_.predict([text])[0]))
+                out.append(str(higher_preds[i]))
+
         return np.array(out)
 
     def predict_proba(self, X: List[str]) -> np.ndarray:
+        # -------- root routing (lower vs higher Bloom) --------
         root_scores = self.root_.decision_function(X)
         root_scores = np.asarray(root_scores, dtype=np.float64).reshape(-1)
-        p_higher = 1.0 / (1.0 + np.exp(-root_scores))
+
+        # numerically stable sigmoid
+        p_higher = 1.0 / (1.0 + np.exp(-np.clip(root_scores, -20, 20)))
         p_lower = 1.0 - p_higher
 
+        # -------- branch probabilities --------
         lower_scores = np.asarray(self.lower_.decision_function(X), dtype=np.float64)
         higher_scores = np.asarray(self.higher_.decision_function(X), dtype=np.float64)
+
         if lower_scores.ndim == 1:
             lower_scores = lower_scores[:, None]
         if higher_scores.ndim == 1:
@@ -349,11 +370,19 @@ class HierarchicalBloomClassifier(BaseEstimator, ClassifierMixin):
         lower_probs = _softmax_rows(lower_scores)
         higher_probs = _softmax_rows(higher_scores)
 
+        # -------- combine into full distribution --------
         out = np.zeros((len(X), len(BLOOM_LEVELS)), dtype=np.float64)
-        for i in range(len(X)):
-            out[i, 0:3] = p_lower[i] * lower_probs[i]
-            out[i, 3:6] = p_higher[i] * higher_probs[i]
-        out = out / np.clip(out.sum(axis=1, keepdims=True), 1e-9, None)
+
+        # lower-order (Remember, Understand, Apply)
+        out[:, 0:3] = p_lower[:, None] * lower_probs
+
+        # higher-order (Analyze, Evaluate, Create)
+        out[:, 3:6] = p_higher[:, None] * higher_probs
+
+        # -------- safety normalization (important for papers) --------
+        row_sum = out.sum(axis=1, keepdims=True)
+        out = out / np.clip(row_sum, 1e-12, None)
+
         return out
 
 
@@ -413,7 +442,64 @@ class OrdinalThresholdClassifier(BaseEstimator, ClassifierMixin):
         levels = list(self.classes_)
         return np.array([levels[i] for i in idx])
 
+class MiniLMLogisticClassifier(BaseEstimator, ClassifierMixin):
+    """
+    CPU-safe transformer baseline:
+    Frozen MiniLM embeddings + Logistic Regression head.
+    Used as a neural upper-bound comparator for TF-IDF models.
+    """
 
+    def __init__(
+        self,
+        encoder_name: str = "all-MiniLM-L6-v2",
+        class_weight: str | None = "balanced",
+        max_iter: int = 2000,
+        batch_size: int = 64,
+        local_files_only: bool = True,
+    ) -> None:
+        self.encoder_name = encoder_name
+        self.class_weight = class_weight
+        self.max_iter = int(max_iter)
+        self.batch_size = int(batch_size)
+        self.local_files_only = bool(local_files_only)
+
+    def fit(self, X: Sequence[str], y: Sequence[str]):
+        self.encoder_ = StableTextEncoder(
+            self.encoder_name,
+            device="cpu",
+            local_files_only=self.local_files_only,
+        )
+
+        X_emb = self.encoder_.encode(
+            list(X),
+            batch_size=self.batch_size,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+        )
+
+        self.clf_ = LogisticRegression(
+            max_iter=self.max_iter,
+            solver="lbfgs",
+            class_weight=self.class_weight,
+        )
+
+        self.clf_.fit(X_emb, list(y))
+        self.classes_ = self.clf_.classes_
+        return self
+
+    def _encode(self, X: Sequence[str]) -> np.ndarray:
+        return self.encoder_.encode(
+            list(X),
+            batch_size=self.batch_size,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+        )
+
+    def predict(self, X: Sequence[str]) -> np.ndarray:
+        return self.clf_.predict(self._encode(X))
+
+    def predict_proba(self, X: Sequence[str]) -> np.ndarray:
+        return self.clf_.predict_proba(self._encode(X))
 def _softmax_rows(scores: np.ndarray) -> np.ndarray:
     scores = scores - np.max(scores, axis=1, keepdims=True)
     exp_scores = np.exp(scores)

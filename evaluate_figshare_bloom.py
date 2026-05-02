@@ -19,15 +19,23 @@ from bloom_models import (
     OrdinalThresholdClassifier,
     make_linear_svm_pipeline,
     make_logreg_pipeline,
+    make_minilm_logreg_pipeline,
 )
 
-
+# -----------------------------
+# CONFIG
+# -----------------------------
 SEED = 42
 VERSION = "figshare_bloom_v1"
+
 DATA_DIR = Path("data")
 MODELS_DIR = Path("models")
 RESULTS_DIR = Path("results")
 
+
+# -----------------------------
+# DATA LOADING
+# -----------------------------
 LABEL_MAPPING = {
     "Knowledge": "Remember",
     "Comprehension": "Understand",
@@ -38,266 +46,227 @@ LABEL_MAPPING = {
 }
 
 
-def _make_models() -> Dict[str, object]:
-    return {
-        "logreg_balanced": make_logreg_pipeline(class_weight="balanced"),
-        "linear_svm_balanced": make_linear_svm_pipeline(class_weight="balanced"),
-        "hierarchical_svm": HierarchicalBloomClassifier(class_weight="balanced"),
-        "ordinal_threshold": OrdinalThresholdClassifier(class_weight="balanced"),
-    }
+def _clean_text(x: object) -> str:
+    return " ".join(str(x).strip().split())
 
 
-def _clean_question(value: object) -> str:
-    return " ".join(str(value).strip().split())
-
-
-def _read_and_prepare() -> Tuple[pd.DataFrame, Dict[str, object]]:
+def _load_dataset() -> Tuple[pd.DataFrame, Dict[str, object]]:
     path = _find_figshare_exam_dataset()
     if path is None:
-        raise FileNotFoundError("Figshare dataset not found on disk.")
+        raise FileNotFoundError("Figshare dataset not found.")
 
     raw = pd.read_csv(path, low_memory=False)
-    qcol = "QUESTION"
-    lcol = "BT LEVEL"
-    if qcol not in raw.columns or lcol not in raw.columns:
-        raise RuntimeError(f"Expected QUESTION and BT LEVEL columns in {path}")
 
-    frame = pd.DataFrame(
-        {
-            "question": raw[qcol].map(_clean_question),
-            "original_label": raw[lcol].astype(str).str.strip(),
-        }
-    )
-    audit: Dict[str, object] = {
-        "dataset_name": "figshare",
-        "dataset_path": str(path),
-        "dataset_version": VERSION,
+    df = pd.DataFrame({
+        "question": raw["QUESTION"].map(_clean_text),
+        "label_raw": raw["BT LEVEL"].astype(str).str.strip(),
+    })
+
+    audit = {
+        "dataset": "figshare",
+        "path": str(path),
+        "version": VERSION,
         "label_mapping": LABEL_MAPPING,
-        "raw_rows": int(len(frame)),
+        "raw_rows": len(df),
     }
 
-    frame = frame.dropna(subset=["question", "original_label"]).copy()
-    frame = frame[frame["question"].str.len() > 0].copy()
-    audit["non_empty_rows"] = int(len(frame))
-    audit["original_label_distribution"] = frame["original_label"].value_counts().to_dict()
+    df = df.dropna()
+    df = df[df["question"].str.len() > 0]
 
-    frame["bloom_level"] = frame["original_label"].map(_normalise_bloom)
-    frame = frame[frame["bloom_level"].notna()].copy()
-    frame["bloom_level"] = frame["bloom_level"].astype(str)
-    audit["normalized_rows"] = int(len(frame))
-    audit["normalized_label_distribution"] = frame["bloom_level"].value_counts().to_dict()
+    df["bloom_level"] = df["label_raw"].map(_normalise_bloom)
+    df = df[df["bloom_level"].notna()].copy()
+    df["bloom_level"] = df["bloom_level"].astype(str)
 
-    exact_dedup = frame.drop_duplicates(subset=["question", "bloom_level"]).copy()
-    audit["rows_after_exact_dedup"] = int(len(exact_dedup))
+    audit["final_rows"] = len(df)
+    audit["distribution"] = df["bloom_level"].value_counts().to_dict()
 
-    conflicts = exact_dedup.groupby("question")["bloom_level"].nunique()
-    conflicting_questions = set(conflicts[conflicts > 1].index.tolist())
-    audit["conflicting_questions_removed"] = int(len(conflicting_questions))
-    if conflicting_questions:
-        exact_dedup = exact_dedup[~exact_dedup["question"].isin(conflicting_questions)].copy()
+    # clean duplicates + conflicts
+    df = df.drop_duplicates(subset=["question", "bloom_level"])
 
-    final_df = exact_dedup.drop_duplicates(subset=["question"]).reset_index(drop=True)
-    audit["final_rows"] = int(len(final_df))
-    audit["final_unique_questions"] = int(final_df["question"].nunique())
-    audit["final_label_distribution"] = final_df["bloom_level"].value_counts().to_dict()
-    audit["conflict_resolution_strategy"] = (
-        "Remove exact duplicates first, then remove any question text that maps to multiple Bloom labels, "
-        "then keep one row per unique question."
-    )
-    return final_df, audit
+    conflict = df.groupby("question")["bloom_level"].nunique()
+    bad = set(conflict[conflict > 1].index)
+
+    df = df[~df["question"].isin(bad)]
+    df = df.drop_duplicates(subset=["question"]).reset_index(drop=True)
+
+    audit["conflicts_removed"] = len(bad)
+
+    return df, audit
 
 
-def _split_dataset(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    train_df, temp_df = train_test_split(
+# -----------------------------
+# SPLIT
+# -----------------------------
+def _split(df: pd.DataFrame):
+    train, temp = train_test_split(
         df,
-        test_size=0.30,
+        test_size=0.3,
         random_state=SEED,
         stratify=df["bloom_level"],
     )
-    val_df, test_df = train_test_split(
-        temp_df,
-        test_size=0.50,
+
+    val, test = train_test_split(
+        temp,
+        test_size=0.5,
         random_state=SEED,
-        stratify=temp_df["bloom_level"],
+        stratify=temp["bloom_level"],
     )
-    return train_df.reset_index(drop=True), val_df.reset_index(drop=True), test_df.reset_index(drop=True)
+
+    return train, val, test
 
 
-def _metric_bundle(y_true: List[str], y_pred: List[str]) -> Dict[str, object]:
+# -----------------------------
+# MODELS
+# -----------------------------
+def _build_models():
+    return {
+        "logreg": make_logreg_pipeline(class_weight="balanced"),
+        "svm": make_linear_svm_pipeline(class_weight="balanced"),
+        "hierarchical": HierarchicalBloomClassifier(class_weight="balanced"),
+        "ordinal": OrdinalThresholdClassifier(class_weight="balanced"),
+        "minilm": make_minilm_logreg_pipeline(class_weight="balanced"),
+    }
+
+
+# -----------------------------
+# METRICS (single source of truth)
+# -----------------------------
+def _metrics(y_true, y_pred):
     cm = confusion_matrix(y_true, y_pred, labels=BLOOM_LEVELS)
-    y_true_idx = np.array([BLOOM_LEVELS.index(y) for y in y_true], dtype=np.int32)
-    y_pred_idx = np.array([BLOOM_LEVELS.index(y) for y in y_pred], dtype=np.int32)
-    ordinal_distance = np.abs(y_true_idx - y_pred_idx)
-    mis = []
-    for i, actual in enumerate(BLOOM_LEVELS):
-        for j, predicted in enumerate(BLOOM_LEVELS):
-            if i == j or cm[i, j] == 0:
-                continue
-            mis.append({"actual": actual, "predicted": predicted, "count": int(cm[i, j])})
-    mis.sort(key=lambda item: -item["count"])
+
+    idx = {l: i for i, l in enumerate(BLOOM_LEVELS)}
+    yt = np.array([idx[x] for x in y_true])
+    yp = np.array([idx[x] for x in y_pred])
+
+    dist = np.abs(yt - yp)
+
     return {
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "macro_f1": float(f1_score(y_true, y_pred, average="macro")),
         "weighted_f1": float(f1_score(y_true, y_pred, average="weighted")),
-        "mean_ordinal_error": float(np.mean(ordinal_distance)),
-        "within_one_level_accuracy": float(np.mean(ordinal_distance <= 1)),
-        "severe_error_rate": float(np.mean(ordinal_distance >= 2)),
+        "mean_ordinal_error": float(dist.mean()),
+        "within_one_level_accuracy": float((dist <= 1).mean()),
+        "severe_error_rate": float((dist >= 2).mean()),
         "classification_report": classification_report(
-            y_true,
-            y_pred,
-            labels=BLOOM_LEVELS,
-            output_dict=True,
-            zero_division=0,
+            y_true, y_pred, labels=BLOOM_LEVELS, output_dict=True, zero_division=0
         ),
         "confusion_matrix": cm.tolist(),
-        "top_misclassifications": mis[:10],
     }
 
 
-def _majority_baseline(y_train: List[str], y_eval: List[str]) -> Dict[str, object]:
-    majority = max(set(y_train), key=y_train.count)
-    pred = [majority] * len(y_eval)
-    out = _metric_bundle(y_eval, pred)
-    out["majority_class"] = majority
-    return out
-
-
-def _random_baseline(y_train: List[str], y_eval: List[str]) -> Dict[str, object]:
-    rng = np.random.default_rng(SEED)
-    classes, counts = np.unique(np.array(y_train), return_counts=True)
-    probs = counts / counts.sum()
-    pred = rng.choice(classes, size=len(y_eval), p=probs).tolist()
-    out = _metric_bundle(y_eval, pred)
-    out["sampling_distribution"] = {str(k): float(v) for k, v in zip(classes, probs)}
-    return out
-
-
-def _cross_validate(models: Dict[str, object], x_dev: List[str], y_dev: List[str]) -> Dict[str, object]:
+# -----------------------------
+# CROSS VALIDATION (clean)
+# -----------------------------
+def _cross_validate(models, X, y):
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
-    report: Dict[str, object] = {}
+
+    results = {}
+
     for name, model in models.items():
-        fold_scores: List[float] = []
-        fold_distance: List[float] = []
-        for train_idx, val_idx in skf.split(x_dev, y_dev):
-            x_train = [x_dev[i] for i in train_idx]
-            y_train = [y_dev[i] for i in train_idx]
-            x_val = [x_dev[i] for i in val_idx]
-            y_val = [y_dev[i] for i in val_idx]
-            fitted = clone(model)
-            fitted.fit(x_train, y_train)
-            pred = fitted.predict(x_val)
-            fold_scores.append(float(f1_score(y_val, pred, average="macro")))
-            true_idx = np.array([BLOOM_LEVELS.index(y) for y in y_val], dtype=np.int32)
-            pred_idx = np.array([BLOOM_LEVELS.index(y) for y in pred], dtype=np.int32)
-            fold_distance.append(float(np.mean(np.abs(true_idx - pred_idx))))
-        report[name] = {
-            "macro_f1_mean": float(np.mean(fold_scores)),
-            "macro_f1_std": float(np.std(fold_scores)),
-            "mean_ordinal_error": float(np.mean(fold_distance)),
-            "fold_macro_f1": fold_scores,
+        f1s, ord_err = [], []
+
+        for tr, va in skf.split(X, y):
+            m = clone(model)
+
+            xtr = [X[i] for i in tr]
+            ytr = [y[i] for i in tr]
+            xva = [X[i] for i in va]
+            yva = [y[i] for i in va]
+
+            m.fit(xtr, ytr)
+            pred = m.predict(xva)
+
+            f1s.append(f1_score(yva, pred, average="macro"))
+
+            idx = {l: i for i, l in enumerate(BLOOM_LEVELS)}
+            dist = np.abs(np.array([idx[a] for a in yva]) - np.array([idx[p] for p in pred]))
+            ord_err.append(dist.mean())
+
+        results[name] = {
+            "macro_f1_mean": float(np.mean(f1s)),
+            "macro_f1_std": float(np.std(f1s)),
+            "mean_ordinal_error": float(np.mean(ord_err)),
         }
-    return report
+
+    return results
 
 
-def _rank_key(metrics: Dict[str, object]) -> tuple[float, float, float]:
-    return (
-        float(metrics["macro_f1"]),
-        float(metrics["within_one_level_accuracy"]),
-        -float(metrics["mean_ordinal_error"]),
-    )
-
-
-def _save_splits(train_df: pd.DataFrame, val_df: pd.DataFrame, test_df: pd.DataFrame) -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    train_df.to_csv(DATA_DIR / f"{VERSION}_train.csv", index=False, encoding="utf-8")
-    val_df.to_csv(DATA_DIR / f"{VERSION}_val.csv", index=False, encoding="utf-8")
-    test_df.to_csv(DATA_DIR / f"{VERSION}_test.csv", index=False, encoding="utf-8")
-    full_df = pd.concat([train_df, val_df, test_df], ignore_index=True)
-    full_df.to_csv(DATA_DIR / f"{VERSION}.csv", index=False, encoding="utf-8")
-
-
-def main() -> None:
+# -----------------------------
+# MAIN PIPELINE
+# -----------------------------
+def main():
     random.seed(SEED)
     np.random.seed(SEED)
 
-    df, audit = _read_and_prepare()
-    train_df, val_df, test_df = _split_dataset(df)
-    _save_splits(train_df, val_df, test_df)
+    df, audit = _load_dataset()
+    train, val, test = _split(df)
 
-    split_report = {
-        "train_size": int(len(train_df)),
-        "val_size": int(len(val_df)),
-        "test_size": int(len(test_df)),
-        "train_distribution": train_df["bloom_level"].value_counts().to_dict(),
-        "val_distribution": val_df["bloom_level"].value_counts().to_dict(),
-        "test_distribution": test_df["bloom_level"].value_counts().to_dict(),
-    }
+    X_train, y_train = train["question"].tolist(), train["bloom_level"].tolist()
+    X_val, y_val = val["question"].tolist(), val["bloom_level"].tolist()
+    X_test, y_test = test["question"].tolist(), test["bloom_level"].tolist()
 
-    x_train = train_df["question"].tolist()
-    y_train = train_df["bloom_level"].tolist()
-    x_val = val_df["question"].tolist()
-    y_val = val_df["bloom_level"].tolist()
-    x_test = test_df["question"].tolist()
-    y_test = test_df["bloom_level"].tolist()
+    models = _build_models()
 
-    models = _make_models()
-    cv_report = _cross_validate(models, x_train, y_train)
-    validation_candidates: Dict[str, object] = {}
+    # -----------------------------
+    # STEP 1: CV selection
+    # -----------------------------
+    cv_results = _cross_validate(models, X_train, y_train)
+
+    best_model_name = max(
+        cv_results.items(),
+        key=lambda x: x[1]["macro_f1_mean"]
+    )[0]
+
+    # -----------------------------
+    # STEP 2: validation comparison
+    # -----------------------------
+    val_results = {}
+
     for name, model in models.items():
-        fitted = clone(model)
-        fitted.fit(x_train, y_train)
-        pred = fitted.predict(x_val)
-        validation_candidates[name] = _metric_bundle(y_val, pred)
-    best_name = max(validation_candidates.items(), key=lambda item: _rank_key(item[1]))[0]
-    val_pred = clone(models[best_name]).fit(x_train, y_train).predict(x_val)
+        m = clone(model)
+        m.fit(X_train, y_train)
+        pred = m.predict(X_val)
+        val_results[name] = _metrics(y_val, pred)
 
-    x_dev = x_train + x_val
+    # -----------------------------
+    # STEP 3: final training
+    # -----------------------------
+    best_model = clone(models[best_model_name])
+
+    X_dev = X_train + X_val
     y_dev = y_train + y_val
-    best_model = clone(models[best_name])
+
     t0 = time.time()
-    best_model.fit(x_dev, y_dev)
-    fit_seconds = time.time() - t0
+    best_model.fit(X_dev, y_dev)
+    train_time = time.time() - t0
 
-    test_pred = best_model.predict(x_test)
-
-    baselines = {
-        "majority_val": _majority_baseline(y_train, y_val),
-        "majority_test": _majority_baseline(y_dev, y_test),
-        "random_val": _random_baseline(y_train, y_val),
-        "random_test": _random_baseline(y_dev, y_test),
-    }
+    # -----------------------------
+    # STEP 4: test evaluation
+    # -----------------------------
+    test_pred = best_model.predict(X_test)
 
     results = {
         "dataset": "figshare",
-        "dataset_version": VERSION,
+        "version": VERSION,
         "seed": SEED,
-        "preprocessing_audit": audit,
-        "split_report": split_report,
-        "evaluation_protocol": {
-            "train_val_test": [70, 15, 15],
-            "class_balancing": "model-level class_weight='balanced' for learned classifiers",
-            "model_selection": "5-fold stratified cross-validation on the train split",
-            "validation_usage": "single held-out validation split for final model selection before test",
-            "final_metric_split": "held-out test set",
-            "features": "TF-IDF word 1-2 grams + char 3-5 grams",
-            "hierarchical_modeling": "candidate hierarchical lower-order vs higher-order pipeline included",
-            "ordinal_evaluation": "mean ordinal error, within-one-level accuracy, severe error rate",
-        },
-        "baselines": baselines,
-        "candidate_models": cv_report,
-        "candidate_validation_metrics": validation_candidates,
-        "selected_model": best_name,
-        "fit_seconds_on_dev": round(fit_seconds, 3),
-        "validation_metrics": _metric_bundle(y_val, val_pred),
-        "test_metrics": _metric_bundle(y_test, test_pred),
+        "audit": audit,
+
+        "cv_results": cv_results,
+        "selected_model": best_model_name,
+        "validation_results": val_results,
+
+        "validation_metrics": _metrics(y_val, best_model.predict(X_val)),
+        "test_metrics": _metrics(y_test, test_pred),
+
+        "training_time_sec": train_time,
     }
 
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    results_path = RESULTS_DIR / f"{VERSION}_evaluation.json"
-    model_path = MODELS_DIR / "figshare_bloom_tfidf.joblib"
-    results_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
-    joblib.dump(best_model, model_path)
+    RESULTS_DIR.mkdir(exist_ok=True, parents=True)
+    MODELS_DIR.mkdir(exist_ok=True, parents=True)
+
+    (RESULTS_DIR / f"{VERSION}.json").write_text(json.dumps(results, indent=2))
+    joblib.dump(best_model, MODELS_DIR / "figshare_model.joblib")
+
     print(json.dumps(results, indent=2))
 
 

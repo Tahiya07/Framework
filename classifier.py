@@ -158,11 +158,29 @@ _BLOOM_ALIASES: Dict[str, str] = {
 def _normalise_bloom(label: object) -> Optional[str]:
     if label is None:
         return None
+
     s = str(label).strip().lower()
     if not s:
         return None
-    return _BLOOM_ALIASES.get(s)
 
+    # direct alias match
+    if s in _BLOOM_ALIASES:
+        return _BLOOM_ALIASES[s]
+
+    # handle numeric / coded formats (C1, Level 2, etc.)
+    import re
+
+    m = re.search(r"\b([1-6])\b", s)
+    if m:
+        idx = int(m.group(1))
+        return ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"][idx - 1]
+
+    # partial match fallback (important for noisy datasets)
+    for key, val in _BLOOM_ALIASES.items():
+        if key in s:
+            return val
+
+    return None
 
 def _clean_text(value: object) -> str:
     return " ".join(str(value).strip().split())

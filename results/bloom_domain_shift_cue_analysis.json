@@ -303,9 +303,99 @@
             "count": 4
           }
         ]
+      },
+      "minilm_logreg": {
+        "accuracy": 0.441726618705036,
+        "macro_f1": 0.3443924377738668,
+        "weighted_f1": 0.3712478420787882,
+        "mean_ordinal_error": 0.7237410071942446,
+        "within_one_level_accuracy": 0.8345323741007195,
+        "severe_error_rate": 0.16546762589928057,
+        "classification_report": {
+          "Low": {
+            "precision": 0.4282018111254851,
+            "recall": 0.662,
+            "f1-score": 0.5200314218381775,
+            "support": 500.0
+          },
+          "Mid": {
+            "precision": 0.46229508196721314,
+            "recall": 0.564,
+            "f1-score": 0.5081081081081081,
+            "support": 500.0
+          },
+          "High": {
+            "precision": 0.14285714285714285,
+            "recall": 0.002564102564102564,
+            "f1-score": 0.005037783375314861,
+            "support": 390.0
+          },
+          "accuracy": 0.441726618705036,
+          "macro avg": {
+            "precision": 0.34445134531661364,
+            "recall": 0.40952136752136753,
+            "f1-score": 0.3443924377738668,
+            "support": 1390.0
+          },
+          "weighted avg": {
+            "precision": 0.3604048433529747,
+            "recall": 0.441726618705036,
+            "f1-score": 0.3712478420787882,
+            "support": 1390.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            331,
+            166,
+            3
+          ],
+          [
+            215,
+            282,
+            3
+          ],
+          [
+            227,
+            162,
+            1
+          ]
+        ],
+        "top_misclassifications": [
+          {
+            "actual": "High",
+            "predicted": "Low",
+            "count": 227
+          },
+          {
+            "actual": "Mid",
+            "predicted": "Low",
+            "count": 215
+          },
+          {
+            "actual": "Low",
+            "predicted": "Mid",
+            "count": 166
+          },
+          {
+            "actual": "High",
+            "predicted": "Mid",
+            "count": 162
+          },
+          {
+            "actual": "Low",
+            "predicted": "High",
+            "count": 3
+          },
+          {
+            "actual": "Mid",
+            "predicted": "High",
+            "count": 3
+          }
+        ]
       }
     },
-    "ordinal_stability_model": "cue_only_logreg",
+    "ordinal_stability_model": "minilm_logreg",
     "interpretation": "Cue-only performance estimates how much Bloom signal is carried by action verbs and question structure; content TF-IDF estimates topic-vocabulary transfer."
   },
   "moocradar_to_figshare": {
@@ -579,9 +669,89 @@
             "count": 7
           }
         ]
+      },
+      "minilm_logreg": {
+        "accuracy": 0.33666666666666667,
+        "macro_f1": 0.19073191601030257,
+        "weighted_f1": 0.19073191601030257,
+        "mean_ordinal_error": 0.666,
+        "within_one_level_accuracy": 0.9973333333333333,
+        "severe_error_rate": 0.0026666666666666666,
+        "classification_report": {
+          "Low": {
+            "precision": 0.5,
+            "recall": 0.04,
+            "f1-score": 0.07407407407407407,
+            "support": 500.0
+          },
+          "Mid": {
+            "precision": 0.3317340644276902,
+            "recall": 0.968,
+            "f1-score": 0.4941296579887698,
+            "support": 500.0
+          },
+          "High": {
+            "precision": 1.0,
+            "recall": 0.002,
+            "f1-score": 0.003992015968063872,
+            "support": 500.0
+          },
+          "accuracy": 0.33666666666666667,
+          "macro avg": {
+            "precision": 0.6105780214758968,
+            "recall": 0.33666666666666667,
+            "f1-score": 0.1907319160103026,
+            "support": 1500.0
+          },
+          "weighted avg": {
+            "precision": 0.6105780214758967,
+            "recall": 0.33666666666666667,
+            "f1-score": 0.1907319160103026,
+            "support": 1500.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            20,
+            480,
+            0
+          ],
+          [
+            16,
+            484,
+            0
+          ],
+          [
+            4,
+            495,
+            1
+          ]
+        ],
+        "top_misclassifications": [
+          {
+            "actual": "High",
+            "predicted": "Mid",
+            "count": 495
+          },
+          {
+            "actual": "Low",
+            "predicted": "Mid",
+            "count": 480
+          },
+          {
+            "actual": "Mid",
+            "predicted": "Low",
+            "count": 16
+          },
+          {
+            "actual": "High",
+            "predicted": "Low",
+            "count": 4
+          }
+        ]
       }
     },
-    "ordinal_stability_model": "cue_only_logreg",
+    "ordinal_stability_model": "minilm_logreg",
     "interpretation": "Cue-only performance estimates how much Bloom signal is carried by action verbs and question structure; content TF-IDF estimates topic-vocabulary transfer."
   },
   "summary": {

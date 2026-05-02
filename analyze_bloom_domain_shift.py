@@ -14,6 +14,7 @@ from bloom_models import (
     make_logreg_pipeline,
     make_domain_robust_logreg_pipeline,
 )
+from bloom_models import make_minilm_logreg_pipeline
 from evaluate_cross_domain_bloom import (
     RESULTS_DIR,
     SEED,
@@ -47,6 +48,7 @@ def _directional_analysis(
         "cue_only_logreg": make_bloom_cue_logreg_pipeline(class_weight="balanced"),
         "content_tfidf_logreg": make_logreg_pipeline(class_weight="balanced"),
         "combined_cue_content_logreg": make_domain_robust_logreg_pipeline(class_weight="balanced"),
+        "minilm_logreg": make_minilm_logreg_pipeline(),
     }
     scored: Dict[str, object] = {}
     for name, model in models.items():
@@ -54,9 +56,9 @@ def _directional_analysis(
     best_name = max(
         scored.items(),
         key=lambda kv: (
-            kv[1]["within_one_level_accuracy"],
-            -kv[1]["severe_error_rate"],
-            kv[1]["macro_f1"],
+            kv[1].get("within_one_level_accuracy", 0),
+            -kv[1].get("severe_error_rate", 1),
+            kv[1].get("macro_f1", 0),
         ),
     )[0]
     return {

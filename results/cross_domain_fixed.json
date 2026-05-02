@@ -1,0 +1,33 @@
+{
+  "fig_to_mooc": {
+    "logreg": {
+      "accuracy": 0.16277777777777777,
+      "macro_f1": 0.06158445573123197
+    },
+    "svm": {
+      "accuracy": 0.16722222222222222,
+      "macro_f1": 0.08661326428720732
+    }
+  },
+  "mooc_to_fig": {
+    "logreg": {
+      "accuracy": 0.1641086186540732,
+      "macro_f1": 0.08734198302627642
+    },
+    "svm": {
+      "accuracy": 0.20365997638724911,
+      "macro_f1": 0.14839588690382707
+    }
+  },
+  "mooc_info": {
+    "rows": 9381,
+    "distribution": {
+      "Remember": 5364,
+      "Understand": 1554,
+      "Apply": 669,
+      "Evaluate": 637,
+      "Analyze": 596,
+      "Create": 561
+    }
+  }
+}
