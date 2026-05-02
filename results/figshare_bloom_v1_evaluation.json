@@ -1401,7 +1401,7 @@
     }
   },
   "selected_model": "linear_svm_balanced",
-  "fit_seconds_on_dev": 0.546,
+  "fit_seconds_on_dev": 0.65,
   "validation_metrics": {
     "accuracy": 0.7936962750716332,
     "macro_f1": 0.7774700083946658,
