@@ -6,17 +6,17 @@ import random
 import re
 import ast
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
-from adaptive_fusion_model import AdaptiveCueContentFusionClassifier
-from domain_adversarial_bloom import DABCWrapper
+from bloom.adaptive_fusion_model import AdaptiveCueContentFusionClassifier
+from bloom.domain_adversarial_bloom import DABCWrapper
 import numpy as np
 import pandas as pd
 from sklearn.base import clone
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
 
-from bloom_models import (
+from bloom.bloom_models import (
     BLOOM_LEVELS,
     OrdinalThresholdClassifier,
     make_domain_robust_linear_svm_pipeline,
@@ -29,8 +29,8 @@ from classifier import _normalise_bloom
 
 
 SEED = 42
-RESULTS_DIR = Path("results")
-DATA_DIR = Path("data")
+RESULTS_DIR = Path("../results")
+DATA_DIR = Path("../data")
 
 FIGSHARE_PATH = DATA_DIR / "figshare_bloom_v1.csv"
 DEFAULT_MOOCRADAR_PATHS = [

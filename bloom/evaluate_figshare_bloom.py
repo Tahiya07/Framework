@@ -4,7 +4,7 @@ import json
 import random
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 import joblib
 import numpy as np
@@ -14,7 +14,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from sklearn.model_selection import StratifiedKFold, train_test_split
 
 from classifier import BLOOM_LEVELS, _find_figshare_exam_dataset, _normalise_bloom
-from bloom_models import (
+from bloom.bloom_models import (
     HierarchicalBloomClassifier,
     OrdinalThresholdClassifier,
     make_linear_svm_pipeline,
@@ -28,9 +28,9 @@ from bloom_models import (
 SEED = 42
 VERSION = "figshare_bloom_v1"
 
-DATA_DIR = Path("data")
-MODELS_DIR = Path("models")
-RESULTS_DIR = Path("results")
+DATA_DIR = Path("../data")
+MODELS_DIR = Path("../models")
+RESULTS_DIR = Path("../results")
 
 
 # -----------------------------

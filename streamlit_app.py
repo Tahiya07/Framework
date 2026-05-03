@@ -30,11 +30,10 @@ from runtime_utils import (
 )
 from ingestion import DocumentChunk, DocumentIngestor
 from models import RAGGenerator
-from privacy_guard import (
+from privacy.privacy_guard import (
     STUDENT_REFUSAL,
     allowed_chunks_for_role,
     assess_student_query_against_protected_corpus,
-    partition_chunks,
     policy_instruction,
     screen_generation_output,
 )

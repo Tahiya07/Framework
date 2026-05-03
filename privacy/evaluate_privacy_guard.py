@@ -16,8 +16,8 @@ from privacy_guard import (
 )
 
 
-RESULTS_PATH = Path("results/privacy_guard_eval.json")
-CSV_PATH = Path("results/privacy_guard_eval_rows.csv")
+RESULTS_PATH = Path("../results/privacy_guard_eval.json")
+CSV_PATH = Path("../results/privacy_guard_eval_rows.csv")
 SIMULATE_MODEL_OUTPUT = os.getenv("PRIVACY_SIMULATE_MODEL_OUTPUT", "0") == "1"
 
 
