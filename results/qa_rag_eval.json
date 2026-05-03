@@ -1,0 +1,665 @@
+{
+  "benchmark": "offline_academic_qa_v1",
+  "n_questions": 10,
+  "n_documents": 10,
+  "limitations": [
+    "Small local benchmark; use HotpotQA, Natural Questions, or an instructor-authored course QA set for stronger external validity.",
+    "Answer generation is extractive to isolate retrieval and grounding behavior from LLM sampling variance."
+  ],
+  "systems": {
+    "Proposed": {
+      "n": 10,
+      "exact_match": {
+        "mean": 0.9,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "token_f1": {
+        "mean": 0.9727272727272727,
+        "min": 0.7272727272727272,
+        "max": 1.0
+      },
+      "retrieval_hit_at_1": {
+        "mean": 0.9,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "retrieval_hit_at_3": {
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "mrr": {
+        "mean": 0.95,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "hallucination_proxy_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "VanillaRAG": {
+      "n": 10,
+      "exact_match": {
+        "mean": 0.9,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "token_f1": {
+        "mean": 0.9727272727272727,
+        "min": 0.7272727272727272,
+        "max": 1.0
+      },
+      "retrieval_hit_at_1": {
+        "mean": 0.8,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "retrieval_hit_at_3": {
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "mrr": {
+        "mean": 0.9,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "hallucination_proxy_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "BM25": {
+      "n": 10,
+      "exact_match": {
+        "mean": 0.9,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "token_f1": {
+        "mean": 0.9727272727272727,
+        "min": 0.7272727272727272,
+        "max": 1.0
+      },
+      "retrieval_hit_at_1": {
+        "mean": 0.9,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "retrieval_hit_at_3": {
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "mrr": {
+        "mean": 0.95,
+        "min": 0.5,
+        "max": 1.0
+      },
+      "hallucination_proxy_rate": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      }
+    },
+    "NoRAG": {
+      "n": 10,
+      "exact_match": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "token_f1": {
+        "mean": 0.025,
+        "min": 0.0,
+        "max": 0.25
+      },
+      "retrieval_hit_at_1": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "retrieval_hit_at_3": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "mrr": {
+        "mean": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "hallucination_proxy_rate": {
+        "mean": 1.0,
+        "min": 1.0,
+        "max": 1.0
+      }
+    }
+  },
+  "rows": [
+    {
+      "system": "Proposed",
+      "question": "What relationship does Ohm's law define?",
+      "support_doc": "circuits_ohm",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "voltage equals current times resistance"
+    },
+    {
+      "system": "Proposed",
+      "question": "What unit is electrical power measured in?",
+      "support_doc": "circuits_power",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "watts"
+    },
+    {
+      "system": "Proposed",
+      "question": "Which protocol provides reliable ordered delivery?",
+      "support_doc": "networks_tcp",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "tcp"
+    },
+    {
+      "system": "Proposed",
+      "question": "What tradeoff does UDP make compared with TCP?",
+      "support_doc": "networks_tcp",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.7272727272727272,
+      "unsupported_answer": 0.0,
+      "prediction": "UDP has lower transport overhead but does not guarantee ordering or delivery."
+    },
+    {
+      "system": "Proposed",
+      "question": "What is the time complexity of merge sort?",
+      "support_doc": "algorithms_merge_sort",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "o n log n"
+    },
+    {
+      "system": "Proposed",
+      "question": "How does binary search reduce the search interval?",
+      "support_doc": "algorithms_binary_search",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "halves a sorted search interval"
+    },
+    {
+      "system": "Proposed",
+      "question": "What does a p-value assume about the null hypothesis?",
+      "support_doc": "statistics_p_value",
+      "support_rank": 2,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 0.5,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "the null hypothesis is true"
+    },
+    {
+      "system": "Proposed",
+      "question": "At alpha 0.05, what decision follows from a p-value of 0.03?",
+      "support_doc": "statistics_alpha",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "reject the null hypothesis"
+    },
+    {
+      "system": "Proposed",
+      "question": "Which Bloom level is usually signaled by compare?",
+      "support_doc": "bloom_compare",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "analyze"
+    },
+    {
+      "system": "Proposed",
+      "question": "What should a grounded RAG system do when context lacks support?",
+      "support_doc": "rag_grounding",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "decline"
+    },
+    {
+      "system": "VanillaRAG",
+      "question": "What relationship does Ohm's law define?",
+      "support_doc": "circuits_ohm",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "voltage equals current times resistance"
+    },
+    {
+      "system": "VanillaRAG",
+      "question": "What unit is electrical power measured in?",
+      "support_doc": "circuits_power",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "watts"
+    },
+    {
+      "system": "VanillaRAG",
+      "question": "Which protocol provides reliable ordered delivery?",
+      "support_doc": "networks_tcp",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "tcp"
+    },
+    {
+      "system": "VanillaRAG",
+      "question": "What tradeoff does UDP make compared with TCP?",
+      "support_doc": "networks_tcp",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.7272727272727272,
+      "unsupported_answer": 0.0,
+      "prediction": "UDP has lower transport overhead but does not guarantee ordering or delivery."
+    },
+    {
+      "system": "VanillaRAG",
+      "question": "What is the time complexity of merge sort?",
+      "support_doc": "algorithms_merge_sort",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "o n log n"
+    },
+    {
+      "system": "VanillaRAG",
+      "question": "How does binary search reduce the search interval?",
+      "support_doc": "algorithms_binary_search",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "halves a sorted search interval"
+    },
+    {
+      "system": "VanillaRAG",
+      "question": "What does a p-value assume about the null hypothesis?",
+      "support_doc": "statistics_p_value",
+      "support_rank": 2,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 0.5,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "the null hypothesis is true"
+    },
+    {
+      "system": "VanillaRAG",
+      "question": "At alpha 0.05, what decision follows from a p-value of 0.03?",
+      "support_doc": "statistics_alpha",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "reject the null hypothesis"
+    },
+    {
+      "system": "VanillaRAG",
+      "question": "Which Bloom level is usually signaled by compare?",
+      "support_doc": "bloom_compare",
+      "support_rank": 2,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 0.5,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "analyze"
+    },
+    {
+      "system": "VanillaRAG",
+      "question": "What should a grounded RAG system do when context lacks support?",
+      "support_doc": "rag_grounding",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "decline"
+    },
+    {
+      "system": "BM25",
+      "question": "What relationship does Ohm's law define?",
+      "support_doc": "circuits_ohm",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "voltage equals current times resistance"
+    },
+    {
+      "system": "BM25",
+      "question": "What unit is electrical power measured in?",
+      "support_doc": "circuits_power",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "watts"
+    },
+    {
+      "system": "BM25",
+      "question": "Which protocol provides reliable ordered delivery?",
+      "support_doc": "networks_tcp",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "tcp"
+    },
+    {
+      "system": "BM25",
+      "question": "What tradeoff does UDP make compared with TCP?",
+      "support_doc": "networks_tcp",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.7272727272727272,
+      "unsupported_answer": 0.0,
+      "prediction": "UDP has lower transport overhead but does not guarantee ordering or delivery."
+    },
+    {
+      "system": "BM25",
+      "question": "What is the time complexity of merge sort?",
+      "support_doc": "algorithms_merge_sort",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "o n log n"
+    },
+    {
+      "system": "BM25",
+      "question": "How does binary search reduce the search interval?",
+      "support_doc": "algorithms_binary_search",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "halves a sorted search interval"
+    },
+    {
+      "system": "BM25",
+      "question": "What does a p-value assume about the null hypothesis?",
+      "support_doc": "statistics_p_value",
+      "support_rank": 2,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 0.5,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "the null hypothesis is true"
+    },
+    {
+      "system": "BM25",
+      "question": "At alpha 0.05, what decision follows from a p-value of 0.03?",
+      "support_doc": "statistics_alpha",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "reject the null hypothesis"
+    },
+    {
+      "system": "BM25",
+      "question": "Which Bloom level is usually signaled by compare?",
+      "support_doc": "bloom_compare",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "analyze"
+    },
+    {
+      "system": "BM25",
+      "question": "What should a grounded RAG system do when context lacks support?",
+      "support_doc": "rag_grounding",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "mrr": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "prediction": "decline"
+    },
+    {
+      "system": "NoRAG",
+      "question": "What relationship does Ohm's law define?",
+      "support_doc": "circuits_ohm",
+      "support_rank": 999,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 0.0,
+      "mrr": 0.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.0,
+      "unsupported_answer": 1.0,
+      "prediction": "I do not have enough retrieved context to answer."
+    },
+    {
+      "system": "NoRAG",
+      "question": "What unit is electrical power measured in?",
+      "support_doc": "circuits_power",
+      "support_rank": 999,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 0.0,
+      "mrr": 0.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.0,
+      "unsupported_answer": 1.0,
+      "prediction": "I do not have enough retrieved context to answer."
+    },
+    {
+      "system": "NoRAG",
+      "question": "Which protocol provides reliable ordered delivery?",
+      "support_doc": "networks_tcp",
+      "support_rank": 999,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 0.0,
+      "mrr": 0.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.0,
+      "unsupported_answer": 1.0,
+      "prediction": "I do not have enough retrieved context to answer."
+    },
+    {
+      "system": "NoRAG",
+      "question": "What tradeoff does UDP make compared with TCP?",
+      "support_doc": "networks_tcp",
+      "support_rank": 999,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 0.0,
+      "mrr": 0.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.0,
+      "unsupported_answer": 1.0,
+      "prediction": "I do not have enough retrieved context to answer."
+    },
+    {
+      "system": "NoRAG",
+      "question": "What is the time complexity of merge sort?",
+      "support_doc": "algorithms_merge_sort",
+      "support_rank": 999,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 0.0,
+      "mrr": 0.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.0,
+      "unsupported_answer": 1.0,
+      "prediction": "I do not have enough retrieved context to answer."
+    },
+    {
+      "system": "NoRAG",
+      "question": "How does binary search reduce the search interval?",
+      "support_doc": "algorithms_binary_search",
+      "support_rank": 999,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 0.0,
+      "mrr": 0.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.0,
+      "unsupported_answer": 1.0,
+      "prediction": "I do not have enough retrieved context to answer."
+    },
+    {
+      "system": "NoRAG",
+      "question": "What does a p-value assume about the null hypothesis?",
+      "support_doc": "statistics_p_value",
+      "support_rank": 999,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 0.0,
+      "mrr": 0.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.0,
+      "unsupported_answer": 1.0,
+      "prediction": "I do not have enough retrieved context to answer."
+    },
+    {
+      "system": "NoRAG",
+      "question": "At alpha 0.05, what decision follows from a p-value of 0.03?",
+      "support_doc": "statistics_alpha",
+      "support_rank": 999,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 0.0,
+      "mrr": 0.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.0,
+      "unsupported_answer": 1.0,
+      "prediction": "I do not have enough retrieved context to answer."
+    },
+    {
+      "system": "NoRAG",
+      "question": "Which Bloom level is usually signaled by compare?",
+      "support_doc": "bloom_compare",
+      "support_rank": 999,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 0.0,
+      "mrr": 0.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.0,
+      "unsupported_answer": 1.0,
+      "prediction": "I do not have enough retrieved context to answer."
+    },
+    {
+      "system": "NoRAG",
+      "question": "What should a grounded RAG system do when context lacks support?",
+      "support_doc": "rag_grounding",
+      "support_rank": 999,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 0.0,
+      "mrr": 0.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.25,
+      "unsupported_answer": 1.0,
+      "prediction": "I do not have enough retrieved context to answer."
+    }
+  ]
+}

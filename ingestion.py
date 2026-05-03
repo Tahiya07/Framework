@@ -12,17 +12,22 @@ route it through teacher-only workflows and output screening.
 from __future__ import annotations
 
 import logging
+import os
 import random
 import re
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional, Union
 
-import numpy as np
-
 
 random.seed(42)
-np.random.seed(42)
+try:
+    import numpy as np
+
+    np.random.seed(42)
+except Exception:  # pragma: no cover
+    np = None  # type: ignore[assignment]
 
 try:
     import torch
@@ -163,9 +168,26 @@ class DocumentIngestor:
             from PIL import Image  # type: ignore
             import pytesseract  # type: ignore
         except Exception as exc:  # pragma: no cover
-            raise RuntimeError(
-                "Image OCR requires pillow and pytesseract. Install them or upload extracted text."
-            ) from exc
+            try:
+                import easyocr  # type: ignore
+            except Exception as easy_exc:  # pragma: no cover
+                raise RuntimeError(
+                    "Image OCR requires pillow plus pytesseract or easyocr. "
+                    "Install an OCR backend or upload extracted text."
+                ) from easy_exc
+            reader = easyocr.Reader(["en"], gpu=False, verbose=False)
+            return " ".join(str(piece) for piece in reader.readtext(str(path), detail=0))
+        tesseract_cmd = os.environ.get("TESSERACT_CMD") or shutil.which("tesseract")
+        if not tesseract_cmd:
+            for candidate in [
+                Path("C:/Program Files/Tesseract-OCR/tesseract.exe"),
+                Path("C:/Program Files (x86)/Tesseract-OCR/tesseract.exe"),
+            ]:
+                if candidate.is_file():
+                    tesseract_cmd = str(candidate)
+                    break
+        if tesseract_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
         return str(pytesseract.image_to_string(Image.open(path)) or "")
 
     def process(

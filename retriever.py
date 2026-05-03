@@ -18,8 +18,11 @@ controls that can be evaluated with reconstruction and leakage probes.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
+from dataclasses import asdict, is_dataclass
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Optional, Sequence, Union
 
 import faiss  # type: ignore
@@ -174,6 +177,91 @@ class PrivacyRetriever:
         self._index = index
         logger.info("FAISS index built: N=%d, D=%d", len(self._docs), self._dim)
 
+    @staticmethod
+    def _serialize_doc(doc: Union[str, SafeDocumentChunk, object]) -> dict:
+        if isinstance(doc, str):
+            return {"type": "str", "value": doc}
+        if is_dataclass(doc):
+            return {
+                "type": doc.__class__.__name__,
+                "module": doc.__class__.__module__,
+                "value": asdict(doc),
+            }
+        return {
+            "type": "object",
+            "module": doc.__class__.__module__,
+            "class": doc.__class__.__name__,
+            "value": dict(getattr(doc, "__dict__", {})),
+        }
+
+    @staticmethod
+    def _deserialize_doc(payload: dict) -> Union[str, SafeDocumentChunk, object]:
+        typ = payload.get("type")
+        value = payload.get("value")
+        if typ == "str":
+            return str(value or "")
+        if typ == "SafeDocumentChunk":
+            return SafeDocumentChunk(**dict(value or {}))
+        if typ == "DocumentChunk":
+            from ingestion import DocumentChunk
+
+            return DocumentChunk(**dict(value or {}))
+        return str(value or "")
+
+    def save_vector_store(self, path: Union[str, Path]) -> None:
+        """Persist the FAISS index plus retrievable chunk metadata.
+
+        The saved directory contains ``index.faiss`` and ``metadata.json``.
+        It is a local vector database snapshot for PDF/image/text RAG corpora.
+        """
+        if self._index is None or self._embeddings is None:
+            raise RuntimeError("index not built")
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+        faiss.write_index(self._index, str(path / "index.faiss"))
+        meta = {
+            "model_name": self.model_name,
+            "normalize": self.normalize,
+            "temperature": self.temperature,
+            "lambda_privacy": self.lambda_privacy,
+            "query_perturb_sigma": self.query_perturb_sigma,
+            "query_perturb_seed_base": self.query_perturb_seed_base,
+            "dim": self._dim,
+            "docs": [self._serialize_doc(doc) for doc in self._docs],
+            "index_texts": self._index_texts,
+            "return_texts": self._return_texts,
+        }
+        (path / "metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+    def load_vector_store(self, path: Union[str, Path]) -> None:
+        """Load a vector database snapshot created by ``save_vector_store``."""
+        path = Path(path)
+        index_path = path / "index.faiss"
+        meta_path = path / "metadata.json"
+        if not index_path.is_file() or not meta_path.is_file():
+            raise FileNotFoundError(f"Missing vector store files under {path}")
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        self._index = faiss.read_index(str(index_path))
+        self._docs = [self._deserialize_doc(doc) for doc in meta.get("docs", [])]
+        self._index_texts = list(meta.get("index_texts", []))
+        self._return_texts = list(meta.get("return_texts", []))
+        self._dim = int(meta.get("dim") or self._index.d)
+        if self._index.ntotal != len(self._docs):
+            raise RuntimeError("Vector store metadata and FAISS index have different sizes")
+        if self._index_texts:
+            self._embeddings = np.vstack(
+                [self._index.reconstruct(i) for i in range(self._index.ntotal)]
+            ).astype(np.float32, copy=False)
+        else:
+            self._embeddings = None
+        self.model_name = str(meta.get("model_name", self.model_name))
+        self.normalize = bool(meta.get("normalize", self.normalize))
+        self.temperature = float(meta.get("temperature", self.temperature))
+        self.lambda_privacy = float(meta.get("lambda_privacy", self.lambda_privacy))
+        self.query_perturb_sigma = float(meta.get("query_perturb_sigma", self.query_perturb_sigma))
+        self.query_perturb_seed_base = int(meta.get("query_perturb_seed_base", self.query_perturb_seed_base))
+        logger.info("FAISS vector store loaded: N=%d, D=%d, path=%s", self._index.ntotal, self._dim, path)
+
     def _perturb_query(self, query: str, q_emb: np.ndarray) -> np.ndarray:
         if self.query_perturb_sigma <= 0:
             return q_emb
@@ -261,6 +349,8 @@ class PrivacyRetriever:
 
 
 def _self_test() -> None:
+    import tempfile
+
     docs = [
         "Photosynthesis converts light into chemical energy.",
         "Bloom taxonomy includes remember, understand, apply, analyze, evaluate, create.",
@@ -271,6 +361,12 @@ def _self_test() -> None:
     out = retr.retrieve("What is photosynthesis?", top_k=2, candidate_pool=3)
     assert len(out) == 2
     assert all(r.text for r in out)
+    with tempfile.TemporaryDirectory() as tmp:
+        retr.save_vector_store(tmp)
+        loaded = PrivacyRetriever(model=retr.model)
+        loaded.load_vector_store(tmp)
+        loaded_out = loaded.retrieve("What is photosynthesis?", top_k=1)
+        assert loaded_out and "Photosynthesis" in loaded_out[0].text
     print("[OK] retriever self-test passed")
 
 

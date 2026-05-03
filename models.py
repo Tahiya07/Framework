@@ -66,7 +66,12 @@ except Exception:  # pragma: no cover
 # ----------------------------------------------------------------------------
 # Required deps (assumed installed)
 # ----------------------------------------------------------------------------
-from llama_cpp import Llama  # type: ignore[import-not-found]
+try:
+    from llama_cpp import Llama  # type: ignore[import-not-found]
+    _HAS_LLAMA_CPP = True
+except Exception:  # pragma: no cover
+    Llama = Any  # type: ignore[misc,assignment]
+    _HAS_LLAMA_CPP = False
 
 # Phase-1 module (unchanged; imported as-is)
 from retriever import PrivacyRetriever, RetrievalResult
@@ -214,6 +219,12 @@ class RAGGenerator:
             self.model_path = getattr(llm, "model_path", "<injected>")
             logger.info("RAGGenerator using injected Llama instance")
         else:
+            if not _HAS_LLAMA_CPP:
+                raise RuntimeError(
+                    "llama-cpp-python is not installed. Use qwen_gguf_cli.py for "
+                    "standalone llama.cpp GGUF evaluation, or install a compatible "
+                    "llama-cpp-python wheel."
+                )
             mp = _find_qwen_gguf(model_path)
             if mp is None:
                 raise FileNotFoundError(

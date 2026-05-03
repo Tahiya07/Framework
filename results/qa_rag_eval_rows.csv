@@ -1,0 +1,41 @@
+system,question,support_doc,support_rank,retrieval_hit_at_1,retrieval_hit_at_3,mrr,answer_exact_match,answer_token_f1,unsupported_answer,prediction
+Proposed,What relationship does Ohm's law define?,circuits_ohm,1,1.0,1.0,1.0,1.0,1.0,0.0,voltage equals current times resistance
+Proposed,What unit is electrical power measured in?,circuits_power,1,1.0,1.0,1.0,1.0,1.0,0.0,watts
+Proposed,Which protocol provides reliable ordered delivery?,networks_tcp,1,1.0,1.0,1.0,1.0,1.0,0.0,tcp
+Proposed,What tradeoff does UDP make compared with TCP?,networks_tcp,1,1.0,1.0,1.0,0.0,0.7272727272727272,0.0,UDP has lower transport overhead but does not guarantee ordering or delivery.
+Proposed,What is the time complexity of merge sort?,algorithms_merge_sort,1,1.0,1.0,1.0,1.0,1.0,0.0,o n log n
+Proposed,How does binary search reduce the search interval?,algorithms_binary_search,1,1.0,1.0,1.0,1.0,1.0,0.0,halves a sorted search interval
+Proposed,What does a p-value assume about the null hypothesis?,statistics_p_value,2,0.0,1.0,0.5,1.0,1.0,0.0,the null hypothesis is true
+Proposed,"At alpha 0.05, what decision follows from a p-value of 0.03?",statistics_alpha,1,1.0,1.0,1.0,1.0,1.0,0.0,reject the null hypothesis
+Proposed,Which Bloom level is usually signaled by compare?,bloom_compare,1,1.0,1.0,1.0,1.0,1.0,0.0,analyze
+Proposed,What should a grounded RAG system do when context lacks support?,rag_grounding,1,1.0,1.0,1.0,1.0,1.0,0.0,decline
+VanillaRAG,What relationship does Ohm's law define?,circuits_ohm,1,1.0,1.0,1.0,1.0,1.0,0.0,voltage equals current times resistance
+VanillaRAG,What unit is electrical power measured in?,circuits_power,1,1.0,1.0,1.0,1.0,1.0,0.0,watts
+VanillaRAG,Which protocol provides reliable ordered delivery?,networks_tcp,1,1.0,1.0,1.0,1.0,1.0,0.0,tcp
+VanillaRAG,What tradeoff does UDP make compared with TCP?,networks_tcp,1,1.0,1.0,1.0,0.0,0.7272727272727272,0.0,UDP has lower transport overhead but does not guarantee ordering or delivery.
+VanillaRAG,What is the time complexity of merge sort?,algorithms_merge_sort,1,1.0,1.0,1.0,1.0,1.0,0.0,o n log n
+VanillaRAG,How does binary search reduce the search interval?,algorithms_binary_search,1,1.0,1.0,1.0,1.0,1.0,0.0,halves a sorted search interval
+VanillaRAG,What does a p-value assume about the null hypothesis?,statistics_p_value,2,0.0,1.0,0.5,1.0,1.0,0.0,the null hypothesis is true
+VanillaRAG,"At alpha 0.05, what decision follows from a p-value of 0.03?",statistics_alpha,1,1.0,1.0,1.0,1.0,1.0,0.0,reject the null hypothesis
+VanillaRAG,Which Bloom level is usually signaled by compare?,bloom_compare,2,0.0,1.0,0.5,1.0,1.0,0.0,analyze
+VanillaRAG,What should a grounded RAG system do when context lacks support?,rag_grounding,1,1.0,1.0,1.0,1.0,1.0,0.0,decline
+BM25,What relationship does Ohm's law define?,circuits_ohm,1,1.0,1.0,1.0,1.0,1.0,0.0,voltage equals current times resistance
+BM25,What unit is electrical power measured in?,circuits_power,1,1.0,1.0,1.0,1.0,1.0,0.0,watts
+BM25,Which protocol provides reliable ordered delivery?,networks_tcp,1,1.0,1.0,1.0,1.0,1.0,0.0,tcp
+BM25,What tradeoff does UDP make compared with TCP?,networks_tcp,1,1.0,1.0,1.0,0.0,0.7272727272727272,0.0,UDP has lower transport overhead but does not guarantee ordering or delivery.
+BM25,What is the time complexity of merge sort?,algorithms_merge_sort,1,1.0,1.0,1.0,1.0,1.0,0.0,o n log n
+BM25,How does binary search reduce the search interval?,algorithms_binary_search,1,1.0,1.0,1.0,1.0,1.0,0.0,halves a sorted search interval
+BM25,What does a p-value assume about the null hypothesis?,statistics_p_value,2,0.0,1.0,0.5,1.0,1.0,0.0,the null hypothesis is true
+BM25,"At alpha 0.05, what decision follows from a p-value of 0.03?",statistics_alpha,1,1.0,1.0,1.0,1.0,1.0,0.0,reject the null hypothesis
+BM25,Which Bloom level is usually signaled by compare?,bloom_compare,1,1.0,1.0,1.0,1.0,1.0,0.0,analyze
+BM25,What should a grounded RAG system do when context lacks support?,rag_grounding,1,1.0,1.0,1.0,1.0,1.0,0.0,decline
+NoRAG,What relationship does Ohm's law define?,circuits_ohm,999,0.0,0.0,0.0,0.0,0.0,1.0,I do not have enough retrieved context to answer.
+NoRAG,What unit is electrical power measured in?,circuits_power,999,0.0,0.0,0.0,0.0,0.0,1.0,I do not have enough retrieved context to answer.
+NoRAG,Which protocol provides reliable ordered delivery?,networks_tcp,999,0.0,0.0,0.0,0.0,0.0,1.0,I do not have enough retrieved context to answer.
+NoRAG,What tradeoff does UDP make compared with TCP?,networks_tcp,999,0.0,0.0,0.0,0.0,0.0,1.0,I do not have enough retrieved context to answer.
+NoRAG,What is the time complexity of merge sort?,algorithms_merge_sort,999,0.0,0.0,0.0,0.0,0.0,1.0,I do not have enough retrieved context to answer.
+NoRAG,How does binary search reduce the search interval?,algorithms_binary_search,999,0.0,0.0,0.0,0.0,0.0,1.0,I do not have enough retrieved context to answer.
+NoRAG,What does a p-value assume about the null hypothesis?,statistics_p_value,999,0.0,0.0,0.0,0.0,0.0,1.0,I do not have enough retrieved context to answer.
+NoRAG,"At alpha 0.05, what decision follows from a p-value of 0.03?",statistics_alpha,999,0.0,0.0,0.0,0.0,0.0,1.0,I do not have enough retrieved context to answer.
+NoRAG,Which Bloom level is usually signaled by compare?,bloom_compare,999,0.0,0.0,0.0,0.0,0.0,1.0,I do not have enough retrieved context to answer.
+NoRAG,What should a grounded RAG system do when context lacks support?,rag_grounding,999,0.0,0.0,0.0,0.0,0.25,1.0,I do not have enough retrieved context to answer.

@@ -49,6 +49,7 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")
 APP_TITLE = "Lightweight Multi-Modal Tiny LLM Demo"
 UPLOAD_TYPES = ["pdf", "png", "jpg", "jpeg", "tif", "tiff", "bmp", "webp", "txt", "md"]
 DEFAULT_FAISS_POOL = 20
+VECTOR_STORE_DIR = Path("data/vector_store")
 
 
 def _init_page() -> None:
@@ -96,6 +97,27 @@ def _runtime() -> Dict[str, Any]:
             "summarizer": summarizer,
             "uncertainty": uncertainty,
         }
+        for scope, active_retriever in [
+            ("public", retriever),
+            ("protected", protected_retriever),
+        ]:
+            store_path = VECTOR_STORE_DIR / scope
+            meta_path = store_path / "metadata.json"
+            if meta_path.is_file():
+                try:
+                    active_retriever.load_vector_store(store_path)
+                    state_key = "protected_chunks" if scope == "protected" else "public_chunks"
+                    st.session_state[state_key] = list(getattr(active_retriever, "_docs", []))
+                except Exception as exc:
+                    st.warning(f"Could not load {scope} vector store: {exc}")
+        st.session_state["public_corpus_ready"] = bool(st.session_state.get("public_chunks"))
+        st.session_state["protected_corpus_ready"] = bool(st.session_state.get("protected_chunks"))
+        st.session_state["corpus_ready"] = bool(
+            st.session_state.get("public_corpus_ready") or st.session_state.get("protected_corpus_ready")
+        )
+        all_chunks = list(st.session_state.get("public_chunks", [])) + list(st.session_state.get("protected_chunks", []))
+        st.session_state.active_chunks = all_chunks
+        st.session_state.active_sources = sorted({getattr(c, "source", "") for c in all_chunks if getattr(c, "source", "")})
     return st.session_state.demo_runtime
 
 
@@ -153,11 +175,10 @@ def _set_active_corpus(
     retr_key = "protected_retriever" if upload_scope == "protected" else "retriever"
     existing: List[DocumentChunk] = list(st.session_state.get(state_key, []))
     existing.extend(chunks)
-    texts = [c.text for c in existing if c.text.strip()]
-
     retriever: PrivacyRetriever = runtime[retr_key]
     retriever.lambda_privacy = float(lambda_privacy)
-    retriever.build_index(texts)
+    retriever.build_index([c for c in existing if c.text.strip()])
+    retriever.save_vector_store(VECTOR_STORE_DIR / upload_scope)
 
     st.session_state[state_key] = existing
     st.session_state["public_corpus_ready"] = bool(st.session_state.get("public_chunks"))

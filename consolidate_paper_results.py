@@ -242,26 +242,70 @@ def _cue_analysis_rows() -> List[Dict[str, Any]]:
 
 
 def _qa_resource_rows() -> List[Dict[str, Any]]:
-    metrics = _load("metrics.json")
+    qa_eval = _load("qa_rag_eval.json")
+    qwen_eval = _load("qwen_rag_eval.json")
     efficiency = _load("efficiency.json")
     rows: List[Dict[str, Any]] = []
-    qa = metrics.get("qa", {})
+    if qwen_eval:
+        qa = qwen_eval.get("academic_qa", {})
+        mm = qwen_eval.get("multimodal_rag", {})
+        rows.append(
+            {
+                "evidence_area": "deployment utility",
+                "protocol": "Qwen GGUF academic QA/RAG",
+                "setting": qwen_eval.get("model_id", "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"),
+                "model": qwen_eval.get("model_id", "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"),
+                "primary_metric": "token_f1",
+                "primary_value": qa.get("token_f1", {}).get("mean"),
+                "accuracy": qa.get("exact_match", {}).get("mean"),
+                "within_one_level_accuracy": qa.get("retrieval_hit_at_3", {}).get("mean"),
+                "severe_error_rate": qa.get("hallucination_proxy_rate", {}).get("mean"),
+                "interpretation": (
+                    f"Qwen EM={_fmt(qa.get('exact_match', {}).get('mean'))}; "
+                    f"hit@3={_fmt(qa.get('retrieval_hit_at_3', {}).get('mean'))}; "
+                    f"unsupported-answer proxy={_fmt(qa.get('hallucination_proxy_rate', {}).get('mean'))}"
+                ),
+            }
+        )
+        rows.append(
+            {
+                "evidence_area": "multimodal ingestion",
+                "protocol": "Qwen GGUF PDF/image RAG",
+                "setting": "pdf and image ingestion",
+                "model": qwen_eval.get("model_id", "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"),
+                "primary_metric": "answer_accuracy",
+                "primary_value": mm.get("answer_accuracy", {}).get("mean"),
+                "accuracy": float(bool(mm.get("pdf_rag_ok"))),
+                "within_one_level_accuracy": float(bool(mm.get("image_rag_ok"))),
+                "severe_error_rate": "",
+                "interpretation": "Qwen answers over retrieved PDF and OCR-image context",
+            }
+        )
+    qa = qa_eval.get("systems", {})
     for system in ["Proposed", "VanillaRAG", "BM25", "NoRAG"]:
         item = qa.get(system, {})
         if not item:
             continue
+        token_f1 = item.get("token_f1", {})
+        exact = item.get("exact_match", {})
+        hit1 = item.get("retrieval_hit_at_1", {})
+        hit3 = item.get("retrieval_hit_at_3", {})
+        halluc = item.get("hallucination_proxy_rate", {})
         rows.append(
             {
                 "evidence_area": "deployment utility",
-                "protocol": "bounded local QA",
+                "protocol": "offline academic QA/RAG",
                 "setting": system,
                 "model": system,
                 "primary_metric": "token_f1",
-                "primary_value": item.get("f1", {}).get("mean"),
-                "accuracy": "",
-                "within_one_level_accuracy": "",
-                "severe_error_rate": "",
-                "interpretation": "utility reference under local/offline generation",
+                "primary_value": token_f1.get("mean"),
+                "accuracy": exact.get("mean"),
+                "within_one_level_accuracy": hit3.get("mean"),
+                "severe_error_rate": halluc.get("mean"),
+                "interpretation": (
+                    f"EM={_fmt(exact.get('mean'))}; hit@1={_fmt(hit1.get('mean'))}; "
+                    f"hit@3={_fmt(hit3.get('mean'))}; unsupported-answer proxy={_fmt(halluc.get('mean'))}"
+                ),
             }
         )
     if efficiency:
@@ -279,6 +323,51 @@ def _qa_resource_rows() -> List[Dict[str, Any]]:
                 "interpretation": "private RAM footprint for CPU-only deployment",
             }
         )
+    return rows
+
+
+def _ocr_rows() -> List[Dict[str, Any]]:
+    data = _load("ocr_image_pipeline_eval.json")
+    rag = _load("multimodal_rag_eval.json")
+    rows: List[Dict[str, Any]] = []
+    if rag:
+        rows.append(
+            {
+                "evidence_area": "multimodal ingestion",
+                "protocol": "PDF/image RAG smoke test",
+                "setting": "pdf and image ingestion",
+                "model": "MultiModalAcademicRAG",
+                "primary_metric": "answer_accuracy_on_ok_cases",
+                "primary_value": rag.get("answer_accuracy_on_ok_cases"),
+                "accuracy": float(bool(rag.get("pdf_rag_ok"))),
+                "within_one_level_accuracy": float(bool(rag.get("image_rag_ok"))),
+                "severe_error_rate": "",
+                "interpretation": "PDF RAG and OCR-backed image RAG are tested separately; image requires OCR backend",
+            }
+        )
+    if not data:
+        return rows
+    status = data.get("backend_status", {})
+    metrics = data.get("metrics", {})
+    available = bool(status.get("available"))
+    rows.append(
+        {
+            "evidence_area": "multimodal ingestion",
+            "protocol": "synthetic image OCR pipeline",
+            "setting": f"backend={status.get('engine', 'none')}",
+            "model": "DocumentIngestor",
+            "primary_metric": "mean_token_f1",
+            "primary_value": metrics.get("mean_token_f1"),
+            "accuracy": metrics.get("access_level_preservation"),
+            "within_one_level_accuracy": metrics.get("modality_preservation"),
+            "severe_error_rate": metrics.get("mean_word_error_rate"),
+            "interpretation": (
+                "OCR quality measured on typed synthetic images"
+                if available
+                else f"OCR backend unavailable in this run: {status.get('reason', 'unknown')}"
+            ),
+        }
+    )
     return rows
 
 
@@ -323,7 +412,13 @@ def _write_markdown(rows: List[Dict[str, Any]]) -> None:
 def main() -> None:
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     FIG_DIR.mkdir(parents=True, exist_ok=True)
-    rows = _cross_domain_rows() + _cue_analysis_rows() + _privacy_rows() + _qa_resource_rows()
+    rows = (
+        _cross_domain_rows()
+        + _cue_analysis_rows()
+        + _privacy_rows()
+        + _qa_resource_rows()
+        + _ocr_rows()
+    )
 
     out_json = RESULTS_DIR / "unified_results_table.json"
     out_csv = RESULTS_DIR / "unified_results_table.csv"

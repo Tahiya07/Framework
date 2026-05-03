@@ -3,10 +3,12 @@ from __future__ import annotations
 import re
 from collections import Counter
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Set
+from typing import TYPE_CHECKING, Dict, List, Sequence, Set
 
 from ingestion import DocumentChunk
-from retriever import RetrievalResult
+
+if TYPE_CHECKING:  # pragma: no cover
+    from retriever import RetrievalResult
 
 
 STUDENT_REFUSAL = (

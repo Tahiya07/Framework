@@ -19,6 +19,7 @@ build/
 *.log
 bench_log.txt
 debug*.log
+data/vector_store/
 
 # OS
 .DS_Store

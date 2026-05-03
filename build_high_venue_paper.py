@@ -169,6 +169,10 @@ def build() -> None:
     styles = _style()
     figshare = _load_json("figshare_bloom_v1_evaluation.json")
     guard = _load_json("privacy_guard_eval.json")
+    qa_eval = _load_json("qa_rag_eval.json")
+    qwen_eval = _load_json("qwen_rag_eval.json")
+    ocr_eval = _load_json("ocr_image_pipeline_eval.json")
+    multimodal_rag = _load_json("multimodal_rag_eval.json")
     unified_payload = _load_json("unified_results_table.json", [])
     unified = unified_payload.get("rows", []) if isinstance(unified_payload, dict) else unified_payload
     refs = json.loads((ROOT / "refs.json").read_text(encoding="utf-8"))
@@ -192,7 +196,8 @@ def build() -> None:
             "Universities increasingly need local academic assistants that can answer questions "
             "from course material while preventing protected assessment artifacts from leaking to "
             "students. We present a lightweight, CPU-oriented framework that separates public "
-            "learning corpora from protected exam corpora, supports PDF/image/text ingestion, "
+            "learning corpora from protected exam corpora, supports auditable PDF/text ingestion "
+            "with an optional OCR-backed image path, "
             "performs Bloom-taxonomy classification for moderation, and applies role-aware query "
             "and output screening before student-facing generation. The paper does not claim "
             "formal differential privacy. Instead, it evaluates bounded empirical resistance under "
@@ -200,9 +205,13 @@ def build() -> None:
             "classifier reaches 0.769 test accuracy and 0.744 macro-F1 after duplicate/conflict "
             "auditing. Cross-dataset transfer with MoocRadar shows large exact-label degradation, "
             "indicating that Bloom classifiers remain domain-sensitive; ordinal metrics expose "
-            "where severe cognitive-level jumps are reduced or amplified. A 52-prompt role-aware "
+            "where severe cognitive-level jumps are reduced or amplified. An expanded role-aware "
             "privacy evaluation blocks all evaluated student reconstruction attacks, allows 0.857 "
-            "of benign student study prompts, and allows teacher moderation prompts. These results "
+            "of benign student study prompts, and allows teacher moderation prompts. A small "
+            "offline QA/RAG evaluation reports answer F1, retrieval hit rate, and unsupported-answer "
+            "risk; Qwen2.5-1.5B-Instruct-Q4_K_M.gguf is then evaluated over the same "
+            "retrieved contexts. The image pipeline evaluation reports OCR readiness or measured OCR quality "
+            "depending on the installed backend. These results "
             "support a conservative claim: local role separation plus leakage screening is a "
             "practical deployment pattern for privacy-constrained academic assistance, but not a "
             "proof of universal privacy or cross-domain Bloom generalization.",
@@ -236,10 +245,10 @@ def build() -> None:
     )
     story.append(_p("Contributions", styles, "h2"))
     for item in [
-        "A role-separated local academic-assistance architecture for public student RAG and protected teacher moderation.",
-        "A bounded privacy evaluation taxonomy covering direct reconstruction, indirect leakage, paraphrase probes, partial-span extraction, jailbreak-style prompts, and semantic reconstruction.",
-        "A Bloom-classification evaluation that reports exact accuracy, macro-F1, within-one-level accuracy, and severe ordinal error across in-domain and cross-domain settings.",
-        "A conservative claim policy that distinguishes empirical leakage resistance from formal privacy guarantees.",
+        "A deployment pattern for privacy-constrained educational RAG that separates public student retrieval from protected teacher moderation.",
+        "An evaluation protocol spanning answer correctness, retrieval quality, unsupported-answer risk, role-aware privacy attacks, Bloom robustness, and image/OCR ingestion.",
+        "A Bloom-classification analysis framed as evaluation insight: exact cross-domain labels are brittle, while ordinal error metrics reveal usable moderation risk structure.",
+        "A conservative claim policy that distinguishes taxonomy-based empirical leakage resistance from formal privacy guarantees.",
     ]:
         story.append(_p(f"- {item}", styles))
 
@@ -298,17 +307,37 @@ def build() -> None:
         [
             "Synthetic protected exam micro-corpus",
             "Privacy-guard attack and utility probes",
-            str(len(PROTECTED_CHUNKS)) if "PROTECTED_CHUNKS" in globals() else "3",
+            str(guard.get("n_rows", "NA")),
             "Small, controlled corpus for policy evaluation; not a real deployment study.",
         ],
+        [
+            "Offline academic QA set",
+            "Answer correctness and retrieval grounding; extractive and Qwen-generated",
+            str(qa_eval.get("n_questions", "NA")),
+            "Small local QA benchmark; external HotpotQA/NQ-style evaluation remains future work.",
+        ],
+        [
+            "Synthetic typed image set",
+            "OCR/image ingestion path",
+            str(ocr_eval.get("n_samples", "NA")),
+            "Reports OCR quality when a backend is installed; otherwise reports backend unavailability.",
+        ],
+        [
+            "Generated PDF/image RAG smoke set",
+            "End-to-end file ingestion and extractive RAG",
+            str(multimodal_rag.get("n_cases", "NA")),
+            "Tests PDF RAG and OCR-backed image RAG as separate pipeline cases.",
+        ],
     ]
-    story.append(_table(dataset_rows, [1.55, 1.8, 1.05, 2.15], styles))
+    story.append(_table(dataset_rows, [1.45, 1.65, 0.95, 2.45], styles))
     story.append(
         _p(
             "Dataset usage is therefore aligned with claim scope: Figshare supports in-domain "
-            "Bloom evidence, MoocRadar supports cross-domain stress testing, and the protected "
-            "micro-corpus supports guard-behavior analysis. The present artifacts do not support "
-            "claims about large-scale real university deployment or formal privacy.",
+            "Bloom evidence, MoocRadar supports cross-domain stress testing, the protected "
+            "micro-corpus supports guard-behavior analysis, the offline QA set tests grounding "
+            "behavior, and the synthetic image set tests whether the OCR ingestion path is "
+            "measurable. The present artifacts do not support claims about large-scale real "
+            "university deployment or formal privacy.",
             styles,
         )
     )
@@ -368,16 +397,98 @@ def build() -> None:
         [
             "Attack prompts",
             str(guard.get("n_attack_prompts", "NA")),
-            "Synthetic but explicit adversarial set.",
+            "Expanded synthetic adversarial set, still below a full external red-team study.",
+        ],
+        [
+            "Total privacy rows",
+            str(guard.get("n_rows", "NA")),
+            "Includes attacks, benign student prompts, and teacher moderation prompts.",
         ],
     ]
     story.append(_table(privacy_rows, [1.65, 0.8, 3.5], styles))
     story.append(
         _p(
             "The privacy guard evidence is promising but bounded. A high venue version should "
-            "emphasize that the 52-prompt evaluation is an attack taxonomy, not a proof. The "
+            "emphasize that the expanded prompt evaluation is an attack taxonomy, not a proof. The "
             "student benign allow rate below 1.0 is also useful: it reveals the utility cost of "
             "strict protected-artifact screening and motivates future adaptive policies.",
+            styles,
+        )
+    )
+
+    story.append(_p("5.4 QA/RAG grounding", styles, "h2"))
+    qa_rows = [["System", "Token-F1", "EM", "Hit@1", "Hit@3", "Unsupported"]]
+    qwen_qa = qwen_eval.get("academic_qa", {}) if isinstance(qwen_eval, dict) else {}
+    if qwen_qa:
+        qa_rows.append(
+            [
+                "Qwen2.5-1.5B-Q4_K_M",
+                _fmt(qwen_qa.get("token_f1", {}).get("mean")),
+                _fmt(qwen_qa.get("exact_match", {}).get("mean")),
+                _fmt(qwen_qa.get("retrieval_hit_at_1", {}).get("mean")),
+                _fmt(qwen_qa.get("retrieval_hit_at_3", {}).get("mean")),
+                _fmt(qwen_qa.get("hallucination_proxy_rate", {}).get("mean")),
+            ]
+        )
+    systems = qa_eval.get("systems", {}) if isinstance(qa_eval, dict) else {}
+    for system_name in ["Proposed", "VanillaRAG", "BM25", "NoRAG"]:
+        item = systems.get(system_name, {})
+        if not item:
+            continue
+        qa_rows.append(
+            [
+                system_name,
+                _fmt(item.get("token_f1", {}).get("mean")),
+                _fmt(item.get("exact_match", {}).get("mean")),
+                _fmt(item.get("retrieval_hit_at_1", {}).get("mean")),
+                _fmt(item.get("retrieval_hit_at_3", {}).get("mean")),
+                _fmt(item.get("hallucination_proxy_rate", {}).get("mean")),
+            ]
+        )
+    if len(qa_rows) == 1:
+        qa_rows.append(["Not run", "NA", "NA", "NA", "NA", "NA"])
+    story.append(_table(qa_rows, [1.2, 0.75, 0.55, 0.55, 0.55, 0.85], styles))
+    story.append(
+        _p(
+            "This QA/RAG evaluation is deliberately small and offline. It measures answer "
+            "correctness, support-document retrieval, and an unsupported-answer proxy. The primary "
+            "generator row uses Qwen2.5-1.5B-Instruct-Q4_K_M.gguf through llama.cpp with greedy "
+            "decoding; the extractive rows remain as diagnostic controls. It should be replaced "
+            "or supplemented with HotpotQA, Natural "
+            "Questions, DocVQA, or instructor-authored course QA before making broad utility claims.",
+            styles,
+        )
+    )
+
+    story.append(_p("5.5 OCR and image pipeline", styles, "h2"))
+    ocr_status = ocr_eval.get("backend_status", {}) if isinstance(ocr_eval, dict) else {}
+    ocr_metrics = ocr_eval.get("metrics", {}) if isinstance(ocr_eval, dict) else {}
+    ocr_rows = [
+        ["Metric", "Value"],
+        ["Qwen model", str(qwen_eval.get("model_id", "NA") if isinstance(qwen_eval, dict) else "NA")],
+        ["Qwen model file MB", _fmt(qwen_eval.get("model_file_mb") if isinstance(qwen_eval, dict) else None)],
+        ["Qwen PDF RAG", str(qwen_eval.get("multimodal_rag", {}).get("pdf_rag_ok", "NA") if isinstance(qwen_eval, dict) else "NA")],
+        ["Qwen image RAG", str(qwen_eval.get("multimodal_rag", {}).get("image_rag_ok", "NA") if isinstance(qwen_eval, dict) else "NA")],
+        ["PDF RAG smoke test", str(multimodal_rag.get("pdf_rag_ok", "NA") if isinstance(multimodal_rag, dict) else "NA")],
+        ["Image RAG smoke test", str(multimodal_rag.get("image_rag_ok", "NA") if isinstance(multimodal_rag, dict) else "NA")],
+        ["RAG answer accuracy on OK cases", _fmt(multimodal_rag.get("answer_accuracy_on_ok_cases") if isinstance(multimodal_rag, dict) else None)],
+        ["Backend", str(ocr_status.get("engine", "NA"))],
+        ["Backend available", str(ocr_status.get("available", "NA"))],
+        ["Samples evaluated", str(ocr_eval.get("n_samples", "NA") if isinstance(ocr_eval, dict) else "NA")],
+        ["Mean OCR token-F1", _fmt(ocr_metrics.get("mean_token_f1"))],
+        ["Mean word error rate", _fmt(ocr_metrics.get("mean_word_error_rate"))],
+        ["Access-level preservation", _fmt(ocr_metrics.get("access_level_preservation"))],
+        ["Modality preservation", _fmt(ocr_metrics.get("modality_preservation"))],
+    ]
+    story.append(_table(ocr_rows, [2.15, 1.35], styles))
+    story.append(
+        _p(
+            "The multimodal claim is therefore scoped to an implemented and measurable image "
+            "ingestion path plus a PDF RAG path, both evaluated with Qwen over retrieved context. "
+            "PDF RAG is tested with native text extraction. "
+            "Image RAG is OCR-backed: if no OCR backend is installed, the result is reported as "
+            "missing backend evidence rather than image-understanding performance. Scanned "
+            "handwriting, complex layouts, and DocVQA-style reasoning remain outside the current evidence.",
             styles,
         )
     )
@@ -400,7 +511,7 @@ def build() -> None:
         "Privacy is not differential privacy; add DP/query-privacy baselines only if the implementation actually includes them.",
         "The privacy attack set is synthetic and should be expanded with external red-team prompts before submission.",
         "The multimodal image/PDF path needs OCR-quality reporting if the paper foregrounds multimodality.",
-        "Student-facing RAG quality is not currently supported by retained full QA artifacts; rerun the full evaluation before claiming QA utility.",
+        "The QA/RAG benchmark is small and local; replace or supplement it with HotpotQA, Natural Questions, DocVQA, or instructor-authored course QA before broad claims.",
         "A teacher/user study or expert moderation agreement study would strengthen claims for higher venues.",
     ]:
         story.append(_p(f"- {item}", styles))
@@ -449,12 +560,18 @@ def build() -> None:
         f"- Student attack block rate: {_fmt(guard.get('student_attack_block_rate'))}.",
         f"- Student benign allow rate: {_fmt(guard.get('student_benign_allow_rate'))}.",
         f"- Teacher moderation allow rate: {_fmt(guard.get('teacher_moderation_allow_rate'))}.",
+        f"- Privacy evaluation rows: {guard.get('n_rows', 'NA')}; attack prompts: {guard.get('n_attack_prompts', 'NA')}.",
+        f"- QA/RAG questions: {qa_eval.get('n_questions', 'NA') if isinstance(qa_eval, dict) else 'NA'}.",
+        f"- Qwen GGUF QA token-F1: {_fmt(qwen_eval.get('academic_qa', {}).get('token_f1', {}).get('mean')) if isinstance(qwen_eval, dict) else 'NA'}; EM: {_fmt(qwen_eval.get('academic_qa', {}).get('exact_match', {}).get('mean')) if isinstance(qwen_eval, dict) else 'NA'}.",
+        f"- Qwen model: {qwen_eval.get('model_id', 'NA') if isinstance(qwen_eval, dict) else 'NA'} ({_fmt(qwen_eval.get('model_file_mb')) if isinstance(qwen_eval, dict) else 'NA'} MB).",
+        f"- PDF RAG smoke test: {multimodal_rag.get('pdf_rag_ok', 'NA') if isinstance(multimodal_rag, dict) else 'NA'}; image RAG smoke test: {multimodal_rag.get('image_rag_ok', 'NA') if isinstance(multimodal_rag, dict) else 'NA'}.",
+        f"- OCR backend: {ocr_eval.get('backend_status', {}).get('engine', 'NA') if isinstance(ocr_eval, dict) else 'NA'}.",
         "",
         "## Claims To Avoid",
         "- Perfect privacy.",
         "- Differential privacy, unless a formal DP mechanism is added and evaluated.",
         "- Solved cross-domain Bloom generalization.",
-        "- Fully validated multimodal assistance without OCR and image-path evaluation.",
+        "- Fully validated multimodal assistance beyond the measured OCR/image-ingestion path.",
     ]
     MD_OUT.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
 

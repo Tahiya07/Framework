@@ -1,0 +1,55 @@
+{
+  "benchmark": "synthetic_image_ocr_pipeline_v1",
+  "backend_status": {
+    "available": true,
+    "engine": "pytesseract",
+    "reason": "ok",
+    "command": "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+  },
+  "n_samples": 3,
+  "metrics": {
+    "mean_token_f1": 0.9629629629629629,
+    "mean_word_error_rate": 0.047619047619047616,
+    "access_level_preservation": 1.0,
+    "modality_preservation": 1.0
+  },
+  "limitations": [
+    "Synthetic typed images only; scanned handwriting, low-resolution photos, and DocVQA-style layouts remain future work.",
+    "If backend_status.available is false, this run validates evaluator readiness but not OCR quality."
+  ],
+  "rows": [
+    {
+      "sample_id": "typed_exam_item",
+      "engine": "pytesseract",
+      "access_level_preserved": 1.0,
+      "modality_preserved": 1.0,
+      "token_f1": 1.0,
+      "word_error_rate": 0.0,
+      "n_chunks": 1,
+      "gold_text": "Q1 Explain Ohm's law and voltage current resistance.",
+      "extracted_text": "Q1 Explain Ohm's law and voltage current resistance."
+    },
+    {
+      "sample_id": "typed_study_note",
+      "engine": "pytesseract",
+      "access_level_preserved": 1.0,
+      "modality_preserved": 1.0,
+      "token_f1": 0.888888888888889,
+      "word_error_rate": 0.14285714285714285,
+      "n_chunks": 1,
+      "gold_text": "Merge sort recursively divides a list and runs in O n log n time.",
+      "extracted_text": "Merge sort recursively divides a list and runs in On log n time."
+    },
+    {
+      "sample_id": "typed_statistics_note",
+      "engine": "pytesseract",
+      "access_level_preserved": 1.0,
+      "modality_preserved": 1.0,
+      "token_f1": 1.0,
+      "word_error_rate": 0.0,
+      "n_chunks": 1,
+      "gold_text": "A p value below alpha supports rejecting the null hypothesis.",
+      "extracted_text": "A p value below alpha supports rejecting the null hypothesis."
+    }
+  ]
+}
