@@ -40,14 +40,7 @@ def main() -> int:
     _run([sys.executable, "evaluate_cross_domain_bloom.py"])
     _run([sys.executable, "evaluate_privacy_guard.py"])
     _run([sys.executable, "consolidate_paper_results.py"])
-    _run([sys.executable, "build_paper_pdf.py"])
-    _run(
-        [
-            sys.executable,
-            "-c",
-            "import paper_pack_builder; paper_pack_builder.build(force=True)",
-        ]
-    )
+    _run([sys.executable, "build_high_venue_paper.py"])
     print("[done] submission pipeline complete")
     return 0
 

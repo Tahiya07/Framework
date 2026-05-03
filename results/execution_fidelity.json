@@ -1,6 +1,0 @@
-{
-  "checks": {
-    "governor_ablation_present": false
-  },
-  "metrics": {}
-}

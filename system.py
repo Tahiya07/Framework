@@ -15,14 +15,10 @@ This is what makes the system "paper-complete".
 
 from __future__ import annotations
 
-from typing import List, Optional
-
-import numpy as np
-
 from retriever import PrivacyRetriever
-from classifier import BloomClassifier
+from classifier import BloomLDLClassifier
 from uncertainty import UncertaintyEngine
-from reranker import rerank_with_uncertainty, RetrievalResult
+from reranker import rerank_with_uncertainty
 
 
 class CognitiveSystem:
@@ -30,7 +26,7 @@ class CognitiveSystem:
     def __init__(
         self,
         retriever: PrivacyRetriever,
-        classifier: BloomClassifier,
+        classifier: BloomLDLClassifier,
         uncertainty: UncertaintyEngine,
     ):
         self.retriever = retriever

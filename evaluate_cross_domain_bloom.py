@@ -8,6 +8,8 @@ import ast
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+from adaptive_fusion_model import AdaptiveCueContentFusionClassifier
+from domain_adversarial_bloom import DABCWrapper
 import numpy as np
 import pandas as pd
 from sklearn.base import clone
@@ -448,6 +450,12 @@ def _fit_predict(train_df: pd.DataFrame, test_df: pd.DataFrame, labels: Sequence
             class_weight="balanced",
             levels=tuple(labels),
         ),
+        "adaptive_fusion": AdaptiveCueContentFusionClassifier(),
+        "dabc_adversarial": DABCWrapper(
+            epochs=10,
+            lr=1e-3,
+            lambd=0.5,
+        ),
     }
     if os.environ.get("BLOOM_RUN_DOMAIN_ROBUST_BASELINES", "0") != "0":
         models["domain_robust_logreg"] = make_domain_robust_logreg_pipeline(class_weight="balanced")
@@ -459,15 +467,24 @@ def _fit_predict(train_df: pd.DataFrame, test_df: pd.DataFrame, labels: Sequence
         )
     scored = {}
     failures = {}
+    fitted_models = {}
     for name, model in models.items():
         try:
-            fitted = clone(model)
-            fitted.fit(x_train, y_train)
+            if name == "dabc_adversarial":
+                fitted = model  # no sklearn clone
+                fitted.fit(x_train, y_train, train_df["source"].tolist())
+            else:
+                fitted = clone(model)
+                fitted.fit(x_train, y_train)
+
             pred = fitted.predict(x_test)
             proba = _predict_proba_for_labels(fitted, x_test, labels)
+
             scored[name] = _metric_bundle(y_test, pred, labels, proba=proba)
-        except Exception as exc:
-            failures[name] = repr(exc)
+            fitted_models[name] = fitted
+
+        except Exception as e:
+            failures[name] = repr(e)
     if not scored:
         raise RuntimeError(f"all candidate models failed: {failures}")
     best_name = max(
@@ -479,7 +496,7 @@ def _fit_predict(train_df: pd.DataFrame, test_df: pd.DataFrame, labels: Sequence
             kv[1]["within_one_level_accuracy"],
         ),
     )[0]
-    best_model = clone(models[best_name]).fit(x_train, y_train)
+    best_model = fitted_models[best_name]
     best_pred = best_model.predict(x_test)
     best_proba = _predict_proba_for_labels(best_model, x_test, labels)
     return {

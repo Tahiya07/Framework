@@ -32,6 +32,9 @@ QUERY_RISK_PATTERNS = [
     r"\bparaphrase\b.*\b(exam|paper|question|protected|uploaded)",
     r"\btopics?\b.*\b(uploaded|protected|exam|question paper)",
     r"\bwhat does the (uploaded|protected) (exam|paper)\b.*\bcover\b",
+    r"\bsummarize\b.*\b(uploaded|protected|previously uploaded)\b.*\b(document|documents|exam|paper|questions?)\b",
+    r"\b(previously uploaded|uploaded)\b.*\b(document|documents|exam|paper|questions?)\b",
+    r"\bgive\b.*\b(uploaded|protected|previously uploaded)\b.*\b(document|documents|exam|paper|questions?)\b",
     r"\bfirst\b.*\bthen\b.*\b(protected|exam|paper)",
     r"\bprevious answer\b.*\b(protected|exam|question)",
 ]
@@ -41,6 +44,9 @@ PROTECTED_ARTIFACT_PATTERNS = [
     r"\bprotected\b",
     r"\bexam\b",
     r"\bquestion paper\b",
+    r"\buploaded document\b",
+    r"\buploaded documents\b",
+    r"\bpreviously uploaded\b",
     r"\bpaper\b",
     r"\bmoderation\b",
 ]

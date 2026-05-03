@@ -8,24 +8,24 @@
       ],
       "confusion_matrix": [
         [
-          470,
-          30
+          1455,
+          45
         ],
         [
-          468,
-          32
+          1118,
+          26
         ]
       ],
       "top_misclassifications": [
         {
           "actual": "Higher",
           "predicted": "Lower",
-          "count": 468
+          "count": 1118
         },
         {
           "actual": "Lower",
           "predicted": "Higher",
-          "count": 30
+          "count": 45
         }
       ]
     },
@@ -37,24 +37,24 @@
       ],
       "confusion_matrix": [
         [
-          132,
-          368
+          536,
+          964
         ],
         [
-          142,
-          358
+          257,
+          552
         ]
       ],
       "top_misclassifications": [
         {
           "actual": "Lower",
           "predicted": "Higher",
-          "count": 368
+          "count": 964
         },
         {
           "actual": "Higher",
           "predicted": "Lower",
-          "count": 142
+          "count": 257
         }
       ]
     },
@@ -66,59 +66,173 @@
       ],
       "confusion_matrix": [
         [
-          93,
-          7
+          283,
+          17
         ],
         [
-          11,
-          89
+          22,
+          140
         ]
       ],
       "top_misclassifications": [
         {
           "actual": "Higher",
           "predicted": "Lower",
-          "count": 11
+          "count": 22
         },
         {
           "actual": "Lower",
           "predicted": "Higher",
-          "count": 7
+          "count": 17
         }
       ]
     },
     "within_dataset_moocradar": {
-      "selected_model": "linear_svm_balanced",
+      "selected_model": "logreg_balanced",
       "labels": [
         "Lower",
         "Higher"
       ],
       "confusion_matrix": [
         [
-          84,
-          16
+          245,
+          55
         ],
         [
-          29,
-          71
+          69,
+          160
         ]
       ],
       "top_misclassifications": [
         {
           "actual": "Higher",
           "predicted": "Lower",
-          "count": 29
+          "count": 69
         },
         {
           "actual": "Lower",
           "predicted": "Higher",
-          "count": 16
+          "count": 55
         }
       ]
     }
   },
   "ternary": {
     "figshare_to_moocradar": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "confusion_matrix": [
+        [
+          1460,
+          20,
+          20
+        ],
+        [
+          1379,
+          91,
+          30
+        ],
+        [
+          381,
+          6,
+          3
+        ]
+      ],
+      "top_misclassifications": [
+        {
+          "actual": "Mid",
+          "predicted": "Low",
+          "count": 1379
+        },
+        {
+          "actual": "High",
+          "predicted": "Low",
+          "count": 381
+        },
+        {
+          "actual": "Mid",
+          "predicted": "High",
+          "count": 30
+        },
+        {
+          "actual": "Low",
+          "predicted": "Mid",
+          "count": 20
+        },
+        {
+          "actual": "Low",
+          "predicted": "High",
+          "count": 20
+        },
+        {
+          "actual": "High",
+          "predicted": "Mid",
+          "count": 6
+        }
+      ]
+    },
+    "moocradar_to_figshare": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "confusion_matrix": [
+        [
+          227,
+          975,
+          34
+        ],
+        [
+          85,
+          463,
+          11
+        ],
+        [
+          117,
+          381,
+          37
+        ]
+      ],
+      "top_misclassifications": [
+        {
+          "actual": "Low",
+          "predicted": "Mid",
+          "count": 975
+        },
+        {
+          "actual": "High",
+          "predicted": "Mid",
+          "count": 381
+        },
+        {
+          "actual": "High",
+          "predicted": "Low",
+          "count": 117
+        },
+        {
+          "actual": "Mid",
+          "predicted": "Low",
+          "count": 85
+        },
+        {
+          "actual": "Low",
+          "predicted": "High",
+          "count": 34
+        },
+        {
+          "actual": "Mid",
+          "predicted": "High",
+          "count": 11
+        }
+      ]
+    },
+    "within_dataset_figshare": {
       "selected_model": "logreg_balanced",
       "labels": [
         "Low",
@@ -127,170 +241,56 @@
       ],
       "confusion_matrix": [
         [
-          450,
-          15,
-          35
+          227,
+          9,
+          11
         ],
         [
-          351,
-          108,
-          41
-        ],
-        [
-          358,
-          25,
-          7
-        ]
-      ],
-      "top_misclassifications": [
-        {
-          "actual": "High",
-          "predicted": "Low",
-          "count": 358
-        },
-        {
-          "actual": "Mid",
-          "predicted": "Low",
-          "count": 351
-        },
-        {
-          "actual": "Mid",
-          "predicted": "High",
-          "count": 41
-        },
-        {
-          "actual": "Low",
-          "predicted": "High",
-          "count": 35
-        },
-        {
-          "actual": "High",
-          "predicted": "Mid",
-          "count": 25
-        },
-        {
-          "actual": "Low",
-          "predicted": "Mid",
-          "count": 15
-        }
-      ]
-    },
-    "moocradar_to_figshare": {
-      "selected_model": "ordinal_threshold",
-      "labels": [
-        "Low",
-        "Mid",
-        "High"
-      ],
-      "confusion_matrix": [
-        [
-          37,
-          372,
-          91
-        ],
-        [
-          14,
-          393,
-          93
-        ],
-        [
-          20,
-          302,
-          178
-        ]
-      ],
-      "top_misclassifications": [
-        {
-          "actual": "Low",
-          "predicted": "Mid",
-          "count": 372
-        },
-        {
-          "actual": "High",
-          "predicted": "Mid",
-          "count": 302
-        },
-        {
-          "actual": "Mid",
-          "predicted": "High",
-          "count": 93
-        },
-        {
-          "actual": "Low",
-          "predicted": "High",
-          "count": 91
-        },
-        {
-          "actual": "High",
-          "predicted": "Low",
-          "count": 20
-        },
-        {
-          "actual": "Mid",
-          "predicted": "Low",
-          "count": 14
-        }
-      ]
-    },
-    "within_dataset_figshare": {
-      "selected_model": "linear_svm_balanced",
-      "labels": [
-        "Low",
-        "Mid",
-        "High"
-      ],
-      "confusion_matrix": [
-        [
-          83,
-          11,
+          18,
+          88,
           6
         ],
         [
-          17,
-          71,
-          12
-        ],
-        [
-          11,
-          9,
-          80
+          8,
+          7,
+          92
         ]
       ],
       "top_misclassifications": [
         {
           "actual": "Mid",
           "predicted": "Low",
-          "count": 17
-        },
-        {
-          "actual": "Mid",
-          "predicted": "High",
-          "count": 12
+          "count": 18
         },
         {
           "actual": "Low",
-          "predicted": "Mid",
+          "predicted": "High",
           "count": 11
         },
         {
-          "actual": "High",
-          "predicted": "Low",
-          "count": 11
-        },
-        {
-          "actual": "High",
+          "actual": "Low",
           "predicted": "Mid",
           "count": 9
         },
         {
-          "actual": "Low",
+          "actual": "High",
+          "predicted": "Low",
+          "count": 8
+        },
+        {
+          "actual": "High",
+          "predicted": "Mid",
+          "count": 7
+        },
+        {
+          "actual": "Mid",
           "predicted": "High",
           "count": 6
         }
       ]
     },
     "within_dataset_moocradar": {
-      "selected_model": "linear_svm_balanced",
+      "selected_model": "logreg_balanced",
       "labels": [
         "Low",
         "Mid",
@@ -298,51 +298,51 @@
       ],
       "confusion_matrix": [
         [
-          82,
-          10,
-          8
+          245,
+          28,
+          27
         ],
         [
-          22,
-          68,
-          10
+          59,
+          207,
+          34
         ],
         [
-          19,
-          5,
-          54
+          14,
+          12,
+          52
         ]
       ],
       "top_misclassifications": [
         {
           "actual": "Mid",
           "predicted": "Low",
-          "count": 22
-        },
-        {
-          "actual": "High",
-          "predicted": "Low",
-          "count": 19
-        },
-        {
-          "actual": "Low",
-          "predicted": "Mid",
-          "count": 10
+          "count": 59
         },
         {
           "actual": "Mid",
           "predicted": "High",
-          "count": 10
+          "count": 34
+        },
+        {
+          "actual": "Low",
+          "predicted": "Mid",
+          "count": 28
         },
         {
           "actual": "Low",
           "predicted": "High",
-          "count": 8
+          "count": 27
+        },
+        {
+          "actual": "High",
+          "predicted": "Low",
+          "count": 14
         },
         {
           "actual": "High",
           "predicted": "Mid",
-          "count": 5
+          "count": 12
         }
       ]
     }

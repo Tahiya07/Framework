@@ -26,3 +26,9 @@ Claim hierarchy:
 3. Deployment claim: local CPU-only operation plus role-aware protected-resource policy is feasible under the evaluated constraints.
 4. Privacy claim: measured resistance under a defined prompt taxonomy; InfoNCE retrieval leakage remains a negative result.
 5. Method claim: ordinal-aware modeling is useful as a severe-error reduction strategy in selected transfer directions, not a universal replacement for all baselines.
+
+Research gap positioning
+
+Current RAG privacy work mainly targets general text databases, cloud query privacy, differential privacy, tabular RAG, or multimodal leakage analysis. Current Bloom-classification work mainly optimizes exam-question classification accuracy. The defensible gap for this project is the role-separated university setting: one lightweight local framework that supports public student RAG over learning materials, teacher-only protected exam moderation, Bloom/OBE classification, and explicit leakage screening so protected assessment artifacts are not exposed through student-facing retrieval or generation.
+
+Novelty should be framed as system-level integration and evaluation under a university threat model, not as a new formal privacy primitive. Stronger venues will expect clearer ablations for: public-vs-protected corpus separation, student attack taxonomy, teacher moderation utility, image/PDF ingestion quality, cross-domain Bloom transfer, and privacy-utility trade-offs under the retrieval governor.

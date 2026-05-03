@@ -1,12 +1,13 @@
 """
 evaluate.py
 ==============================================================================
-Phase-6 (FINAL) evaluation + visualisation pipeline for the
+Evaluation and visualisation pipeline for the
 "Lightweight Multi-Modal Tiny LLM Framework for Privacy-Preserving Academic
 Assistance in University Environments" research codebase.
 
-This is the *final* publication-ready harness. It does NOT modify any earlier
-phase; it only consumes the public APIs of:
+This harness produces empirical artifacts for bounded paper claims. It
+separates measured privacy resistance from formal privacy guarantees and
+consumes the public APIs of:
 
     ingestion.py     -- (multi-modal ingestion, used implicitly via source_text)
     retriever.py     -- PrivacyRetriever (FAISS IndexFlatL2 + InfoNCE)
@@ -2836,10 +2837,7 @@ class EvaluationPipeline:
             print(f"  [{mark}] {name}")
         print("=" * 64)
         if all(checks.values()):
-            try:
-                print("\u2714 SYSTEM VALIDATION PASSED \u2014 READY FOR PUBLICATION")
-            except UnicodeEncodeError:
-                print("[OK] SYSTEM VALIDATION PASSED -- READY FOR PUBLICATION")
+            _ok("SYSTEM VALIDATION PASSED -- artifacts are internally consistent")
         else:
             print("FAIL: one or more checks did not pass.")
         return checks
@@ -3450,12 +3448,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         cfg.dataset_type = args.benchmark
         pipe = EvaluationPipeline(cfg)
         pipe.run_benchmark()
-        pipe = EvaluationPipeline(cfg)
-
-        print(">>> Starting evaluation pipeline...")
-        pipe.run()
-
-        print(">>> Evaluation finished")
         # final_system_check is OBE-shaped; for non-OBE benchmarks we
         # simply confirm the result blocks were populated.
         ok = bool(pipe.results)
@@ -3577,8 +3569,5 @@ def _self_test() -> None:
 if __name__ == "__main__":
     import sys
 
-    print("CALLING MAIN")
-
     exit_code = main(sys.argv[1:])
-
-    print("MAIN FINISHED with code:", exit_code)
+    raise SystemExit(exit_code)

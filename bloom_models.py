@@ -10,7 +10,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import FeatureUnion, Pipeline
 from sklearn.svm import LinearSVC
-from sklearn.preprocessing import normalize
 
 from encoder_backends import StableTextEncoder
 
