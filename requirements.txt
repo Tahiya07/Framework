@@ -25,6 +25,8 @@
 numpy==2.4.4
 scipy==1.17.1
 pandas==3.0.2
+scikit-learn==1.8.0
+joblib==1.5.3
 
 # ---- Deep learning runtime (CPU only) ---------------------------------------
 torch==2.11.0
@@ -41,6 +43,7 @@ llama-cpp-python==0.3.20       # Qwen-1.5B GGUF 4-bit, mmap, CPU inference
 # ---- Document ingestion -----------------------------------------------------
 PyMuPDF==1.27.2.2              # imported as `fitz` (native PDF text extraction)
 pillow==11.2.1                 # image I/O for OCR / DocVQA
+pytesseract==0.3.13            # Python wrapper for local Tesseract OCR
 
 # ---- Visualisation & paper bundle -------------------------------------------
 matplotlib==3.10.8

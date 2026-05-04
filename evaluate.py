@@ -227,8 +227,9 @@ class EvalConfig:
     governor_preset: str = "mild"
     # Extra Proposed-only sweep across presets (writes governor_ablation.json).
     run_governor_ablation: bool = True
-    # Bloom classifier training: "obe" (data/obe_dataset.csv) or "figshare".
-    bloom_train_source: str = "obe"
+    # Bloom classifier training: "figshare" is the primary trained exam-question source;
+    # OBE remains available as a validation/fallback source.
+    bloom_train_source: str = "figshare"
     # If True, fail when governor_ablation shows no leakage drop strong vs off.
     strict_execution_fidelity: bool = False
 
@@ -267,7 +268,7 @@ class EvalConfig:
             faiss_top_n=20,
             governor_preset="off",
             run_governor_ablation=False,
-            bloom_train_source="obe",
+            bloom_train_source="figshare",
             bootstrap_n=1000,
             smoke=True,
             run_llm=True,
@@ -286,7 +287,7 @@ class EvalConfig:
             faiss_top_n=20,
             governor_preset="mild",
             run_governor_ablation=True,
-            bloom_train_source="obe",
+            bloom_train_source="figshare",
             bootstrap_n=1000,
             smoke=False,
             run_llm=True,

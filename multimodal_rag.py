@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Sequence
 
 from ingestion import DocumentChunk, DocumentIngestor
-from privacy_guard import STUDENT_REFUSAL, screen_generation_output
+from privacy.privacy_guard import STUDENT_REFUSAL, screen_generation_output
 
 
 SUPPORTED_RAG_TYPES = {

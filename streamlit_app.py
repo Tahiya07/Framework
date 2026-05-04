@@ -7,6 +7,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
+import joblib
+import numpy as np
 import streamlit as st
 
 from classifier import (
@@ -49,6 +51,10 @@ APP_TITLE = "Lightweight Multi-Modal Tiny LLM Demo"
 UPLOAD_TYPES = ["pdf", "png", "jpg", "jpeg", "tif", "tiff", "bmp", "webp", "txt", "md"]
 DEFAULT_FAISS_POOL = 20
 VECTOR_STORE_DIR = Path("data/vector_store")
+FIGSHARE_BLOOM_MODEL_CANDIDATES = [
+    Path("models/figshare_bloom_tfidf.joblib"),
+    Path("models/figshare_model.joblib"),
+]
 
 
 def _init_page() -> None:
@@ -72,19 +78,26 @@ def _runtime() -> Dict[str, Any]:
         protected_retriever = PrivacyRetriever(lambda_privacy=0.5, model=retriever.model)
         classifier = BloomLDLClassifier.load(DEFAULT_WEIGHTS_PATH, encoder=retriever.model)
         obe_classifier = LocalOBEClassifier(encoder=retriever.model)
-        generator = RAGGenerator(
-            retriever=retriever,
-            n_ctx=DEFAULT_N_CTX,
-            n_threads=DEFAULT_N_THREADS,
-            max_tokens=160,
-        )
-        summarizer = CognitiveSummarizer(
-            retriever=retriever,
-            generator=generator,
-            classifier=classifier,
-            hierarchical=True,
-            per_chunk_max_tokens=64,
-        )
+        figshare_bloom_pipeline = _load_figshare_bloom_pipeline()
+        generator = None
+        generator_error = ""
+        summarizer = None
+        try:
+            generator = RAGGenerator(
+                retriever=retriever,
+                n_ctx=DEFAULT_N_CTX,
+                n_threads=DEFAULT_N_THREADS,
+                max_tokens=160,
+            )
+            summarizer = CognitiveSummarizer(
+                retriever=retriever,
+                generator=generator,
+                classifier=classifier,
+                hierarchical=True,
+                per_chunk_max_tokens=64,
+            )
+        except Exception as exc:
+            generator_error = str(exc)
         uncertainty = UncertaintyEngine(K=len(BLOOM_LEVELS), n_bins=10)
         st.session_state.demo_runtime = {
             "ingestor": ingestor,
@@ -92,7 +105,9 @@ def _runtime() -> Dict[str, Any]:
             "protected_retriever": protected_retriever,
             "classifier": classifier,
             "obe_classifier": obe_classifier,
+            "figshare_bloom_pipeline": figshare_bloom_pipeline,
             "generator": generator,
+            "generator_error": generator_error,
             "summarizer": summarizer,
             "uncertainty": uncertainty,
         }
@@ -118,6 +133,83 @@ def _runtime() -> Dict[str, Any]:
         st.session_state.active_chunks = all_chunks
         st.session_state.active_sources = sorted({getattr(c, "source", "") for c in all_chunks if getattr(c, "source", "")})
     return st.session_state.demo_runtime
+
+
+def _normalise_bloom_label(value: object) -> str:
+    raw = str(value or "").strip().lower()
+    aliases = {
+        "knowledge": "Remember",
+        "comprehension": "Understand",
+        "application": "Apply",
+        "analysis": "Analyze",
+        "synthesis": "Create",
+        "evaluation": "Evaluate",
+    }
+    for level in BLOOM_LEVELS:
+        if raw == level.lower() or level.lower() in raw:
+            return level
+    return aliases.get(raw, "Understand")
+
+
+def _load_figshare_bloom_pipeline() -> object | None:
+    for path in FIGSHARE_BLOOM_MODEL_CANDIDATES:
+        if not path.is_file():
+            continue
+        try:
+            return joblib.load(path)
+        except Exception as exc:
+            st.warning(f"Could not load Figshare Bloom model {path}: {exc}")
+    return None
+
+
+def _pipeline_distribution(pipeline: object, text: str) -> np.ndarray | None:
+    if not hasattr(pipeline, "predict_proba"):
+        return None
+    probs = np.asarray(pipeline.predict_proba([text])[0], dtype=np.float64)
+    classes = [str(c) for c in getattr(pipeline, "classes_", [])]
+    if probs.size == 0 or not classes:
+        return None
+    aligned = np.zeros(len(BLOOM_LEVELS), dtype=np.float64)
+    for cls, prob in zip(classes, probs):
+        label = _normalise_bloom_label(cls)
+        if label in BLOOM_LEVELS:
+            aligned[BLOOM_LEVELS.index(label)] += float(prob)
+    total = float(aligned.sum())
+    if total <= 0:
+        return None
+    return (aligned / total).astype(np.float32)
+
+
+def _predict_bloom(runtime: Dict[str, Any], text: str) -> Dict[str, Any]:
+    ldl: BloomLDLClassifier = runtime["classifier"]
+    ldl_out = ldl.predict(text)
+    pipeline = runtime.get("figshare_bloom_pipeline")
+    distribution = ldl_out.distribution.astype(np.float32, copy=False)
+    label = ldl_out.dominant_level
+    source = "Bloom LDL weights"
+
+    if pipeline is not None:
+        try:
+            pred_label = _normalise_bloom_label(pipeline.predict([text])[0])
+            pipe_dist = _pipeline_distribution(pipeline, text)
+            if pipe_dist is not None:
+                distribution = pipe_dist
+            label = pred_label
+            source = "trained Figshare Bloom TF-IDF model"
+        except Exception as exc:
+            st.warning(f"Figshare Bloom model failed; using LDL fallback: {exc}")
+
+    confidence = float(np.max(distribution))
+    entropy = float(-(distribution * np.log(distribution + 1e-12)).sum())
+    return {
+        "level": label,
+        "distribution": distribution,
+        "confidence": confidence,
+        "entropy": entropy,
+        "source": source,
+        "ldl_level": ldl_out.dominant_level,
+        "ldl_confidence": ldl_out.confidence,
+    }
 
 
 def _ingest_uploaded_files(
@@ -236,6 +328,8 @@ def _run_qa(
     safety_instruction: str,
 ) -> Dict[str, Any]:
     generator: RAGGenerator = runtime["generator"]
+    if generator is None:
+        raise RuntimeError(f"Generation backend is unavailable: {runtime.get('generator_error') or 'unknown error'}")
     t0 = time.perf_counter()
     chunks = _governed_chunks(retriever, query, top_k=top_k, governor_preset=governor_preset)
     output = generator.generate_from_chunks(query, chunks, bloom_level=bloom_level, safety_instruction=safety_instruction)
@@ -259,6 +353,8 @@ def _run_summary(
     safety_instruction: str,
 ) -> Dict[str, Any]:
     summarizer: CognitiveSummarizer = runtime["summarizer"]
+    if summarizer is None:
+        raise RuntimeError(f"Summarization backend is unavailable: {runtime.get('generator_error') or 'unknown error'}")
     t0 = time.perf_counter()
     chunks = _governed_chunks(retriever, query, top_k=top_k, governor_preset=governor_preset)
     output = summarizer.summarize(
@@ -457,22 +553,13 @@ def main() -> None:
                 st.error(STUDENT_REFUSAL)
                 st.stop()
 
-            class_out = classifier.predict(query)
-            bloom_uncertainty = uncertainty.compute_bloom_uncertainty(class_out.distribution)
-            bloom_gate = uncertainty.confidence_threshold_gate(
-                class_out.distribution,
-                levels=BLOOM_LEVELS,
-                confidence_threshold=0.35,
-                top1_threshold=0.40,
-                fallback_level="understand",
-            )
-            bloom_level = (
-                class_out.dominant_level.lower()
-                if bloom_gate.accepted
-                else bloom_gate.fallback_level
-            )
+            bloom_pred = _predict_bloom(runtime, query)
+            bloom_summary = uncertainty.aggregate_summary(bloom_p=bloom_pred["distribution"])
+            bloom_gate = uncertainty.gate(bloom_pred["distribution"], threshold=0.35)
+            bloom_uncertainty = bloom_summary.bloom_uncertainty
+            bloom_level = bloom_pred["level"].lower() if bloom_gate["accepted"] else "understand"
             gate_instruction = ""
-            if not bloom_gate.accepted:
+            if not bloom_gate["accepted"]:
                 gate_instruction = (
                     "Bloom classifier uncertainty is high; use a generalized academic "
                     "response and avoid over-specializing to a single Bloom level."
@@ -481,15 +568,16 @@ def main() -> None:
             if mode == "Exam Question Classification":
                 st.subheader("Exam Classification")
                 _show_obe_result(obe_classifier.predict(query))
-                if not bloom_gate.accepted:
+                st.caption(f"Primary Bloom label source: {bloom_pred['source']}.")
+                if not bloom_gate["accepted"]:
                     st.warning(
                         "Bloom prediction routed to human-in-the-loop/generalized fallback "
-                        f"({bloom_gate.reason})."
+                        f"({bloom_gate['action']})."
                     )
                 with st.expander("Bloom Distribution", expanded=False):
                     rows = [
                         {"level": level, "probability": round(float(prob), 4)}
-                        for level, prob in zip(BLOOM_LEVELS, class_out.distribution.tolist())
+                        for level, prob in zip(BLOOM_LEVELS, bloom_pred["distribution"].tolist())
                     ]
                     st.dataframe(rows, use_container_width=True, hide_index=True)
                 st.stop()
@@ -536,21 +624,17 @@ def main() -> None:
             st.write(result["text"])
 
             metric_cols = st.columns(5)
-            metric_cols[0].metric("Bloom Level", class_out.dominant_level)
-            metric_cols[1].metric("Classifier Confidence", f"{class_out.confidence:.3f}")
+            metric_cols[0].metric("Bloom Level", bloom_pred["level"])
+            metric_cols[1].metric("Top-1 Confidence", f"{bloom_summary.top1_confidence:.3f}")
             metric_cols[2].metric("Bloom Uncertainty", f"{bloom_uncertainty:.3f}")
             metric_cols[3].metric("Latency", f"{result['latency_s']:.2f} s")
             metric_cols[4].metric("Retrieved Chunks", len(result["chunks"]))
-            if not bloom_gate.accepted:
+            st.caption(f"Bloom label source: {bloom_pred['source']}.")
+            if not bloom_gate["accepted"]:
                 st.warning(
                     "Bloom gate used generalized fallback "
-                    f"'{bloom_gate.fallback_level}' because {bloom_gate.reason} "
-                    f"(severe jump mass={bloom_gate.severe_jump_mass:.3f})."
-                )
-            elif bloom_gate.action == "soft_feedback":
-                st.info(
-                    "Bloom gate kept the automatic route but marked adjacent-level "
-                    "ambiguity for soft feedback."
+                    f"'understand' because entropy confidence "
+                    f"{bloom_gate['confidence']:.3f} is below threshold."
                 )
 
             infra_cols = st.columns(4)
@@ -573,7 +657,7 @@ def main() -> None:
             with st.expander("Bloom Distribution", expanded=False):
                 rows = [
                     {"level": level, "probability": round(float(prob), 4)}
-                    for level, prob in zip(BLOOM_LEVELS, class_out.distribution.tolist())
+                    for level, prob in zip(BLOOM_LEVELS, bloom_pred["distribution"].tolist())
                 ]
                 st.dataframe(rows, use_container_width=True, hide_index=True)
 

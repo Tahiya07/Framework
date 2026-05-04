@@ -3,12 +3,17 @@ from __future__ import annotations
 import csv
 import json
 import os
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from ingestion import DocumentChunk
-from privacy_guard import (
+from privacy.privacy_guard import (
     assess_student_query_against_protected_corpus,
     protected_leakage_score,
     protected_text_union,
@@ -16,8 +21,8 @@ from privacy_guard import (
 )
 
 
-RESULTS_PATH = Path("../results/privacy_guard_eval.json")
-CSV_PATH = Path("../results/privacy_guard_eval_rows.csv")
+RESULTS_PATH = ROOT / "results" / "privacy_guard_eval.json"
+CSV_PATH = ROOT / "results" / "privacy_guard_eval_rows.csv"
 SIMULATE_MODEL_OUTPUT = os.getenv("PRIVACY_SIMULATE_MODEL_OUTPUT", "0") == "1"
 
 

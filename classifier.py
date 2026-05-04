@@ -510,6 +510,7 @@ class LocalOBEClassifier:
         candidates = {
             "bloom_level": [
                 self.model_dir / "figshare_bloom_tfidf.joblib",
+                self.model_dir / "figshare_model.joblib",
                 self.model_dir / "obe_bloom_tfidf.joblib",
                 self.model_dir / "obe_bloom_level_tfidf.joblib",
             ],
@@ -590,7 +591,7 @@ class LocalOBEClassifier:
         self._load_pipelines()
         if "bloom_level" in self._pipelines:
             bloom_pipe = self._pipelines["bloom_level"]
-            bloom = str(bloom_pipe.predict([text])[0])
+            bloom = _normalise_bloom(bloom_pipe.predict([text])[0]) or "Understand"
             examples = self._nearest_examples_lexical(text)
             cog = "Unknown"
             difficulty = "Unknown"
