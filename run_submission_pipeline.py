@@ -17,7 +17,7 @@ def _run(cmd: list[str]) -> None:
 def main() -> int:
     # Full-sized knobs are user-overridable; defaults are publication-oriented.
     n_total = os.environ.get("SUBMIT_N_TOTAL", "600")
-    n_test_qa = os.environ.get("SUBMIT_N_TEST_QA", "80")
+    n_test_qa = os.environ.get("SUBMIT_N_TEST_QA", "300")
     n_unc = os.environ.get("SUBMIT_N_UNCERTAINTY_POOL", "600")
     max_per_label = os.environ.get("BLOOM_TRANSFER_MAX_PER_LABEL", "2000")
     os.environ["BLOOM_TRANSFER_MAX_PER_LABEL"] = max_per_label
@@ -37,6 +37,10 @@ def main() -> int:
             n_unc,
         ]
     )
+
+    _run([sys.executable, "evaluate_qwen_rag.py"])
+    _run([sys.executable, "evaluate_multimodal_rag.py"])
+    _run([sys.executable, "evaluate_figshare_bloom.py"])
     _run([sys.executable, "evaluate_cross_domain_bloom.py"])
     _run([sys.executable, "evaluate_privacy_guard.py"])
     _run([sys.executable, "consolidate_paper_results.py"])
