@@ -1,0 +1,282 @@
+{
+  "binary": {
+    "figshare_to_moocradar": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Lower",
+        "Higher"
+      ],
+      "confidence_gate": {
+        "mean_top1_probability": 0.7060077170545791,
+        "mean_entropy_confidence": 0.13817680960415715,
+        "thresholds": {
+          "0.40": {
+            "human_loop_rate": 0.773071104387292,
+            "accepted_coverage": 0.22692889561270801,
+            "accepted_accuracy": 0.5066666666666667,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          },
+          "0.50": {
+            "human_loop_rate": 0.9258698940998488,
+            "accepted_coverage": 0.07413010590015129,
+            "accepted_accuracy": 0.5357142857142857,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          },
+          "0.60": {
+            "human_loop_rate": 0.966338880484115,
+            "accepted_coverage": 0.033661119515885025,
+            "accepted_accuracy": 0.5280898876404494,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          }
+        }
+      }
+    },
+    "moocradar_to_figshare": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Lower",
+        "Higher"
+      ],
+      "confidence_gate": {
+        "mean_top1_probability": 0.6363161458660069,
+        "mean_entropy_confidence": 0.08097777390884729,
+        "thresholds": {
+          "0.40": {
+            "human_loop_rate": 0.8189692507579038,
+            "accepted_coverage": 0.18103074924209614,
+            "accepted_accuracy": 0.45933014354066987,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          },
+          "0.50": {
+            "human_loop_rate": 0.9307059333044608,
+            "accepted_coverage": 0.0692940666955392,
+            "accepted_accuracy": 0.4375,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          },
+          "0.60": {
+            "human_loop_rate": 0.9744478129060199,
+            "accepted_coverage": 0.025552187093980078,
+            "accepted_accuracy": 0.4745762711864407,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          }
+        }
+      }
+    },
+    "within_dataset_figshare": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Lower",
+        "Higher"
+      ],
+      "confidence_gate": {
+        "mean_top1_probability": 0.7958285837783687,
+        "mean_entropy_confidence": 0.344123160863952,
+        "thresholds": {
+          "0.40": {
+            "human_loop_rate": 0.28354978354978355,
+            "accepted_coverage": 0.7164502164502164,
+            "accepted_accuracy": 0.9697885196374623,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          },
+          "0.50": {
+            "human_loop_rate": 0.39826839826839827,
+            "accepted_coverage": 0.6017316017316018,
+            "accepted_accuracy": 0.9748201438848921,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          },
+          "0.60": {
+            "human_loop_rate": 0.5151515151515151,
+            "accepted_coverage": 0.48484848484848486,
+            "accepted_accuracy": 0.9821428571428571,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          }
+        }
+      }
+    },
+    "within_dataset_moocradar": {
+      "selected_model": "logreg_balanced",
+      "labels": [
+        "Lower",
+        "Higher"
+      ],
+      "confidence_gate": {
+        "mean_top1_probability": 0.698873094728689,
+        "mean_entropy_confidence": 0.16453889609770844,
+        "thresholds": {
+          "0.40": {
+            "human_loop_rate": 0.5803402646502835,
+            "accepted_coverage": 0.41965973534971646,
+            "accepted_accuracy": 0.8873873873873874,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          },
+          "0.50": {
+            "human_loop_rate": 0.7277882797731569,
+            "accepted_coverage": 0.2722117202268431,
+            "accepted_accuracy": 0.9166666666666666,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          },
+          "0.60": {
+            "human_loop_rate": 0.8468809073724007,
+            "accepted_coverage": 0.15311909262759923,
+            "accepted_accuracy": 0.9259259259259259,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 0.0
+          }
+        }
+      }
+    }
+  },
+  "ternary": {
+    "figshare_to_moocradar": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "confidence_gate": {
+        "mean_top1_probability": 0.506682871474274,
+        "mean_entropy_confidence": 0.0666856441727877,
+        "thresholds": {
+          "0.40": {
+            "human_loop_rate": 0.9616519174041298,
+            "accepted_coverage": 0.038348082595870206,
+            "accepted_accuracy": 0.2153846153846154,
+            "accepted_severe_error_rate": 0.06153846153846154,
+            "severe_error_caught_rate": 0.9800498753117207
+          },
+          "0.50": {
+            "human_loop_rate": 0.9858407079646018,
+            "accepted_coverage": 0.01415929203539823,
+            "accepted_accuracy": 0.14583333333333334,
+            "accepted_severe_error_rate": 0.0625,
+            "severe_error_caught_rate": 0.9925187032418953
+          },
+          "0.60": {
+            "human_loop_rate": 0.9988200589970502,
+            "accepted_coverage": 0.0011799410029498525,
+            "accepted_accuracy": 0.25,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 1.0
+          }
+        }
+      }
+    },
+    "moocradar_to_figshare": {
+      "selected_model": "linear_svm_balanced",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "confidence_gate": {
+        "mean_top1_probability": 0.5117568518033736,
+        "mean_entropy_confidence": 0.08920026208763988,
+        "thresholds": {
+          "0.40": {
+            "human_loop_rate": 0.81931330472103,
+            "accepted_coverage": 0.18068669527896997,
+            "accepted_accuracy": 0.334916864608076,
+            "accepted_severe_error_rate": 0.007125890736342043,
+            "severe_error_caught_rate": 0.9801324503311258
+          },
+          "0.50": {
+            "human_loop_rate": 0.9459227467811159,
+            "accepted_coverage": 0.05407725321888412,
+            "accepted_accuracy": 0.36507936507936506,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 1.0
+          },
+          "0.60": {
+            "human_loop_rate": 0.9896995708154507,
+            "accepted_coverage": 0.010300429184549357,
+            "accepted_accuracy": 0.20833333333333334,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 1.0
+          }
+        }
+      }
+    },
+    "within_dataset_figshare": {
+      "selected_model": "logreg_balanced",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "confidence_gate": {
+        "mean_top1_probability": 0.6960136853251775,
+        "mean_entropy_confidence": 0.3198816029701741,
+        "thresholds": {
+          "0.40": {
+            "human_loop_rate": 0.24248927038626608,
+            "accepted_coverage": 0.7575107296137339,
+            "accepted_accuracy": 0.9320113314447592,
+            "accepted_severe_error_rate": 0.0226628895184136,
+            "severe_error_caught_rate": 0.5789473684210527
+          },
+          "0.50": {
+            "human_loop_rate": 0.43991416309012876,
+            "accepted_coverage": 0.5600858369098712,
+            "accepted_accuracy": 0.9655172413793104,
+            "accepted_severe_error_rate": 0.0038314176245210726,
+            "severe_error_caught_rate": 0.9473684210526315
+          },
+          "0.60": {
+            "human_loop_rate": 0.6137339055793991,
+            "accepted_coverage": 0.38626609442060084,
+            "accepted_accuracy": 0.9888888888888889,
+            "accepted_severe_error_rate": 0.0,
+            "severe_error_caught_rate": 1.0
+          }
+        }
+      }
+    },
+    "within_dataset_moocradar": {
+      "selected_model": "logreg_balanced",
+      "labels": [
+        "Low",
+        "Mid",
+        "High"
+      ],
+      "confidence_gate": {
+        "mean_top1_probability": 0.7053385563530592,
+        "mean_entropy_confidence": 0.34862736943232014,
+        "thresholds": {
+          "0.40": {
+            "human_loop_rate": 0.2345132743362832,
+            "accepted_coverage": 0.7654867256637168,
+            "accepted_accuracy": 0.8188824662813102,
+            "accepted_severe_error_rate": 0.03468208092485549,
+            "severe_error_caught_rate": 0.5609756097560976
+          },
+          "0.50": {
+            "human_loop_rate": 0.4056047197640118,
+            "accepted_coverage": 0.5943952802359882,
+            "accepted_accuracy": 0.8635235732009926,
+            "accepted_severe_error_rate": 0.022332506203473945,
+            "severe_error_caught_rate": 0.7804878048780488
+          },
+          "0.60": {
+            "human_loop_rate": 0.5427728613569321,
+            "accepted_coverage": 0.45722713864306785,
+            "accepted_accuracy": 0.9129032258064517,
+            "accepted_severe_error_rate": 0.01935483870967742,
+            "severe_error_caught_rate": 0.8536585365853658
+          }
+        }
+      }
+    }
+  }
+}

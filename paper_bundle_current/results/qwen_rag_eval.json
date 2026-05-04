@@ -1,0 +1,265 @@
+{
+  "benchmark": "qwen_rag_eval_v1",
+  "model_id": "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+  "model_path": "C:\\Framework\\models\\Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+  "model_file_bytes": 986048768,
+  "model_file_mb": 986.048768,
+  "backend": "llama.cpp-cli-cpu-gguf",
+  "runtime_config": {
+    "ctx_size": 512,
+    "max_tokens": 32,
+    "threads": 2,
+    "device": "none",
+    "gpu_layers": 0,
+    "repack": false
+  },
+  "academic_qa": {
+    "n": 10,
+    "exact_match": {
+      "mean": 0.8,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "token_f1": {
+      "mean": 0.9137254901960784,
+      "min": 0.47058823529411764,
+      "max": 1.0
+    },
+    "retrieval_hit_at_1": {
+      "mean": 0.9,
+      "min": 0.0,
+      "max": 1.0
+    },
+    "retrieval_hit_at_3": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "hallucination_proxy_rate": {
+      "mean": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "latency_s": {
+      "mean": 12.812863080005627,
+      "min": 11.51109569997061,
+      "max": 13.832347900024615
+    }
+  },
+  "multimodal_rag": {
+    "n": 2,
+    "pdf_rag_ok": true,
+    "image_rag_ok": true,
+    "answer_accuracy": {
+      "mean": 1.0,
+      "min": 1.0,
+      "max": 1.0
+    },
+    "latency_s": {
+      "mean": 10.033701549982652,
+      "min": 9.873345699976198,
+      "max": 10.194057399989106
+    }
+  },
+  "limitations": [
+    "Qwen is run from Qwen2.5-1.5B-Instruct-Q4_K_M.gguf using standalone llama.cpp CLI because llama-cpp-python could not be built without a native compiler toolchain.",
+    "The GGUF file is below 1 GB; runtime host memory may exceed 1 GB because llama.cpp still allocates context and compute buffers.",
+    "The benchmark remains small; use a larger course QA set or HotpotQA/NQ subset for stronger publication evidence."
+  ],
+  "rows": [
+    {
+      "task": "academic_qa",
+      "question": "What relationship does Ohm's law define?",
+      "support_doc": "circuits_ohm",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "latency_s": 12.77805730002001,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "Voltage equals current times resistance.",
+      "gold_answers": "[\"voltage equals current times resistance\", \"voltage = current times resistance\"]",
+      "support_text": "Ohm's law states that voltage equals current times resistance. A resistor with constant resistance has a linear current-voltage relationship."
+    },
+    {
+      "task": "academic_qa",
+      "question": "What unit is electrical power measured in?",
+      "support_doc": "circuits_power",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "latency_s": 12.945766900083981,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "watts",
+      "gold_answers": "[\"watts\"]",
+      "support_text": "Electrical power in a simple circuit can be computed as voltage times current. Power is measured in watts."
+    },
+    {
+      "task": "academic_qa",
+      "question": "Which protocol provides reliable ordered delivery?",
+      "support_doc": "networks_tcp",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "latency_s": 11.51109569997061,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "TCP",
+      "gold_answers": "[\"tcp\"]",
+      "support_text": "TCP provides reliable, ordered delivery using acknowledgements and retransmission. UDP has lower transport overhead but does not guarantee ordering or delivery."
+    },
+    {
+      "task": "academic_qa",
+      "question": "What tradeoff does UDP make compared with TCP?",
+      "support_doc": "networks_tcp",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.47058823529411764,
+      "unsupported_answer": 0.0,
+      "latency_s": 12.623622699989937,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "UDP does not guarantee ordering or delivery.",
+      "gold_answers": "[\"lower transport overhead but no guarantee of ordering or delivery\", \"lower overhead\"]",
+      "support_text": "TCP provides reliable, ordered delivery using acknowledgements and retransmission. UDP has lower transport overhead but does not guarantee ordering or delivery."
+    },
+    {
+      "task": "academic_qa",
+      "question": "What is the time complexity of merge sort?",
+      "support_doc": "algorithms_merge_sort",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "latency_s": 12.4139664999675,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "O(n log n)",
+      "gold_answers": "[\"o n log n\", \"o(n log n)\"]",
+      "support_text": "Merge sort divides a list into halves, recursively sorts each half, and merges them. Its time complexity is O(n log n)."
+    },
+    {
+      "task": "academic_qa",
+      "question": "How does binary search reduce the search interval?",
+      "support_doc": "algorithms_binary_search",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "answer_exact_match": 0.0,
+      "answer_token_f1": 0.6666666666666666,
+      "unsupported_answer": 0.0,
+      "latency_s": 11.773882000008598,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "Halves.",
+      "gold_answers": "[\"halves a sorted search interval\", \"repeatedly halves\"]",
+      "support_text": "Binary search repeatedly halves a sorted search interval. Its worst-case time complexity is O(log n)."
+    },
+    {
+      "task": "academic_qa",
+      "question": "What does a p-value assume about the null hypothesis?",
+      "support_doc": "statistics_p_value",
+      "support_rank": 2,
+      "retrieval_hit_at_1": 0.0,
+      "retrieval_hit_at_3": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "latency_s": 13.278274200041778,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "The null hypothesis is true.",
+      "gold_answers": "[\"the null hypothesis is true\", \"assuming the null hypothesis is true\"]",
+      "support_text": "A p-value is the probability, assuming the null hypothesis is true, of observing data at least as extreme as the observed data."
+    },
+    {
+      "task": "academic_qa",
+      "question": "At alpha 0.05, what decision follows from a p-value of 0.03?",
+      "support_doc": "statistics_alpha",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "latency_s": 13.832347900024615,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "Reject the null hypothesis.",
+      "gold_answers": "[\"reject the null hypothesis\", \"reject null\"]",
+      "support_text": "When the p-value is less than alpha, the usual decision rule is to reject the null hypothesis. For alpha 0.05, a p-value of 0.03 meets that rule."
+    },
+    {
+      "task": "academic_qa",
+      "question": "Which Bloom level is usually signaled by compare?",
+      "support_doc": "bloom_compare",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "latency_s": 13.805882800021209,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "Analyze",
+      "gold_answers": "[\"analyze\"]",
+      "support_text": "Bloom taxonomy uses verbs such as remember, understand, apply, analyze, evaluate, and create. Compare often maps to Analyze, while judge or justify with criteria often maps to Evaluate."
+    },
+    {
+      "task": "academic_qa",
+      "question": "What should a grounded RAG system do when context lacks support?",
+      "support_doc": "rag_grounding",
+      "support_rank": 1,
+      "retrieval_hit_at_1": 1.0,
+      "retrieval_hit_at_3": 1.0,
+      "answer_exact_match": 1.0,
+      "answer_token_f1": 1.0,
+      "unsupported_answer": 0.0,
+      "latency_s": 13.165734799928032,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "Decline.",
+      "gold_answers": "[\"decline\", \"decline when the context does not support\"]",
+      "support_text": "Retrieval augmented generation should answer from retrieved context and decline when the context does not support the requested fact."
+    },
+    {
+      "task": "pdf_rag",
+      "question": "What is the time complexity of merge sort?",
+      "expected": "O(n log n)",
+      "answer_contains_expected": 1.0,
+      "top_modality": "pdf",
+      "n_chunks": 1,
+      "latency_s": 10.194057399989106,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "O(n log n)"
+    },
+    {
+      "task": "image_rag",
+      "question": "Which protocol provides reliable ordered delivery?",
+      "expected": "TCP",
+      "answer_contains_expected": 1.0,
+      "top_modality": "image",
+      "n_chunks": 1,
+      "latency_s": 9.873345699976198,
+      "host_total_mib": 1251.0,
+      "model_file_mb": 986.048768,
+      "prediction": "TCP"
+    }
+  ]
+}

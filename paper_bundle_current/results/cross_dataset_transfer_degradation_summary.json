@@ -1,0 +1,26 @@
+{
+  "binary": {
+    "figshare_to_moocradar": {
+      "macro_f1_drop_vs_figshare_in_domain": 0.5280103488432277,
+      "within_one_level_drop_vs_figshare_in_domain": 0.0,
+      "severe_error_increase_vs_figshare_in_domain": 0.0
+    },
+    "moocradar_to_figshare": {
+      "macro_f1_drop_vs_moocradar_in_domain": 0.28820890058821075,
+      "within_one_level_drop_vs_moocradar_in_domain": 0.0,
+      "severe_error_increase_vs_moocradar_in_domain": 0.0
+    }
+  },
+  "ternary": {
+    "figshare_to_moocradar": {
+      "macro_f1_drop_vs_figshare_in_domain": 0.6099748227524179,
+      "within_one_level_drop_vs_figshare_in_domain": 0.07751655335688146,
+      "severe_error_increase_vs_figshare_in_domain": 0.07751655335688151
+    },
+    "moocradar_to_figshare": {
+      "macro_f1_drop_vs_moocradar_in_domain": 0.437409250057435,
+      "within_one_level_drop_vs_moocradar_in_domain": 0.004334890551609738,
+      "severe_error_increase_vs_moocradar_in_domain": 0.004334890551609759
+    }
+  }
+}

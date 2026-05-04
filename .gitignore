@@ -20,6 +20,8 @@ build/
 bench_log.txt
 debug*.log
 tmp*/
+.paper_deps/
+.mplconfig/
 data/vector_store/
 
 # OS
