@@ -1,172 +1,377 @@
-import json, pandas as pd, numpy as np, time, re, ast
+from __future__ import annotations
+
+import argparse
+import ast
+import csv
+import json
+import re
+import subprocess
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Sequence
+
+import numpy as np
+import pandas as pd
+from langdetect import DetectorFactory, detect
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
-from sklearn.metrics import classification_report, confusion_matrix, f1_score
-from sentence_transformers import SentenceTransformer
-from llama_cpp import Llama
-from langdetect import detect, DetectorFactory
 
-# Set seed for consistent language detection
+from qwen_gguf_cli import DEFAULT_QWEN_GGUF, find_llama_cli
+
+
 DetectorFactory.seed = 42
+ROOT = Path(__file__).resolve().parent
 
-# 1. SEMANTIC CLEANING & FILTERING
-def clean_text(text):
+VALID_LABELS = [
+    "Remembering",
+    "Understanding",
+    "Applying",
+    "Analyzing",
+    "Creating",
+    "Irrelevant",
+]
+
+LABEL_ALIASES: Dict[str, str] = {
+    "remember": "Remembering",
+    "remembering": "Remembering",
+    "knowledge": "Remembering",
+    "understand": "Understanding",
+    "understanding": "Understanding",
+    "comprehension": "Understanding",
+    "apply": "Applying",
+    "applying": "Applying",
+    "application": "Applying",
+    "analyze": "Analyzing",
+    "analysing": "Analyzing",
+    "analyzing": "Analyzing",
+    "analysis": "Analyzing",
+    # The training set intentionally folds Evaluating into Analyzing, so align
+    # Qwen outputs to the same target space instead of scoring them as wrong.
+    "evaluate": "Analyzing",
+    "evaluating": "Analyzing",
+    "evaluation": "Analyzing",
+    "create": "Creating",
+    "creating": "Creating",
+    "synthesis": "Creating",
+    "irrelevant": "Irrelevant",
+    "noise": "Irrelevant",
+    "off-topic": "Irrelevant",
+    "off topic": "Irrelevant",
+}
+
+
+def clean_text(text: object) -> str:
     text = str(text).lower()
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
+    return re.sub(r"\s+", " ", text).strip()
 
-def is_english(text):
+
+def is_english(text: str) -> bool:
     try:
-        # filter for English
-        return len(text) > 8 and detect(text) == 'en'
-    except:
+        return len(text) > 8 and detect(text) == "en"
+    except Exception:
         return False
 
-# 2. DATA HARMONIZATION
-def load_and_standardize():
+
+def load_and_standardize() -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
     print("Loading and cleaning datasets...")
-    
-    # --- Mendeley Files (Correcting to plural 'Questions') ---
-    f1 = pd.read_csv('data/Data_Structure.csv')
-    f2 = pd.read_csv('data/Introduction_to_Computers_and_Research.csv')
-    m_map = {5:'Remembering', 10:'Understanding', 15:'Applying', 20:'Analyzing', 30:'Creating'}
-    df_acad = pd.concat([f1, f2])
-    df_acad['label'] = df_acad['Score'].map(m_map)
-    df_acad = df_acad[['Questions', 'label']].rename(columns={'Questions': 'text'})
 
-    # --- Irrelevant Questions (Noise) ---
-    df_noise = pd.read_csv('data/Irrelevant_Questions.csv')
-    df_noise['label'] = 'Irrelevant'
-    df_noise = df_noise[['Questions', 'label']].rename(columns={'Questions': 'text'})
+    f1 = pd.read_csv(ROOT / "data" / "Data_Structure.csv")
+    f2 = pd.read_csv(ROOT / "data" / "Introduction_to_Computers_and_Research.csv")
+    m_map = {
+        5: "Remembering",
+        10: "Understanding",
+        15: "Applying",
+        20: "Analyzing",
+        30: "Creating",
+    }
+    df_acad = pd.concat([f1, f2], ignore_index=True)
+    df_acad["label"] = df_acad["Score"].map(m_map)
+    df_acad = df_acad[["Questions", "label"]].rename(columns={"Questions": "text"})
 
-    # --- MOOC-Radar (problem.json as JSONL) ---
-    mooc_list = []
-    mooc_map = {1:'Remembering', 2:'Understanding', 3:'Applying', 4:'Analyzing', 5:'Evaluating', 6:'Creating'}
-    with open('data/problem.json', 'r', encoding='utf-8') as f:
+    df_noise = pd.read_csv(ROOT / "data" / "Irrelevant_Questions.csv")
+    df_noise["label"] = "Irrelevant"
+    df_noise = df_noise[["Questions", "label"]].rename(columns={"Questions": "text"})
+
+    mooc_list: List[Dict[str, str]] = []
+    mooc_map = {
+        1: "Remembering",
+        2: "Understanding",
+        3: "Applying",
+        4: "Analyzing",
+        5: "Analyzing",
+        6: "Creating",
+    }
+    with (ROOT / "data" / "problem.json").open("r", encoding="utf-8") as f:
         for line in f:
-            if not line.strip(): continue
+            if not line.strip():
+                continue
             try:
                 item = json.loads(line)
-                # Unpack noisy stringified dict in 'detail' field
-                detail = ast.literal_eval(item['detail'])
-                content = detail.get('content', '')
-                cog_dim = item.get('cognitive_dimension')
-                
-                # Filter for English content only
+                detail = ast.literal_eval(item["detail"])
+                content = detail.get("content", "")
+                cog_dim = item.get("cognitive_dimension")
                 if content and is_english(content) and cog_dim in mooc_map:
-                    mooc_list.append({'text': content, 'label': mooc_map[cog_dim]})
-            except: continue
+                    mooc_list.append({"text": content, "label": mooc_map[cog_dim]})
+            except Exception:
+                continue
     df_mooc = pd.DataFrame(mooc_list)
 
-    # Merge, Clean, and Final Label Standardizing
-    df_full = pd.concat([df_acad, df_noise, df_mooc]).dropna()
-    df_full['text'] = df_full['text'].apply(clean_text)
-    df_full['label'] = df_full['label'].replace('Evaluating', 'Analyzing') # Grouping for higher F1
-    
-    valid_labels = ['Remembering', 'Understanding', 'Applying', 'Analyzing', 'Creating', 'Irrelevant']
-    df_full = df_full[df_full['label'].isin(valid_labels)]
-    
+    df_full = pd.concat([df_acad, df_noise, df_mooc], ignore_index=True).dropna()
+    df_full["text"] = df_full["text"].apply(clean_text)
+    df_full["label"] = df_full["label"].replace("Evaluating", "Analyzing")
+    df_full = df_full[df_full["label"].isin(VALID_LABELS)]
+    df_full = df_full.drop_duplicates(subset=["text", "label"]).reset_index(drop=True)
+
     print(f"Total processed samples: {len(df_full)}")
-    return train_test_split(df_full['text'], df_full['label'], test_size=0.2, random_state=42)
+    return train_test_split(
+        df_full["text"],
+        df_full["label"],
+        test_size=0.2,
+        random_state=42,
+        stratify=df_full["label"],
+    )
 
-# --- EXECUTION & MODELS ---
-X_train, X_test, y_train, y_test = load_and_standardize()
 
-# Semantic Baseline SVM (Under 100MB)
-print("\nExtracting Semantic Embeddings (MiniLM-L6)...")
-embedder = SentenceTransformer('all-MiniLM-L6-v2') 
-X_train_vec = embedder.encode(X_train.tolist())
-X_test_vec = embedder.encode(X_test.tolist())
+@dataclass
+class QwenPrediction:
+    label: str
+    raw: str
+    elapsed_s: float
 
-svm_model = SVC(kernel='rbf', C=10, class_weight='balanced').fit(X_train_vec, y_train)
 
-# Qwen Target (Local Privacy-Preserving GGUF)
-print("\nInitializing Qwen 2.5 1.5B (GGUF)...")
-llm = Llama(model_path="models/qwen2.5-1.5b-instruct-q4_k_m.gguf", n_ctx=2048, n_threads=4)
+class QwenBloomCliClassifier:
+    """Deterministic Qwen GGUF generative classifier via standalone llama.cpp."""
 
-def qwen_classify(text):
-    # This specific prompt structure is optimized for Qwen 2.5 1.5B
-    prompt = f"""<|im_start|>system
-You are a university assistant. Use ONLY one word from this list: [Remembering, Understanding, Applying, Analyzing, Evaluating, Creating, Irrelevant].
-Rule: If it's a greeting or not about course content, say 'Irrelevant'.<|im_end|>
+    def __init__(
+        self,
+        model_path: str | Path = DEFAULT_QWEN_GGUF,
+        *,
+        llama_cli_path: str | Path | None = None,
+        ctx_size: int = 1024,
+        max_tokens: int = 24,
+        threads: int = 4,
+    ) -> None:
+        self.model_path = Path(model_path)
+        if not self.model_path.is_file():
+            raise FileNotFoundError(f"Qwen GGUF not found: {self.model_path}")
+        self.llama_cli_path = Path(llama_cli_path) if llama_cli_path else find_llama_cli()
+        self.ctx_size = int(ctx_size)
+        self.max_tokens = int(max_tokens)
+        self.threads = int(threads)
+
+    @staticmethod
+    def build_prompt(text: str) -> str:
+        labels = ", ".join(VALID_LABELS)
+        return f"""<|im_start|>system
+You are a strict Bloom Taxonomy classifier for university questions.
+Return exactly one label and nothing else.
+
+Allowed labels: {labels}
+
+Definitions:
+- Remembering: recall, define, list, identify, state facts.
+- Understanding: explain, summarize, describe meaning.
+- Applying: use a concept, calculate, solve a direct problem.
+- Analyzing: compare, differentiate, infer, debug, explain relationships, evaluate or justify.
+- Creating: design, compose, propose, formulate, invent, synthesize.
+- Irrelevant: greetings, spam, personal chat, or not about academic/course content.
+
+Important: Evaluating/Evaluation must be labeled as Analyzing in this dataset.
+
+Examples:
+Question: define a stack data structure
+Label: Remembering
+Question: explain how binary search works
+Label: Understanding
+Question: calculate the output of this loop
+Label: Applying
+Question: compare TCP and UDP
+Label: Analyzing
+Question: design a database schema for a library
+Label: Creating
+Question: hello how are you
+Label: Irrelevant
+<|im_end|>
 <|im_start|>user
-Query: "{text}"
-Label:<|im_end|>
+Question: {text}
+Label:
+<|im_end|>
 <|im_start|>assistant
-Label: """
+"""
 
-    try:
-        # Temperature 0 is critical for accuracy in 1.5B models
-        response = llm(prompt, max_tokens=10, temperature=0, stop=["<|im_end|>", "\n"], echo=False)
-        
-        # CORRECT INDEXING: ['choices'][0]['text']
-        res = response['choices'][0]['text'].strip().capitalize()
-        
-        # Expert Fuzzy Matcher: Catch the label even if the model adds "The label is..."
-        valid_labels = ['Remembering', 'Understanding', 'Applying', 'Analyzing', 'Evaluating', 'Creating', 'Irrelevant']
-        for L in valid_labels:
-            if L in res:
-                return L
-                
-        return "Unknown"
-    except Exception as e:
-        # Log the error for debugging (helpful for paper documentation)
-        return f"Error: {str(e)}"
+    @staticmethod
+    def extract_label(output: str) -> str:
+        text = output
+        text = text.split("[ Prompt:", 1)[0]
+        if "<|im_start|>assistant" in text:
+            text = text.rsplit("<|im_start|>assistant", 1)[-1]
+        elif "Label:" in text:
+            text = text.rsplit("Label:", 1)[-1]
+        text = re.sub(r"<\|im_(?:start|end)\|>", " ", text)
+        text = re.sub(r"(?i)\b(label|answer|classification)\s*[:=-]", " ", text)
+        lowered = text.lower()
+
+        # Prefer the first explicit allowed/alias label found in generated text.
+        for alias, canonical in LABEL_ALIASES.items():
+            if re.search(rf"\b{re.escape(alias)}\b", lowered):
+                return canonical
+
+        # Last resort: use Bloom verb cues if Qwen returned a sentence.
+        cue_order = [
+            ("Creating", r"\b(design|compose|create|develop|formulate|propose|invent|synthesize)\b"),
+            ("Analyzing", r"\b(compare|differentiate|analyze|analyse|evaluate|justify|debug|infer|relationship)\b"),
+            ("Applying", r"\b(apply|calculate|solve|implement|use|compute|execute)\b"),
+            ("Understanding", r"\b(explain|summarize|describe|interpret|classify)\b"),
+            ("Remembering", r"\b(define|list|state|identify|recall|name|what is)\b"),
+        ]
+        for label, pattern in cue_order:
+            if re.search(pattern, lowered):
+                return label
+        return "Irrelevant"
+
+    def classify(self, text: str) -> QwenPrediction:
+        prompt = self.build_prompt(text)
+        cmd = [
+            str(self.llama_cli_path),
+            "-m",
+            str(self.model_path),
+            "-p",
+            prompt,
+            "-n",
+            str(self.max_tokens),
+            "--temp",
+            "0",
+            "--no-display-prompt",
+            "--single-turn",
+            "--simple-io",
+            "-dev",
+            "none",
+            "-ngl",
+            "0",
+            "-c",
+            str(self.ctx_size),
+            "-t",
+            str(self.threads),
+            "--no-repack",
+        ]
+        start = time.perf_counter()
+        proc = subprocess.run(
+            cmd,
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=180,
+        )
+        elapsed = time.perf_counter() - start
+        raw = ((proc.stdout or "") + "\n" + (proc.stderr or "")).strip()
+        if proc.returncode not in {0, 137}:
+            raise RuntimeError(f"llama-cli failed with code {proc.returncode}:\n{raw}")
+        return QwenPrediction(label=self.extract_label(raw), raw=raw, elapsed_s=elapsed)
 
 
-# --- RESEARCH AUDIT LOOP ---
-print("\nExecuting Qwen Accuracy Audit...")
-y_pred_qwen = []
-subset_size = 50 # Small subset for quick latency check
-test_subset = X_test.iloc[:subset_size]
-y_true_subset = y_test.iloc[:subset_size]
+def run_svm(X_train: pd.Series, X_test: pd.Series, y_train: pd.Series) -> tuple[np.ndarray, SVC]:
+    print("\nExtracting semantic embeddings (MiniLM-L6)...")
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    X_train_vec = embedder.encode(X_train.tolist(), show_progress_bar=True)
+    X_test_vec = embedder.encode(X_test.tolist(), show_progress_bar=True)
 
-start_time = time.time()
-for i, t in enumerate(test_subset):
-    pred = qwen_classify(t)
-    y_pred_qwen.append(pred)
-    # Print the first 5 to see if the model logic is working
-    if i < 5:
-        print(f"Sample {i} | Q: {t[:30]}... | Pred: {pred}")
-
-qwen_latency = (time.time() - start_time) / subset_size
-print(f"\nTARGET: QWEN 2.5 1.5B (Latency: {qwen_latency:.4f}s)")
-print(classification_report(y_true_subset, y_pred_qwen, zero_division=0))
+    print("\nTraining semantic SVM baseline...")
+    svm_model = SVC(kernel="rbf", C=10, class_weight="balanced")
+    svm_model.fit(X_train_vec, y_train)
+    return svm_model.predict(X_test_vec), svm_model
 
 
+def run_qwen_eval(
+    X_test: pd.Series,
+    *,
+    subset_size: int,
+    model_path: str | Path,
+    threads: int,
+    ctx_size: int,
+) -> tuple[List[str], List[str], float]:
+    print("\nInitializing Qwen GGUF classifier...")
+    qwen = QwenBloomCliClassifier(model_path=model_path, threads=threads, ctx_size=ctx_size)
+    test_subset = X_test.iloc[:subset_size].reset_index(drop=True)
 
-# --- RESEARCH AUDIT (LATENCY & F1) ---
-print("\n" + "="*45 + "\nFINAL RESEARCH METRICS\n" + "="*45)
+    print(f"Executing Qwen accuracy audit on {len(test_subset)} samples...")
+    preds: List[str] = []
+    raw_outputs: List[str] = []
+    latencies: List[float] = []
+    for i, question in enumerate(test_subset):
+        pred = qwen.classify(question)
+        preds.append(pred.label)
+        raw_outputs.append(pred.raw)
+        latencies.append(pred.elapsed_s)
+        if i < 5:
+            print(f"Sample {i} | Q: {question[:55]}... | Pred: {pred.label}")
 
-# SVM Report (Already printed in your logs, but here for completeness)
-y_pred_svm = svm_model.predict(X_test_vec)
-print("BASELINE: SEMANTIC SVM\n", classification_report(y_test, y_pred_svm, zero_division=0))
+    avg_latency = sum(latencies) / max(1, len(latencies))
+    return preds, raw_outputs, avg_latency
 
-# Qwen Report (Corrected Loop)
-print("Generating Qwen Predictions...")
-start_time = time.time()
-y_pred_qwen = []
-# Use a smaller slice if testing for latency (e.g., first 50)
-test_subset = X_test.iloc[:50] 
-y_true_subset = y_test.iloc[:50]
 
-for t in test_subset:
-    y_pred_qwen.append(qwen_classify(t))
-
-qwen_latency = (time.time() - start_time) / len(test_subset)
-
-print(f"\nTARGET: QWEN 2.5 1.5B (Latency: {qwen_latency:.4f}s per query)\n")
-print(classification_report(y_true_subset, y_pred_qwen, zero_division=0))
-
-import csv
-
-def save_research_metrics(y_true, y_pred_svm, y_pred_qwen, filename="research_audit.csv"):
-    with open(filename, mode='w', newline='') as file:
+def save_research_metrics(
+    questions: Sequence[str],
+    y_true: Sequence[str],
+    y_pred_svm: Sequence[str],
+    y_pred_qwen: Sequence[str],
+    qwen_raw: Sequence[str],
+    filename: str = "research_audit.csv",
+) -> None:
+    with open(ROOT / filename, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
-        writer.writerow(["Query_ID", "Actual_Label", "SVM_Prediction", "Qwen_Prediction"])
+        writer.writerow(["Query_ID", "Question", "Actual_Label", "SVM_Prediction", "Qwen_Prediction", "Qwen_Raw"])
         for i in range(len(y_pred_qwen)):
-            writer.writerow([i, y_true.iloc[i], y_pred_svm[i], y_pred_qwen[i]])
+            writer.writerow([i, questions[i], y_true[i], y_pred_svm[i], y_pred_qwen[i], qwen_raw[i]])
     print(f"Research metrics exported to {filename}")
 
-# Call this after your loop
-save_research_metrics(y_test[:50], y_pred_svm[:50], y_pred_qwen)
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Train SVM baseline and evaluate Qwen GGUF generative Bloom classifier.")
+    parser.add_argument("--qwen-subset", type=int, default=50, help="Number of test samples to run through Qwen.")
+    parser.add_argument("--skip-qwen", action="store_true", help="Run only the SVM baseline.")
+    parser.add_argument("--qwen-model", type=str, default=str(DEFAULT_QWEN_GGUF), help="Path to Qwen GGUF model.")
+    parser.add_argument("--qwen-threads", type=int, default=4, help="llama.cpp CPU threads for Qwen.")
+    parser.add_argument("--qwen-ctx", type=int, default=1024, help="llama.cpp context size for Qwen.")
+    args = parser.parse_args()
+
+    X_train, X_test, y_train, y_test = load_and_standardize()
+    X_test = X_test.reset_index(drop=True)
+    y_test = y_test.reset_index(drop=True)
+
+    y_pred_svm, _svm_model = run_svm(X_train, X_test, y_train)
+    print("\n" + "=" * 45)
+    print("BASELINE: SEMANTIC SVM")
+    print("=" * 45)
+    print(classification_report(y_test, y_pred_svm, labels=VALID_LABELS, zero_division=0))
+
+    if args.skip_qwen:
+        print("\nQwen evaluation skipped.")
+        return
+
+    subset_size = max(1, min(args.qwen_subset, len(X_test)))
+    qwen_preds, qwen_raw, qwen_latency = run_qwen_eval(
+        X_test,
+        subset_size=subset_size,
+        model_path=args.qwen_model,
+        threads=args.qwen_threads,
+        ctx_size=args.qwen_ctx,
+    )
+    y_true_subset = y_test.iloc[:subset_size].tolist()
+    y_svm_subset = list(y_pred_svm[:subset_size])
+    questions_subset = X_test.iloc[:subset_size].tolist()
+
+    print("\n" + "=" * 45)
+    print(f"TARGET: QWEN GGUF GENERATIVE CLASSIFIER (Latency: {qwen_latency:.4f}s/query)")
+    print("=" * 45)
+    print(classification_report(y_true_subset, qwen_preds, labels=VALID_LABELS, zero_division=0))
+
+    save_research_metrics(questions_subset, y_true_subset, y_svm_subset, qwen_preds, qwen_raw)
+
+
+if __name__ == "__main__":
+    main()
