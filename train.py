@@ -13,7 +13,6 @@ from typing import Dict, List, Sequence
 
 import numpy as np
 import pandas as pd
-from langdetect import DetectorFactory, detect
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
@@ -22,44 +21,47 @@ from sklearn.svm import SVC
 from qwen_gguf_cli import DEFAULT_QWEN_GGUF, find_llama_cli
 
 
-DetectorFactory.seed = 42
 ROOT = Path(__file__).resolve().parent
 
 VALID_LABELS = [
-    "Remembering",
-    "Understanding",
-    "Applying",
-    "Analyzing",
-    "Creating",
-    "Irrelevant",
+    "Remember",
+    "Understand",
+    "Apply",
+    "Analyze",
+    "Evaluate",
+    "Create",
 ]
 
 LABEL_ALIASES: Dict[str, str] = {
-    "remember": "Remembering",
-    "remembering": "Remembering",
-    "knowledge": "Remembering",
-    "understand": "Understanding",
-    "understanding": "Understanding",
-    "comprehension": "Understanding",
-    "apply": "Applying",
-    "applying": "Applying",
-    "application": "Applying",
-    "analyze": "Analyzing",
-    "analysing": "Analyzing",
-    "analyzing": "Analyzing",
-    "analysis": "Analyzing",
-    # The training set intentionally folds Evaluating into Analyzing, so align
-    # Qwen outputs to the same target space instead of scoring them as wrong.
-    "evaluate": "Analyzing",
-    "evaluating": "Analyzing",
-    "evaluation": "Analyzing",
-    "create": "Creating",
-    "creating": "Creating",
-    "synthesis": "Creating",
-    "irrelevant": "Irrelevant",
-    "noise": "Irrelevant",
-    "off-topic": "Irrelevant",
-    "off topic": "Irrelevant",
+    "remember": "Remember",
+    "remembering": "Remember",
+    "knowledge": "Remember",
+    "understand": "Understand",
+    "understanding": "Understand",
+    "comprehension": "Understand",
+    "apply": "Apply",
+    "applying": "Apply",
+    "application": "Apply",
+    "analyze": "Analyze",
+    "analyse": "Analyze",
+    "analysing": "Analyze",
+    "analyzing": "Analyze",
+    "analysis": "Analyze",
+    "evaluate": "Evaluate",
+    "evaluating": "Evaluate",
+    "evaluation": "Evaluate",
+    "create": "Create",
+    "creating": "Create",
+    "synthesis": "Create",
+}
+
+BLOOM_SEMANTIC_MAP: Dict[str, str] = {
+    "Remember": "retrieve or recognize facts, terms, definitions, labels, or named items",
+    "Understand": "explain meaning, summarize, interpret, classify, compare, or describe relationships in plain language",
+    "Apply": "use a known method, formula, procedure, or concept to solve a direct task",
+    "Analyze": "break material into parts, distinguish causes, infer structure, compare mechanisms, or diagnose relationships",
+    "Evaluate": "judge quality, defend a decision, justify a recommendation, critique, assess, or argue with criteria",
+    "Create": "design, formulate, compose, plan, propose, construct, or synthesize something new",
 }
 
 
@@ -75,63 +77,151 @@ def is_english(text: str) -> bool:
         return False
 
 
-def load_and_standardize() -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
-    print("Loading and cleaning datasets...")
+def _load_figshare_split(name: str) -> pd.DataFrame:
+    path = ROOT / "data" / f"figshare_bloom_v1_{name}.csv"
+    df = pd.read_csv(path)
+    df = df.rename(columns={"question": "text", "bloom_level": "label"})
+    df["text"] = df["text"].map(lambda x: re.sub(r"\s+", " ", str(x)).strip())
+    df["label"] = df["label"].map(lambda x: LABEL_ALIASES.get(str(x).strip().lower(), str(x).strip()))
+    df = df[df["text"].str.len() > 0]
+    df = df[df["label"].isin(VALID_LABELS)]
+    return df[["text", "label"]].drop_duplicates().reset_index(drop=True)
 
-    f1 = pd.read_csv(ROOT / "data" / "Data_Structure.csv")
-    f2 = pd.read_csv(ROOT / "data" / "Introduction_to_Computers_and_Research.csv")
-    m_map = {
-        5: "Remembering",
-        10: "Understanding",
-        15: "Applying",
-        20: "Analyzing",
-        30: "Creating",
-    }
-    df_acad = pd.concat([f1, f2], ignore_index=True)
-    df_acad["label"] = df_acad["Score"].map(m_map)
-    df_acad = df_acad[["Questions", "label"]].rename(columns={"Questions": "text"})
 
-    df_noise = pd.read_csv(ROOT / "data" / "Irrelevant_Questions.csv")
-    df_noise["label"] = "Irrelevant"
-    df_noise = df_noise[["Questions", "label"]].rename(columns={"Questions": "text"})
+def _read_json_records(path: Path) -> List[dict]:
+    rows: List[dict] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            rows.append(value)
+    return rows
 
-    mooc_list: List[Dict[str, str]] = []
-    mooc_map = {
-        1: "Remembering",
-        2: "Understanding",
-        3: "Applying",
-        4: "Analyzing",
-        5: "Analyzing",
-        6: "Creating",
-    }
-    with (ROOT / "data" / "problem.json").open("r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            try:
-                item = json.loads(line)
-                detail = ast.literal_eval(item["detail"])
-                content = detail.get("content", "")
-                cog_dim = item.get("cognitive_dimension")
-                if content and is_english(content) and cog_dim in mooc_map:
-                    mooc_list.append({"text": content, "label": mooc_map[cog_dim]})
-            except Exception:
-                continue
-    df_mooc = pd.DataFrame(mooc_list)
 
-    df_full = pd.concat([df_acad, df_noise, df_mooc], ignore_index=True).dropna()
-    df_full["text"] = df_full["text"].apply(clean_text)
-    df_full["label"] = df_full["label"].replace("Evaluating", "Analyzing")
-    df_full = df_full[df_full["label"].isin(VALID_LABELS)]
-    df_full = df_full.drop_duplicates(subset=["text", "label"]).reset_index(drop=True)
+def _extract_moocradar_question(record: dict) -> str:
+    detail = record.get("detail")
+    if isinstance(detail, str):
+        try:
+            parsed = ast.literal_eval(detail)
+        except Exception:
+            parsed = {}
+        if isinstance(parsed, dict):
+            parts = [clean_text(parsed.get("content", ""))]
+            options = parsed.get("option")
+            if isinstance(options, dict):
+                parts.extend(clean_text(value) for value in options.values())
+            return clean_text(" ".join(part for part in parts if part))
+    for key in ("question", "question_text", "content", "text"):
+        if record.get(key):
+            return clean_text(record[key])
+    return ""
 
-    print(f"Total processed samples: {len(df_full)}")
-    return train_test_split(
-        df_full["text"],
-        df_full["label"],
-        test_size=0.2,
-        random_state=42,
-        stratify=df_full["label"],
+
+def _normalise_moocradar_label(value: object) -> str | None:
+    if value is None:
+        return None
+    try:
+        idx = int(value)
+    except (TypeError, ValueError):
+        return LABEL_ALIASES.get(str(value).strip().lower())
+    if 1 <= idx <= 6:
+        return VALID_LABELS[idx - 1]
+    return None
+
+
+def _load_moocradar() -> pd.DataFrame:
+    path = ROOT / "data" / "problem.json"
+    records = _read_json_records(path)
+    rows: List[Dict[str, str]] = []
+    for record in records:
+        question = _extract_moocradar_question(record)
+        label = _normalise_moocradar_label(record.get("cognitive_dimension"))
+        if question and label:
+            rows.append({"text": question, "label": label})
+    df = pd.DataFrame(rows)
+    df = df.drop_duplicates(subset=["text", "label"])
+    conflicts = df.groupby("text")["label"].nunique()
+    if len(conflicts):
+        df = df[~df["text"].isin(conflicts[conflicts > 1].index)]
+    return df.drop_duplicates(subset=["text"]).reset_index(drop=True)
+
+
+def infer_mendeley_label(question: str) -> str | None:
+    lowered = question.lower()
+    cue_patterns: Sequence[tuple[str, str]] = (
+        ("Create", r"\b(design|create|develop|formulate|propose|compose|construct|plan|synthesize|generate)\b"),
+        ("Evaluate", r"\b(evaluate|assess|justify|critique|defend|judge|recommend|argue|appraise|best choice)\b"),
+        ("Analyze", r"\b(analyze|analyse|differentiate|distinguish|examine|infer|investigate|relate|why|cause|scenario)\b"),
+        ("Apply", r"\b(apply|calculate|solve|use|implement|demonstrate|determine|compute|find)\b"),
+        ("Understand", r"\b(explain|describe|summarize|interpret|classify|compare|contrast|outline|discuss|how)\b"),
+        ("Remember", r"\b(define|identify|list|name|state|recall|recognize|label|what is|stands for)\b"),
+    )
+    matches = [label for label, pattern in cue_patterns if re.search(pattern, lowered)]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _load_mendeley_weak_labels(max_per_label: int = 500) -> pd.DataFrame:
+    frames = []
+    for filename in ("Data_Structure.csv", "Introduction_to_Computers_and_Research.csv"):
+        raw = pd.read_csv(ROOT / "data" / filename)
+        df = raw.rename(columns={"Questions": "text"})[["text"]].copy()
+        df["text"] = df["text"].map(clean_text)
+        df["label"] = df["text"].map(infer_mendeley_label)
+        frames.append(df.dropna(subset=["label"]))
+    out = pd.concat(frames, ignore_index=True).drop_duplicates(subset=["text"])
+    if max_per_label > 0:
+        out = (
+            out.groupby("label", group_keys=False)
+            .apply(lambda group: group.sample(n=min(len(group), max_per_label), random_state=42))
+            .reset_index(drop=True)
+        )
+    return out[["text", "label"]]
+
+
+def _split_supervised(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    train_df, temp_df = train_test_split(df, test_size=0.2, random_state=42, stratify=df["label"])
+    val_df, test_df = train_test_split(temp_df, test_size=0.5, random_state=42, stratify=temp_df["label"])
+    return train_df.reset_index(drop=True), val_df.reset_index(drop=True), test_df.reset_index(drop=True)
+
+
+def load_and_standardize(
+    dataset: str = "combined",
+    include_mendeley_weak: bool = False,
+) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
+    print(f"Loading semantic Bloom dataset: {dataset}")
+    train_df = _load_figshare_split("train")
+    val_df = _load_figshare_split("val")
+    test_df = _load_figshare_split("test")
+    if dataset == "figshare":
+        pass
+    elif dataset == "moocradar":
+        train_df, val_df, test_df = _split_supervised(_load_moocradar())
+    elif dataset == "combined":
+        mooc_train, mooc_val, mooc_test = _split_supervised(_load_moocradar())
+        train_df = pd.concat([train_df, mooc_train], ignore_index=True)
+        val_df = pd.concat([val_df, mooc_val], ignore_index=True)
+        test_df = pd.concat([test_df, mooc_test], ignore_index=True)
+    else:
+        raise ValueError(f"Unknown dataset: {dataset}")
+
+    train_full = pd.concat([train_df, val_df], ignore_index=True)
+    if include_mendeley_weak:
+        train_full = pd.concat([train_full, _load_mendeley_weak_labels()], ignore_index=True)
+        train_full = train_full.drop_duplicates(subset=["text", "label"])
+    all_rows = pd.concat([train_full, test_df], ignore_index=True)
+
+    print(f"Total processed samples: {len(all_rows)}")
+    print("Label distribution:", all_rows["label"].value_counts().to_dict())
+    return (
+        train_full["text"],
+        test_df["text"],
+        train_full["label"],
+        test_df["label"],
     )
 
 
@@ -140,6 +230,29 @@ class QwenPrediction:
     label: str
     raw: str
     elapsed_s: float
+
+
+def cue_rationale(question: str, prediction: str) -> str:
+    lowered = question.lower()
+    cue_patterns = {
+        "Remember": r"\b(define|identify|list|name|state|recall|recognize|label)\b",
+        "Understand": r"\b(explain|describe|summarize|interpret|classify|compare|contrast|outline|discuss)\b",
+        "Apply": r"\b(apply|calculate|solve|use|implement|demonstrate|determine|compute)\b",
+        "Analyze": r"\b(analyze|analyse|differentiate|distinguish|examine|infer|investigate|relate|why|cause)\b",
+        "Evaluate": r"\b(evaluate|assess|justify|critique|defend|judge|recommend|argue|appraise)\b",
+        "Create": r"\b(design|create|develop|formulate|propose|compose|construct|plan|synthesize|generate)\b",
+    }
+    hits = {
+        label: re.findall(pattern, lowered)
+        for label, pattern in cue_patterns.items()
+        if re.search(pattern, lowered)
+    }
+    return str(
+        {
+            "predicted_semantic_meaning": BLOOM_SEMANTIC_MAP.get(prediction, ""),
+            "matched_cues": hits,
+        }
+    )
 
 
 class QwenBloomCliClassifier:
@@ -165,35 +278,29 @@ class QwenBloomCliClassifier:
     @staticmethod
     def build_prompt(text: str) -> str:
         labels = ", ".join(VALID_LABELS)
+        semantic_map = "\n".join(f"- {label}: {meaning}." for label, meaning in BLOOM_SEMANTIC_MAP.items())
         return f"""<|im_start|>system
-You are a strict Bloom Taxonomy classifier for university questions.
+You classify university exam questions by semantic cognitive demand, not topic keywords.
 Return exactly one label and nothing else.
 
 Allowed labels: {labels}
 
-Definitions:
-- Remembering: recall, define, list, identify, state facts.
-- Understanding: explain, summarize, describe meaning.
-- Applying: use a concept, calculate, solve a direct problem.
-- Analyzing: compare, differentiate, infer, debug, explain relationships, evaluate or justify.
-- Creating: design, compose, propose, formulate, invent, synthesize.
-- Irrelevant: greetings, spam, personal chat, or not about academic/course content.
-
-Important: Evaluating/Evaluation must be labeled as Analyzing in this dataset.
+Semantic map:
+{semantic_map}
 
 Examples:
 Question: define a stack data structure
-Label: Remembering
+Label: Remember
 Question: explain how binary search works
-Label: Understanding
+Label: Understand
 Question: calculate the output of this loop
-Label: Applying
+Label: Apply
 Question: compare TCP and UDP
-Label: Analyzing
+Label: Analyze
+Question: justify the best security method for the system
+Label: Evaluate
 Question: design a database schema for a library
-Label: Creating
-Question: hello how are you
-Label: Irrelevant
+Label: Create
 <|im_end|>
 <|im_start|>user
 Question: {text}
@@ -221,16 +328,17 @@ Label:
 
         # Last resort: use Bloom verb cues if Qwen returned a sentence.
         cue_order = [
-            ("Creating", r"\b(design|compose|create|develop|formulate|propose|invent|synthesize)\b"),
-            ("Analyzing", r"\b(compare|differentiate|analyze|analyse|evaluate|justify|debug|infer|relationship)\b"),
-            ("Applying", r"\b(apply|calculate|solve|implement|use|compute|execute)\b"),
-            ("Understanding", r"\b(explain|summarize|describe|interpret|classify)\b"),
-            ("Remembering", r"\b(define|list|state|identify|recall|name|what is)\b"),
+            ("Create", r"\b(design|compose|create|develop|formulate|propose|invent|synthesize)\b"),
+            ("Evaluate", r"\b(evaluate|assess|justify|critique|defend|judge|recommend|argue)\b"),
+            ("Analyze", r"\b(compare|differentiate|analyze|analyse|debug|infer|relationship)\b"),
+            ("Apply", r"\b(apply|calculate|solve|implement|use|compute|execute)\b"),
+            ("Understand", r"\b(explain|summarize|describe|interpret|classify)\b"),
+            ("Remember", r"\b(define|list|state|identify|recall|name|what is)\b"),
         ]
         for label, pattern in cue_order:
             if re.search(pattern, lowered):
                 return label
-        return "Irrelevant"
+        return "Unknown"
 
     def classify(self, text: str) -> QwenPrediction:
         prompt = self.build_prompt(text)
@@ -324,10 +432,36 @@ def save_research_metrics(
 ) -> None:
     with open(ROOT / filename, mode="w", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
-        writer.writerow(["Query_ID", "Question", "Actual_Label", "SVM_Prediction", "Qwen_Prediction", "Qwen_Raw"])
+        writer.writerow(
+            [
+                "Query_ID",
+                "Question",
+                "Actual_Label",
+                "SVM_Prediction",
+                "Qwen_Prediction",
+                "Semantic_Rationale",
+                "Qwen_Raw",
+            ]
+        )
         for i in range(len(y_pred_qwen)):
-            writer.writerow([i, questions[i], y_true[i], y_pred_svm[i], y_pred_qwen[i], qwen_raw[i]])
+            writer.writerow(
+                [i, questions[i], y_true[i], y_pred_svm[i], y_pred_qwen[i], cue_rationale(questions[i], y_pred_qwen[i]), qwen_raw[i]]
+            )
     print(f"Research metrics exported to {filename}")
+
+
+def save_semantic_svm_audit(
+    questions: Sequence[str],
+    y_true: Sequence[str],
+    y_pred_svm: Sequence[str],
+    filename: str = "semantic_bloom_svm_audit.csv",
+) -> None:
+    with open(ROOT / "results" / filename, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(["Query_ID", "Question", "Actual_Label", "SVM_Prediction", "Semantic_Rationale"])
+        for i, (question, actual, pred) in enumerate(zip(questions, y_true, y_pred_svm)):
+            writer.writerow([i, question, actual, pred, cue_rationale(question, pred)])
+    print(f"Semantic SVM audit exported to results/{filename}")
 
 
 def main() -> None:
@@ -337,9 +471,23 @@ def main() -> None:
     parser.add_argument("--qwen-model", type=str, default=str(DEFAULT_QWEN_GGUF), help="Path to Qwen GGUF model.")
     parser.add_argument("--qwen-threads", type=int, default=4, help="llama.cpp CPU threads for Qwen.")
     parser.add_argument("--qwen-ctx", type=int, default=1024, help="llama.cpp context size for Qwen.")
+    parser.add_argument(
+        "--dataset",
+        choices=["figshare", "moocradar", "combined"],
+        default="combined",
+        help="Supervised Bloom source. combined uses Figshare plus MOOCRadar.",
+    )
+    parser.add_argument(
+        "--include-mendeley-weak",
+        action="store_true",
+        help="Add Mendeley questions to training only using conservative cue-derived weak labels.",
+    )
     args = parser.parse_args()
 
-    X_train, X_test, y_train, y_test = load_and_standardize()
+    X_train, X_test, y_train, y_test = load_and_standardize(
+        dataset=args.dataset,
+        include_mendeley_weak=args.include_mendeley_weak,
+    )
     X_test = X_test.reset_index(drop=True)
     y_test = y_test.reset_index(drop=True)
 
@@ -348,6 +496,9 @@ def main() -> None:
     print("BASELINE: SEMANTIC SVM")
     print("=" * 45)
     print(classification_report(y_test, y_pred_svm, labels=VALID_LABELS, zero_division=0))
+    print("Semantic map:", BLOOM_SEMANTIC_MAP)
+    (ROOT / "results").mkdir(parents=True, exist_ok=True)
+    save_semantic_svm_audit(X_test.tolist(), y_test.tolist(), y_pred_svm.tolist())
 
     if args.skip_qwen:
         print("\nQwen evaluation skipped.")

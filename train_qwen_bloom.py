@@ -5,12 +5,11 @@ import ast
 import json
 import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 import pandas as pd
 import torch
 from datasets import Dataset
-from langdetect import DetectorFactory, detect
 from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
@@ -19,7 +18,6 @@ from trl import SFTTrainer
 
 
 ROOT = Path(__file__).resolve().parent
-DetectorFactory.seed = 42
 
 MODEL_NAME = "Qwen/Qwen2-1.5B-Instruct"
 OUTPUT_DIR = ROOT / "qwen-bloom-lora"
@@ -27,136 +25,204 @@ RESULTS_DIR = ROOT / "results"
 MAX_LENGTH = 512
 
 VALID_LABELS = [
-    "Remembering",
-    "Understanding",
-    "Applying",
-    "Analyzing",
-    "Creating",
-    "Irrelevant",
+    "Remember",
+    "Understand",
+    "Apply",
+    "Analyze",
+    "Evaluate",
+    "Create",
 ]
 
 LABEL_ALIASES: Dict[str, str] = {
-    "remember": "Remembering",
-    "remembering": "Remembering",
-    "knowledge": "Remembering",
-    "understand": "Understanding",
-    "understanding": "Understanding",
-    "comprehension": "Understanding",
-    "apply": "Applying",
-    "applying": "Applying",
-    "application": "Applying",
-    "analyze": "Analyzing",
-    "analyse": "Analyzing",
-    "analysing": "Analyzing",
-    "analyzing": "Analyzing",
-    "analysis": "Analyzing",
-    # train.py folds Evaluating into Analyzing, so this script uses the same
-    # cleaned label space for a fair comparison with the SVM baseline.
-    "evaluate": "Analyzing",
-    "evaluating": "Analyzing",
-    "evaluation": "Analyzing",
-    "create": "Creating",
-    "creating": "Creating",
-    "synthesis": "Creating",
-    "irrelevant": "Irrelevant",
-    "off-topic": "Irrelevant",
-    "off topic": "Irrelevant",
-    "noise": "Irrelevant",
+    "remember": "Remember",
+    "remembering": "Remember",
+    "knowledge": "Remember",
+    "understand": "Understand",
+    "understanding": "Understand",
+    "comprehension": "Understand",
+    "apply": "Apply",
+    "applying": "Apply",
+    "application": "Apply",
+    "analyze": "Analyze",
+    "analyse": "Analyze",
+    "analysing": "Analyze",
+    "analyzing": "Analyze",
+    "analysis": "Analyze",
+    "evaluate": "Evaluate",
+    "evaluating": "Evaluate",
+    "evaluation": "Evaluate",
+    "create": "Create",
+    "creating": "Create",
+    "synthesis": "Create",
+}
+
+BLOOM_SEMANTIC_MAP: Dict[str, str] = {
+    "Remember": "retrieve or recognize facts, terms, definitions, labels, or named items",
+    "Understand": "explain meaning, summarize, interpret, classify, compare, or describe relationships in plain language",
+    "Apply": "use a known method, formula, procedure, or concept to solve a direct task",
+    "Analyze": "break material into parts, distinguish causes, infer structure, compare mechanisms, or diagnose relationships",
+    "Evaluate": "judge quality, defend a decision, justify a recommendation, critique, assess, or argue with criteria",
+    "Create": "design, formulate, compose, plan, propose, construct, or synthesize something new",
 }
 
 
-def clean_text(text: object) -> str:
-    text = str(text).lower()
-    return re.sub(r"\s+", " ", text).strip()
+def clean_question(text: object) -> str:
+    return re.sub(r"\s+", " ", str(text)).strip()
 
 
-def is_english(text: str) -> bool:
-    try:
-        return len(text) > 8 and detect(text) == "en"
-    except Exception:
-        return False
-
-
-def load_mendeley_moocradar_cleaned() -> pd.DataFrame:
-    """Use the exact data sources and label policy from train.py."""
-    f1 = pd.read_csv(ROOT / "data" / "Data_Structure.csv")
-    f2 = pd.read_csv(ROOT / "data" / "Introduction_to_Computers_and_Research.csv")
-    m_map = {
-        5: "Remembering",
-        10: "Understanding",
-        15: "Applying",
-        20: "Analyzing",
-        30: "Creating",
-    }
-    df_acad = pd.concat([f1, f2], ignore_index=True)
-    df_acad["label"] = df_acad["Score"].map(m_map)
-    df_acad = df_acad[["Questions", "label"]].rename(columns={"Questions": "question"})
-
-    df_noise = pd.read_csv(ROOT / "data" / "Irrelevant_Questions.csv")
-    df_noise["label"] = "Irrelevant"
-    df_noise = df_noise[["Questions", "label"]].rename(columns={"Questions": "question"})
-
-    mooc_rows: List[Dict[str, str]] = []
-    mooc_map = {
-        1: "Remembering",
-        2: "Understanding",
-        3: "Applying",
-        4: "Analyzing",
-        5: "Analyzing",
-        6: "Creating",
-    }
-    with (ROOT / "data" / "problem.json").open("r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            try:
-                item = json.loads(line)
-                detail = ast.literal_eval(item["detail"])
-                content = detail.get("content", "")
-                cog_dim = item.get("cognitive_dimension")
-                if content and is_english(content) and cog_dim in mooc_map:
-                    mooc_rows.append({"question": content, "label": mooc_map[cog_dim]})
-            except Exception:
-                continue
-    df_mooc = pd.DataFrame(mooc_rows)
-
-    df = pd.concat([df_acad, df_noise, df_mooc], ignore_index=True).dropna()
-    df["question"] = df["question"].apply(clean_text)
-    df["label"] = df["label"].replace("Evaluating", "Analyzing")
+def load_figshare_split(name: str) -> pd.DataFrame:
+    path = ROOT / "data" / f"figshare_bloom_v1_{name}.csv"
+    df = pd.read_csv(path)
+    df = df.rename(columns={"bloom_level": "label"})
+    df["question"] = df["question"].map(clean_question)
+    df["label"] = df["label"].map(lambda x: LABEL_ALIASES.get(str(x).strip().lower(), str(x).strip()))
+    df = df[df["question"].str.len() > 0]
     df = df[df["label"].isin(VALID_LABELS)]
-    df = df.drop_duplicates(subset=["question", "label"]).reset_index(drop=True)
-    return df
+    return df[["question", "label"]].drop_duplicates().reset_index(drop=True)
 
 
-def make_splits(df: pd.DataFrame, seed: int) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    train_df, temp_df = train_test_split(
-        df,
-        test_size=0.2,
-        random_state=seed,
-        stratify=df["label"],
+def load_semantic_bloom_splits() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Load the curated Figshare Bloom splits instead of the noisy irrelevant pool."""
+    return (
+        load_figshare_split("train"),
+        load_figshare_split("val"),
+        load_figshare_split("test"),
     )
-    val_df, test_df = train_test_split(
-        temp_df,
-        test_size=0.5,
-        random_state=seed,
-        stratify=temp_df["label"],
+
+
+def _read_json_records(path: Path) -> List[dict]:
+    rows: List[dict] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            rows.append(value)
+    return rows
+
+
+def _extract_moocradar_question(record: dict) -> str:
+    detail = record.get("detail")
+    if isinstance(detail, str):
+        try:
+            parsed = ast.literal_eval(detail)
+        except Exception:
+            parsed = {}
+        if isinstance(parsed, dict):
+            parts = [clean_question(parsed.get("content", ""))]
+            options = parsed.get("option")
+            if isinstance(options, dict):
+                parts.extend(clean_question(value) for value in options.values())
+            return clean_question(" ".join(part for part in parts if part))
+    for key in ("question", "question_text", "content", "text"):
+        if record.get(key):
+            return clean_question(record[key])
+    return ""
+
+
+def _normalise_moocradar_label(value: object) -> str | None:
+    if value is None:
+        return None
+    try:
+        idx = int(value)
+    except (TypeError, ValueError):
+        return LABEL_ALIASES.get(str(value).strip().lower())
+    if 1 <= idx <= 6:
+        return VALID_LABELS[idx - 1]
+    return None
+
+
+def load_moocradar() -> pd.DataFrame:
+    path = ROOT / "data" / "problem.json"
+    records = _read_json_records(path)
+    rows: List[Dict[str, str]] = []
+    for record in records:
+        question = _extract_moocradar_question(record)
+        label = _normalise_moocradar_label(record.get("cognitive_dimension"))
+        if question and label:
+            rows.append({"question": question, "label": label})
+    df = pd.DataFrame(rows)
+    df = df.drop_duplicates(subset=["question", "label"])
+    conflicts = df.groupby("question")["label"].nunique()
+    if len(conflicts):
+        df = df[~df["question"].isin(conflicts[conflicts > 1].index)]
+    return df.drop_duplicates(subset=["question"]).reset_index(drop=True)
+
+
+def infer_mendeley_label(question: str) -> str | None:
+    lowered = question.lower()
+    cue_patterns: Sequence[tuple[str, str]] = (
+        ("Create", r"\b(design|create|develop|formulate|propose|compose|construct|plan|synthesize|generate)\b"),
+        ("Evaluate", r"\b(evaluate|assess|justify|critique|defend|judge|recommend|argue|appraise|best choice)\b"),
+        ("Analyze", r"\b(analyze|analyse|differentiate|distinguish|examine|infer|investigate|relate|why|cause|scenario)\b"),
+        ("Apply", r"\b(apply|calculate|solve|use|implement|demonstrate|determine|compute|find)\b"),
+        ("Understand", r"\b(explain|describe|summarize|interpret|classify|compare|contrast|outline|discuss|how)\b"),
+        ("Remember", r"\b(define|identify|list|name|state|recall|recognize|label|what is|stands for)\b"),
     )
+    matches = [label for label, pattern in cue_patterns if re.search(pattern, lowered)]
+    return matches[0] if len(matches) == 1 else None
+
+
+def load_mendeley_weak_labels(max_per_label: int = 500) -> pd.DataFrame:
+    frames = []
+    for filename in ("Data_Structure.csv", "Introduction_to_Computers_and_Research.csv"):
+        raw = pd.read_csv(ROOT / "data" / filename)
+        df = raw.rename(columns={"Questions": "question"})[["question"]].copy()
+        df["question"] = df["question"].map(clean_question)
+        df["label"] = df["question"].map(infer_mendeley_label)
+        frames.append(df.dropna(subset=["label"]))
+    out = pd.concat(frames, ignore_index=True).drop_duplicates(subset=["question"])
+    if max_per_label > 0:
+        out = (
+            out.groupby("label", group_keys=False)
+            .apply(lambda group: group.sample(n=min(len(group), max_per_label), random_state=42))
+            .reset_index(drop=True)
+        )
+    return out[["question", "label"]]
+
+
+def split_supervised(df: pd.DataFrame, seed: int = 42) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    train_df, temp_df = train_test_split(df, test_size=0.2, random_state=seed, stratify=df["label"])
+    val_df, test_df = train_test_split(temp_df, test_size=0.5, random_state=seed, stratify=temp_df["label"])
     return train_df.reset_index(drop=True), val_df.reset_index(drop=True), test_df.reset_index(drop=True)
+
+
+def load_training_splits(dataset: str, include_mendeley_weak: bool) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, str]:
+    if dataset == "figshare":
+        train_df, val_df, test_df = load_semantic_bloom_splits()
+        source = "data/figshare_bloom_v1_train.csv + val.csv + test.csv"
+    elif dataset == "moocradar":
+        train_df, val_df, test_df = split_supervised(load_moocradar())
+        source = "data/problem.json cognitive_dimension"
+    elif dataset == "combined":
+        train_df, val_df, test_df = load_semantic_bloom_splits()
+        mooc_train, mooc_val, mooc_test = split_supervised(load_moocradar())
+        train_df = pd.concat([train_df, mooc_train], ignore_index=True)
+        val_df = pd.concat([val_df, mooc_val], ignore_index=True)
+        test_df = pd.concat([test_df, mooc_test], ignore_index=True)
+        source = "Figshare curated splits + MOOCRadar cognitive_dimension"
+    else:
+        raise ValueError(f"Unknown dataset: {dataset}")
+
+    if include_mendeley_weak:
+        weak = load_mendeley_weak_labels()
+        train_df = pd.concat([train_df, weak], ignore_index=True).drop_duplicates(subset=["question", "label"])
+        source += " + Mendeley cue-derived weak labels for training only"
+    return train_df.reset_index(drop=True), val_df.reset_index(drop=True), test_df.reset_index(drop=True), source
 
 
 def system_prompt() -> str:
     labels = ", ".join(VALID_LABELS)
+    definitions = " ".join(f"{label}: {meaning}." for label, meaning in BLOOM_SEMANTIC_MAP.items())
     return (
-        "You are a strict Bloom Taxonomy classifier for university questions. "
-        "Return exactly one label and nothing else. "
+        "You classify exam questions by the cognitive operation they require, not by topic words. "
+        "Map the question to the closest Bloom semantic meaning and return exactly one label. "
         f"Allowed labels: {labels}. "
-        "Remembering means recall/define/list/state. "
-        "Understanding means explain/summarize/describe. "
-        "Applying means use/calculate/solve a direct problem. "
-        "Analyzing means compare/differentiate/analyze/evaluate/justify. "
-        "Creating means design/compose/propose/formulate. "
-        "Irrelevant means greeting, spam, personal chat, or not about academic/course content. "
-        "In this dataset Evaluating is mapped to Analyzing."
+        f"Semantic map: {definitions}"
     )
 
 
@@ -181,14 +247,22 @@ def format_chat(example: Dict[str, object], tokenizer: AutoTokenizer) -> str:
 
 def tokenize_dataset(dataset: Dataset, tokenizer: AutoTokenizer) -> Dataset:
     def _tok(example: Dict[str, object]) -> Dict[str, object]:
-        text = format_chat(example, tokenizer)
+        messages = example["messages"]
+        prompt_messages = messages[:-1]
+        prompt = tokenizer.apply_chat_template(prompt_messages, tokenize=False, add_generation_prompt=True)
+        full_text = format_chat(example, tokenizer)
+        prompt_tokens = tokenizer(prompt, truncation=True, max_length=MAX_LENGTH)["input_ids"]
         tokens = tokenizer(
-            text,
+            full_text,
             truncation=True,
             padding="max_length",
             max_length=MAX_LENGTH,
         )
-        tokens["labels"] = tokens["input_ids"].copy()
+        labels = tokens["input_ids"].copy()
+        prompt_len = min(len(prompt_tokens), len(labels))
+        labels[:prompt_len] = [-100] * prompt_len
+        labels = [token if mask else -100 for token, mask in zip(labels, tokens["attention_mask"])]
+        tokens["labels"] = labels
         return tokens
 
     return dataset.map(_tok, remove_columns=["messages"])
@@ -242,7 +316,28 @@ def extract_label(text: str) -> str:
     for alias, canonical in LABEL_ALIASES.items():
         if re.search(rf"\b{re.escape(alias)}\b", lowered):
             return canonical
-    return "Irrelevant"
+    return "Unknown"
+
+
+def cue_rationale(question: str, prediction: str) -> Dict[str, object]:
+    lowered = question.lower()
+    cue_patterns = {
+        "Remember": r"\b(define|identify|list|name|state|recall|recognize|label)\b",
+        "Understand": r"\b(explain|describe|summarize|interpret|classify|compare|contrast|outline|discuss)\b",
+        "Apply": r"\b(apply|calculate|solve|use|implement|demonstrate|determine|compute)\b",
+        "Analyze": r"\b(analyze|analyse|differentiate|distinguish|examine|infer|investigate|relate|why|cause)\b",
+        "Evaluate": r"\b(evaluate|assess|justify|critique|defend|judge|recommend|argue|appraise)\b",
+        "Create": r"\b(design|create|develop|formulate|propose|compose|construct|plan|synthesize|generate)\b",
+    }
+    hits = {
+        label: re.findall(pattern, lowered)
+        for label, pattern in cue_patterns.items()
+        if re.search(pattern, lowered)
+    }
+    return {
+        "predicted_semantic_meaning": BLOOM_SEMANTIC_MAP.get(prediction, ""),
+        "matched_cues": hits,
+    }
 
 
 def generate_label(model: AutoModelForCausalLM, tokenizer: AutoTokenizer, question: str) -> tuple[str, str]:
@@ -291,6 +386,10 @@ def evaluate_split(
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     rows = eval_df.assign(prediction=preds, raw_generation=raws)
+    rows["semantic_rationale"] = [
+        json.dumps(cue_rationale(q, pred), ensure_ascii=True)
+        for q, pred in zip(eval_df["question"].tolist(), preds)
+    ]
     rows.to_csv(RESULTS_DIR / f"qwen_bloom_{name.lower()}_rows.csv", index=False)
     return {
         "name": name,
@@ -308,23 +407,32 @@ def evaluate_split(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fine-tune and evaluate Qwen for Bloom labels on Mendeley + MoocRadar data.")
+    parser = argparse.ArgumentParser(description="Fine-tune and evaluate Qwen for semantic Bloom-level classification.")
     parser.add_argument("--epochs", type=float, default=3.0)
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--grad-accum", type=int, default=8)
     parser.add_argument("--lr", type=float, default=2e-4)
-    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--eval-limit", type=int, default=0, help="0 evaluates full validation/test splits.")
     parser.add_argument("--no-4bit", action="store_true", help="Disable 4-bit loading on CUDA.")
     parser.add_argument("--eval-only", action="store_true", help="Load saved LoRA adapter and only evaluate.")
+    parser.add_argument(
+        "--dataset",
+        choices=["figshare", "moocradar", "combined"],
+        default="combined",
+        help="Supervised Bloom source. combined uses Figshare plus MOOCRadar.",
+    )
+    parser.add_argument(
+        "--include-mendeley-weak",
+        action="store_true",
+        help="Add Mendeley questions to training only using conservative cue-derived weak labels.",
+    )
     args = parser.parse_args()
 
-    print("Loading and cleaning Mendeley + Irrelevant + MoocRadar data...")
-    df = load_mendeley_moocradar_cleaned()
+    print(f"Loading semantic Bloom splits from {args.dataset}...")
+    train_df, val_df, test_df, data_source = load_training_splits(args.dataset, args.include_mendeley_weak)
+    df = pd.concat([train_df, val_df, test_df], ignore_index=True)
     print(f"Cleaned rows: {len(df)}")
     print("Label distribution:", df["label"].value_counts().to_dict())
-
-    train_df, val_df, test_df = make_splits(df, args.seed)
     print(f"Split sizes: train={len(train_df)}, val={len(val_df)}, test={len(test_df)}")
 
     use_4bit = torch.cuda.is_available() and not args.no_4bit
@@ -357,7 +465,7 @@ def main() -> None:
             fp16=torch.cuda.is_available(),
             optim="paged_adamw_8bit" if use_4bit else "adamw_torch",
             report_to="none",
-            seed=args.seed,
+            seed=42,
         )
 
         trainer = SFTTrainer(
@@ -380,7 +488,8 @@ def main() -> None:
     payload = {
         "model_name": MODEL_NAME,
         "adapter_dir": str(OUTPUT_DIR),
-        "data_source": "Mendeley Data_Structure + Introduction_to_Computers_and_Research + Irrelevant_Questions + MoocRadar problem.json",
+        "data_source": data_source,
+        "semantic_map": BLOOM_SEMANTIC_MAP,
         "cleaned_rows": len(df),
         "label_distribution": df["label"].value_counts().to_dict(),
         "split_sizes": {"train": len(train_df), "validation": len(val_df), "test": len(test_df)},
