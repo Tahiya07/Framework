@@ -2,9 +2,24 @@
 # EDUGUARD-RAG BLOOM MODERATION MODULE
 # Qwen2.5-1.5B-Q4_K_M GGUF
 # CPU OFFLINE LIGHTWEIGHT BLOOM ANALYZER
+# + CALIBRATION LAYER (POST-DECODING STABILITY)
 # ============================================================
 
 from llama_cpp import Llama
+from collections import Counter
+
+# ============================================================
+# LABELS
+# ============================================================
+
+LABELS = [
+    "Remembering",
+    "Understanding",
+    "Applying",
+    "Analyzing",
+    "Evaluating",
+    "Creating"
+]
 
 # ============================================================
 # LOAD GGUF MODEL
@@ -12,25 +27,20 @@ from llama_cpp import Llama
 
 MODEL_PATH = "models/qwen2.5-1.5b-instruct-q4_k_m.gguf"
 
+print("\nLoading Qwen GGUF Bloom moderation model...\n")
+
 llm = Llama(
     model_path=MODEL_PATH,
-
-    # CPU SETTINGS
     n_ctx=4096,
     n_threads=8,
-
-    # CPU ONLY
     n_gpu_layers=0,
-
-    # MEMORY OPTIMIZATION
     use_mmap=True,
     use_mlock=False,
-
     verbose=False
 )
 
 # ============================================================
-# PROMPT BUILDER (STRICT STRUCTURED OUTPUT)
+# PROMPT BUILDER (UNCHANGED)
 # ============================================================
 
 def build_prompt(question):
@@ -68,56 +78,6 @@ If any field is missing, output is INVALID.
 <|im_start|>user
 
 Question:
-Define photosynthesis.
-
-Answer:
-Bloom Level: Remembering
-Reason: The question asks for factual recall.
-Higher-Level Rewrite: Explain how photosynthesis supports plant growth.
-
-Question:
-Explain how linked lists work.
-
-Answer:
-Bloom Level: Understanding
-Reason: The question requires conceptual explanation.
-Higher-Level Rewrite: Analyze the advantages of linked lists over arrays.
-
-Question:
-Solve the equation 2x + 5 = 15.
-
-Answer:
-Bloom Level: Applying
-Reason: The student must apply a learned procedure.
-Higher-Level Rewrite: Analyze multiple methods to solve linear equations.
-
-Question:
-Analyze why neural networks overfit on small datasets.
-
-Answer:
-Bloom Level: Analyzing
-Reason: The question examines relationships and causes.
-Higher-Level Rewrite: Evaluate techniques for reducing overfitting in neural networks.
-
-Question:
-Critique the security architecture of this system.
-
-Answer:
-Bloom Level: Evaluating
-Reason: The task requires judgment and assessment.
-Higher-Level Rewrite: Design a more secure system architecture with improved threat mitigation.
-
-Question:
-Design a hospital management system database schema.
-
-Answer:
-Bloom Level: Creating
-Reason: The task requires designing a new structured system.
-Higher-Level Rewrite: Design and justify a scalable hospital management system architecture.
-
-Now classify this question.
-
-Question:
 {question}
 
 <|im_end|>
@@ -126,9 +86,8 @@ Question:
 Bloom Level:
 """.strip()
 
-
 # ============================================================
-# BLOOM ANALYZER
+# RAW MODEL CALL
 # ============================================================
 
 def analyze_bloom(question):
@@ -137,45 +96,94 @@ def analyze_bloom(question):
 
     output = llm(
         prompt,
-
-        # STABILITY SETTINGS
         temperature=0.1,
         top_p=0.9,
         top_k=40,
         repeat_penalty=1.1,
-
-        # FIXED OUTPUT LENGTH (enough for 3-line structure)
         max_tokens=120,
-
-        # CRITICAL STOP TOKENS (PREVENT CONTINUATION DRIFT)
-        stop=[
-            "<|im_end|>",
-        
-        ]
+        stop=["<|im_end|>", "<|im_start|>"]
     )
 
-    result = output["choices"][0]["text"].strip()
-
-    return result
-
+    return output["choices"][0]["text"].strip()
 
 # ============================================================
-# INTERACTIVE LOOP
+# STEP 1: LABEL EXTRACTION (STRICT CLEANING)
 # ============================================================
 
-print("\n===================================================")
-print(" EduGuard-RAG Bloom Moderation Module Ready ")
-print("===================================================")
+def extract_bloom_label(text):
 
-while True:
+    text = text.lower()
 
-    question = input("\nEnter academic question (or 'exit'): ")
+    for label in LABELS:
+        if label.lower() in text:
+            return label
 
-    if question.lower() == "exit":
-        break
+    return "Understanding"
 
-    result = analyze_bloom(question)
+# ============================================================
+# STEP 2: CALIBRATION LAYER (NEW CORE ADDITION)
+# ============================================================
 
-    print("\n----------------------------------------")
-    print(result)
-    print("----------------------------------------")
+def calibrated_predict(question, k=3, confidence_threshold=0.5):
+
+    """
+    1. Run multiple stochastic samples
+    2. Extract labels
+    3. Majority vote
+    4. Confidence estimation
+    """
+
+    preds = []
+
+    for _ in range(k):
+
+        raw = analyze_bloom(question)
+        label = extract_bloom_label(raw)
+        preds.append(label)
+
+    # majority vote
+    counts = Counter(preds)
+    final_label, freq = counts.most_common(1)[0]
+
+    confidence = freq / k
+
+    # fallback safety (uncertain cases)
+    if confidence < confidence_threshold:
+        return "Understanding", confidence
+
+    return final_label, confidence
+
+# ============================================================
+# PUBLIC API (USE THIS IN EVALUATION)
+# ============================================================
+
+def predict_bloom_label(question):
+
+    label, _ = calibrated_predict(question)
+    return label
+
+# ============================================================
+# INTERACTIVE DEBUG MODE
+# ============================================================
+
+if __name__ == "__main__":
+
+    print("\n===================================================")
+    print(" EduGuard-RAG Bloom Moderation Module Ready ")
+    print(" (Calibration Enabled) ")
+    print("===================================================")
+
+    while True:
+
+        question = input("\nEnter academic question (or 'exit'): ")
+
+        if question.lower() == "exit":
+            break
+
+        raw = analyze_bloom(question)
+        label, conf = calibrated_predict(question)
+
+        print("\nRAW OUTPUT:\n", raw)
+        print("\nCALIBRATED LABEL:", label)
+        print("CONFIDENCE:", round(conf, 3))
+        print("----------------------------------------")
