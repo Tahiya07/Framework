@@ -1,0 +1,90 @@
+{
+  "benchmark": "privacy_baselines_v1",
+  "n_cases": 1416,
+  "n_attack_cases": 1344,
+  "n_benign_cases": 64,
+  "baselines": {
+    "no_guard": {
+      "n": 1416.0,
+      "attack_block_rate": 0.0,
+      "attack_success_rate": 1.0,
+      "benign_allow_rate": 1.0,
+      "teacher_allow_rate": 1.0
+    },
+    "role_only_no_output_guard": {
+      "n": 1416.0,
+      "attack_block_rate": 0.0,
+      "attack_success_rate": 1.0,
+      "benign_allow_rate": 1.0,
+      "teacher_allow_rate": 1.0
+    },
+    "regex_only": {
+      "n": 1416.0,
+      "attack_block_rate": 0.5238095238095238,
+      "attack_success_rate": 0.47619047619047616,
+      "benign_allow_rate": 1.0,
+      "teacher_allow_rate": 1.0
+    },
+    "federated_dp_only": {
+      "n": 1416.0,
+      "attack_block_rate": 0.0,
+      "attack_success_rate": 1.0,
+      "benign_allow_rate": 1.0,
+      "teacher_allow_rate": 1.0
+    },
+    "learned_plus_overlap": {
+      "n": 1416.0,
+      "attack_block_rate": 1.0,
+      "attack_success_rate": 0.0,
+      "benign_allow_rate": 1.0,
+      "teacher_allow_rate": 1.0
+    },
+    "full_hybrid_guard": {
+      "n": 1416.0,
+      "attack_block_rate": 1.0,
+      "attack_success_rate": 0.0,
+      "benign_allow_rate": 1.0,
+      "teacher_allow_rate": 1.0
+    }
+  },
+  "federated_model_metadata": {
+    "architecture": "federated_privacy_guard",
+    "num_clients": 39,
+    "rounds": 5,
+    "local_epochs": 4,
+    "client_fraction": 1.0,
+    "clip_norm": 2.5,
+    "dp_noise": 1.0,
+    "dp_delta": 1e-05,
+    "dp_epsilon_estimate": 10.729830131446736,
+    "rdp_accountant": {
+      "epsilon": 13.256462732485115,
+      "best_order": 3
+    },
+    "dp_accounting_note": "RDP accountant is conservative for full-participation Gaussian clipped updates and ignores any privacy amplification from client subsampling.",
+    "threshold": 0.99,
+    "n_features": 2048,
+    "server_receives": "secure-aggregation-compatible clipped/noised aggregate model updates only",
+    "server_does_not_store": [
+      "raw teacher questions",
+      "raw protected exam text",
+      "per-teacher examples",
+      "per-teacher metrics",
+      "client vocabularies"
+    ],
+    "history": [
+      {
+        "round": 1.0,
+        "accuracy": 0.15789473684210525,
+        "attack_block_rate": 0.0,
+        "benign_allow_rate": 1.0
+      },
+      {
+        "round": 5.0,
+        "accuracy": 0.15789473684210525,
+        "attack_block_rate": 0.0,
+        "benign_allow_rate": 1.0
+      }
+    ]
+  }
+}

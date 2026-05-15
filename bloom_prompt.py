@@ -7,6 +7,7 @@
 
 from llama_cpp import Llama
 from collections import Counter
+from multi_slm import resolve_slm_model_path
 
 # ============================================================
 # LABELS
@@ -25,12 +26,12 @@ LABELS = [
 # LOAD GGUF MODEL
 # ============================================================
 
-MODEL_PATH = "models/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+MODEL_PATH = resolve_slm_model_path("bloom_moderation")
 
 print("\nLoading Qwen GGUF Bloom moderation model...\n")
 
 llm = Llama(
-    model_path=MODEL_PATH,
+    model_path=str(MODEL_PATH),
     n_ctx=4096,
     n_threads=8,
     n_gpu_layers=0,

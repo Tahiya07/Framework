@@ -28,9 +28,10 @@ from bloom.bloom_models import (
 SEED = 42
 VERSION = "figshare_bloom_v1"
 
-DATA_DIR = Path("../data")
-MODELS_DIR = Path("../models")
-RESULTS_DIR = Path("../results")
+ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT / "data"
+MODELS_DIR = ROOT / "models"
+RESULTS_DIR = ROOT / "results"
 
 
 # -----------------------------

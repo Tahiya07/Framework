@@ -10,7 +10,8 @@ from typing import Dict, Iterable, List
 from evaluate_qa_rag import DOCUMENTS, QA_ITEMS, _best_gold_f1, _exact_match, _rank, _tokens
 from evaluate_multimodal_rag import _make_image, _make_pdf
 from multimodal_rag import MultiModalAcademicRAG
-from qwen_gguf_cli import DEFAULT_QWEN_GGUF, QwenGgufCliGenerator
+from multi_slm import task_registry_report
+from qwen_gguf_cli import QwenGgufCliGenerator
 
 
 RESULTS_PATH = Path("results/qwen_rag_eval.json")
@@ -61,6 +62,8 @@ def _run_academic_qa(qwen: QwenGgufCliGenerator) -> List[Dict[str, object]]:
                 "latency_s": gen.elapsed_s,
                 "host_total_mib": gen.memory.get("host_total_mib", ""),
                 "model_file_mb": gen.model_file_bytes / 1_000_000,
+                "slm_task": gen.task_id,
+                "slm_model_path": gen.model_path,
                 "prediction": gen.answer,
                 "gold_answers": json.dumps(item["answers"]),
                 "support_text": docs_by_id[item["support_doc"]],
@@ -69,7 +72,10 @@ def _run_academic_qa(qwen: QwenGgufCliGenerator) -> List[Dict[str, object]]:
     return rows
 
 
-def _run_multimodal(qwen: QwenGgufCliGenerator) -> List[Dict[str, object]]:
+def _run_multimodal(
+    pdf_slm: QwenGgufCliGenerator,
+    image_slm: QwenGgufCliGenerator,
+) -> List[Dict[str, object]]:
     rows: List[Dict[str, object]] = []
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
@@ -101,7 +107,8 @@ def _run_multimodal(qwen: QwenGgufCliGenerator) -> List[Dict[str, object]]:
         for case in cases:
             citations = rag.retrieve(case["question"], role="student", top_k=2)
             contexts = [citation.text for citation in citations]
-            gen = qwen.generate(case["question"], contexts)
+            slm = pdf_slm if case["task"] == "pdf_rag" else image_slm
+            gen = slm.generate(case["question"], contexts)
             rows.append(
                 {
                     "task": case["task"],
@@ -113,6 +120,8 @@ def _run_multimodal(qwen: QwenGgufCliGenerator) -> List[Dict[str, object]]:
                     "latency_s": gen.elapsed_s,
                     "host_total_mib": gen.memory.get("host_total_mib", ""),
                     "model_file_mb": gen.model_file_bytes / 1_000_000,
+                    "slm_task": gen.task_id,
+                    "slm_model_path": gen.model_path,
                     "prediction": gen.answer,
                 }
             )
@@ -120,22 +129,22 @@ def _run_multimodal(qwen: QwenGgufCliGenerator) -> List[Dict[str, object]]:
 
 
 def main() -> None:
-    qwen = QwenGgufCliGenerator(DEFAULT_QWEN_GGUF, max_tokens=32, ctx_size=512, threads=2)
-    qa_rows = _run_academic_qa(qwen)
-    mm_rows = _run_multimodal(qwen)
+    qa_slm = QwenGgufCliGenerator.for_task("academic_qa", max_tokens=32, ctx_size=512, threads=2)
+    pdf_slm = QwenGgufCliGenerator.for_task("pdf_rag", max_tokens=32, ctx_size=512, threads=2)
+    image_slm = QwenGgufCliGenerator.for_task("image_rag", max_tokens=32, ctx_size=512, threads=2)
+    qa_rows = _run_academic_qa(qa_slm)
+    mm_rows = _run_multimodal(pdf_slm, image_slm)
     rows = qa_rows + mm_rows
 
     payload = {
         "benchmark": "qwen_rag_eval_v1",
-        "model_id": Path(qwen.model_path).name,
-        "model_path": str(qwen.model_path),
-        "model_file_bytes": qwen.model_path.stat().st_size,
-        "model_file_mb": qwen.model_path.stat().st_size / 1_000_000,
+        "architecture": "multi_slm_task_specialists",
+        "slm_registry": task_registry_report(),
         "backend": "llama.cpp-cli-cpu-gguf",
         "runtime_config": {
-            "ctx_size": qwen.ctx_size,
-            "max_tokens": qwen.max_tokens,
-            "threads": qwen.threads,
+            "qa_ctx_size": qa_slm.ctx_size,
+            "qa_max_tokens": qa_slm.max_tokens,
+            "threads": qa_slm.threads,
             "device": "none",
             "gpu_layers": 0,
             "repack": False,
@@ -170,7 +179,16 @@ def main() -> None:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
-    print(json.dumps({"model_id": Path(qwen.model_path).name, "academic_qa": payload["academic_qa"], "multimodal_rag": payload["multimodal_rag"]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "architecture": payload["architecture"],
+                "academic_qa": payload["academic_qa"],
+                "multimodal_rag": payload["multimodal_rag"],
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

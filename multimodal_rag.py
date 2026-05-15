@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Sequence
 
 from ingestion import DocumentChunk, DocumentIngestor
-from privacy.privacy_guard import STUDENT_REFUSAL, screen_generation_output
+from privacy.privacy_guard import STUDENT_REFUSAL, TEACHER_SAFE_MODERATION_REFUSAL, screen_generation_output
 
 
 SUPPORTED_RAG_TYPES = {
@@ -158,7 +158,12 @@ class MultiModalAcademicRAG:
         answer = self._extractive_answer(query, citations)
         decision = screen_generation_output(role, query, answer, self.protected_chunks)
         if not decision.allowed:
-            return RAGAnswer(STUDENT_REFUSAL, citations, refused=True, refusal_reason=decision.reason)
+            refusal = (
+                TEACHER_SAFE_MODERATION_REFUSAL
+                if role.lower().strip() in {"teacher", "moderator", "admin"}
+                else STUDENT_REFUSAL
+            )
+            return RAGAnswer(refusal, citations, refused=True, refusal_reason=decision.reason)
         return RAGAnswer(answer, citations)
 
     @staticmethod

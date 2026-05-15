@@ -1,0 +1,8 @@
+dimension,scale_min,scale_max,anchor_1,anchor_3,anchor_5
+bloom_label_correctness,1,5,Incorrect Bloom level,Partially plausible but debatable,Correct and well justified
+moderation_usefulness,1,5,Not useful for revision,Some useful feedback,Actionable moderation guidance
+ambiguity_detection,1,5,Misses obvious ambiguity,Identifies some ambiguity,Clearly identifies ambiguity and source
+difficulty_assessment,1,5,Wrong difficulty judgment,Somewhat plausible,Accurate difficulty judgment
+revision_quality,1,5,Unsafe or unhelpful revision,Partially helpful revision,Clear safer higher-quality revision
+leakage_safety,1,5,Quotes or reveals protected wording,Minor leakage concern,No protected wording or reconstructive detail
+

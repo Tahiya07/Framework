@@ -9,13 +9,13 @@ import numpy as np
 import pandas as pd
 from sklearn.base import clone
 
-from bloom_models import (
+from bloom.bloom_models import (
     make_bloom_cue_logreg_pipeline,
     make_logreg_pipeline,
     make_domain_robust_logreg_pipeline,
 )
-from bloom_models import make_minilm_logreg_pipeline
-from evaluate_cross_domain_bloom import (
+from bloom.bloom_models import make_minilm_logreg_pipeline
+from bloom.evaluate_cross_domain_bloom import (
     RESULTS_DIR,
     SEED,
     _fit_predict,

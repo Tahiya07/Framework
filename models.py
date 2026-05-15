@@ -75,6 +75,7 @@ except Exception:  # pragma: no cover
 
 # Phase-1 module (unchanged; imported as-is)
 from retriever import PrivacyRetriever, RetrievalResult
+from multi_slm import get_task_profile, resolve_slm_model_path
 
 # ----------------------------------------------------------------------------
 # Logging
@@ -198,6 +199,7 @@ class RAGGenerator:
         max_tokens: int = DEFAULT_MAX_TOKENS,
         seed: int = DEFAULT_SEED,
         llm: Optional[Llama] = None,
+        task_id: str = "academic_qa",
     ) -> None:
         if not isinstance(retriever, PrivacyRetriever):
             raise TypeError("retriever must be a PrivacyRetriever instance")
@@ -213,6 +215,8 @@ class RAGGenerator:
         self.n_threads = int(n_threads)
         self.max_tokens = int(max_tokens)
         self.seed = int(seed)
+        self.task_profile = get_task_profile(task_id)
+        self.task_id = self.task_profile.task_id
 
         if llm is not None:
             self.llm = llm
@@ -225,12 +229,12 @@ class RAGGenerator:
                     "standalone llama.cpp GGUF evaluation, or install a compatible "
                     "llama-cpp-python wheel."
                 )
-            mp = _find_qwen_gguf(model_path)
+            mp = resolve_slm_model_path(self.task_id, model_path) if model_path else resolve_slm_model_path(self.task_id)
             if mp is None:
                 raise FileNotFoundError(
-                    "Could not locate a Qwen GGUF model. "
-                    "Set QWEN_GGUF_PATH or pass model_path=... "
-                    f"Searched: {CANDIDATE_GGUF_GLOBS}"
+                    f"Could not locate a GGUF model for task {self.task_id!r}. "
+                    f"Set {self.task_profile.env_var}, place {self.task_profile.preferred_path}, "
+                    "or keep the shared Qwen GGUF in models/."
                 )
             self.model_path = str(mp)
             logger.info(

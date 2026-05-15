@@ -29,14 +29,15 @@ from classifier import _normalise_bloom
 
 
 SEED = 42
-RESULTS_DIR = Path("../results")
-DATA_DIR = Path("../data")
+ROOT = Path(__file__).resolve().parents[1]
+RESULTS_DIR = ROOT / "results"
+DATA_DIR = ROOT / "data"
 
 FIGSHARE_PATH = DATA_DIR / "figshare_bloom_v1.csv"
 DEFAULT_MOOCRADAR_PATHS = [
-    "./data/problem.json",
-    "./data/moocradar_problem.json",
-    "./data/moocradar/problem.json",
+    str(ROOT / "data" / "problem.json"),
+    str(ROOT / "data" / "moocradar_problem.json"),
+    str(ROOT / "data" / "moocradar" / "problem.json"),
 ]
 
 LOWER = {"Remember", "Understand", "Apply"}

@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Sequence
 
+from multi_slm import SLMTaskProfile, get_task_profile, resolve_slm_model_path
+
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_QWEN_GGUF = ROOT / "models" / "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
@@ -41,41 +43,69 @@ class QwenCliGeneration:
     model_file_bytes: int
     backend: str
     memory: Dict[str, float]
+    task_id: str = "academic_qa"
 
 
 class QwenGgufCliGenerator:
-    """Qwen2.5 GGUF generator using standalone llama.cpp CLI."""
+    """Task-specialist GGUF generator using standalone llama.cpp CLI.
+
+    Existing callers may still pass a concrete Qwen GGUF path. New callers
+    should prefer ``for_task(...)`` so each workload can use its own SLM file.
+    """
 
     def __init__(
         self,
-        model_path: str | Path = DEFAULT_QWEN_GGUF,
+        model_path: str | Path | None = None,
         *,
         llama_cli_path: str | Path | None = None,
-        ctx_size: int = 512,
-        max_tokens: int = 48,
-        threads: int = 2,
+        ctx_size: int | None = None,
+        max_tokens: int | None = None,
+        threads: int | None = None,
+        task_id: str = "academic_qa",
+        task_profile: SLMTaskProfile | None = None,
     ) -> None:
-        self.model_path = Path(model_path)
+        self.task_profile = task_profile or get_task_profile(task_id)
+        self.task_id = self.task_profile.task_id
+        self.model_path = resolve_slm_model_path(self.task_id, model_path)
         if not self.model_path.is_file():
             raise FileNotFoundError(f"Qwen GGUF not found: {self.model_path}")
         self.llama_cli_path = Path(llama_cli_path) if llama_cli_path else find_llama_cli()
-        self.ctx_size = int(ctx_size)
-        self.max_tokens = int(max_tokens)
-        self.threads = int(threads)
+        self.ctx_size = int(ctx_size if ctx_size is not None else self.task_profile.ctx_size)
+        self.max_tokens = int(max_tokens if max_tokens is not None else self.task_profile.max_tokens)
+        self.threads = int(threads if threads is not None else self.task_profile.threads)
 
-    @staticmethod
-    def build_prompt(question: str, contexts: Sequence[str]) -> str:
+    @classmethod
+    def for_task(
+        cls,
+        task_id: str,
+        *,
+        model_path: str | Path | None = None,
+        llama_cli_path: str | Path | None = None,
+        ctx_size: int | None = None,
+        max_tokens: int | None = None,
+        threads: int | None = None,
+    ) -> "QwenGgufCliGenerator":
+        profile = get_task_profile(task_id)
+        return cls(
+            model_path=resolve_slm_model_path(profile.task_id, model_path),
+            llama_cli_path=llama_cli_path,
+            ctx_size=ctx_size,
+            max_tokens=max_tokens,
+            threads=threads,
+            task_id=profile.task_id,
+            task_profile=profile,
+        )
+
+    def build_prompt(self, question: str, contexts: Sequence[str]) -> str:
         context = "\n".join(f"[{i}] {text}" for i, text in enumerate(contexts, start=1))
         return (
             "<|im_start|>system\n"
-            "You are a careful academic assistant. Answer using only the supplied context. "
-            "If the answer is not in the context, say: I don't know based on the provided context. "
-            "Keep the answer concise.\n"
+            f"{self.task_profile.system_prompt}\n"
             "<|im_end|>\n"
             "<|im_start|>user\n"
             f"Context:\n{context}\n\n"
             f"Question: {question}\n"
-            "Answer with the shortest correct answer.\n"
+            f"{self.task_profile.user_instruction}\n"
             "<|im_end|>\n"
             "<|im_start|>assistant\n"
         )
@@ -128,7 +158,7 @@ class QwenGgufCliGenerator:
             "-n",
             str(self.max_tokens),
             "--temp",
-            "0",
+            str(self.task_profile.temperature),
             "--no-display-prompt",
             "--single-turn",
             "--simple-io",
@@ -164,4 +194,5 @@ class QwenGgufCliGenerator:
             model_file_bytes=self.model_path.stat().st_size,
             backend="llama.cpp-cli-cpu-gguf",
             memory=self._parse_memory(output),
+            task_id=self.task_id,
         )

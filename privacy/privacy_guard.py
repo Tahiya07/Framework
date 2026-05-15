@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, List, Sequence, Set
 
 from ingestion import DocumentChunk
+from privacy.federated_privacy import load_default_model
 
 if TYPE_CHECKING:  # pragma: no cover
     from retriever import RetrievalResult
@@ -14,6 +15,11 @@ if TYPE_CHECKING:  # pragma: no cover
 STUDENT_REFUSAL = (
     "I can't reveal or reconstruct protected exam content. "
     "I can help with Bloom classification guidance, study concepts, or similarly scoped practice questions instead."
+)
+
+TEACHER_SAFE_MODERATION_REFUSAL = (
+    "Protected moderation output was withheld because it copied protected question wording. "
+    "Provide Bloom level, ambiguity, difficulty, and revision guidance without quoting the item."
 )
 
 QUERY_RISK_PATTERNS = [
@@ -83,6 +89,36 @@ class PrivacyDecision:
     allowed: bool
     reason: str
     risk_score: float
+
+
+_FEDERATED_MODEL = None
+_FEDERATED_MODEL_LOADED = False
+
+
+def _federated_risk_score(text: str) -> float:
+    global _FEDERATED_MODEL, _FEDERATED_MODEL_LOADED
+    if not _FEDERATED_MODEL_LOADED:
+        _FEDERATED_MODEL = load_default_model()
+        _FEDERATED_MODEL_LOADED = True
+    if _FEDERATED_MODEL is None:
+        return 0.0
+    return float(_FEDERATED_MODEL.risk_score(text))
+
+
+def _federated_blocks(text: str) -> bool:
+    global _FEDERATED_MODEL, _FEDERATED_MODEL_LOADED
+    if not _FEDERATED_MODEL_LOADED:
+        _FEDERATED_MODEL = load_default_model()
+        _FEDERATED_MODEL_LOADED = True
+    if _FEDERATED_MODEL is None:
+        return False
+    return bool(_FEDERATED_MODEL.blocks(text))
+
+
+def _mentions_protected_artifact(text: str) -> bool:
+    return any(
+        re.search(pat, text or "", flags=re.IGNORECASE) for pat in PROTECTED_ARTIFACT_PATTERNS
+    )
 
 
 def _norm_tokens(text: str) -> List[str]:
@@ -171,6 +207,9 @@ def assess_query_privacy_risk(query: str) -> PrivacyDecision:
     risk = min(1.0, 0.2 * hits)
     if hits > 0:
         return PrivacyDecision(False, "reconstruction_intent_detected", risk)
+    fed_risk = _federated_risk_score(q)
+    if _federated_blocks(q):
+        return PrivacyDecision(False, "federated_privacy_risk", fed_risk)
     return PrivacyDecision(True, "ok", risk)
 
 
@@ -186,9 +225,7 @@ def assess_student_query_against_protected_corpus(
         return PrivacyDecision(True, "no_protected_corpus", 0.0)
     overlap = _overlap_ratio(query, union)
     leakage = protected_leakage_score(query, union)
-    mentions_artifact = any(
-        re.search(pat, query or "", flags=re.IGNORECASE) for pat in PROTECTED_ARTIFACT_PATTERNS
-    )
+    mentions_artifact = _mentions_protected_artifact(query)
     if mentions_artifact and overlap >= 0.12:
         return PrivacyDecision(False, "artifact_reference_with_overlap", overlap)
     if leakage["longest_common_span"] >= MIN_EXTRACTIVE_SPAN_TOKENS:
@@ -250,29 +287,65 @@ def screen_generation_output(
     protected_chunks: Sequence[DocumentChunk],
 ) -> PrivacyDecision:
     role = requester_role.lower().strip()
-    if role in {"teacher", "moderator", "admin"}:
-        return PrivacyDecision(True, "teacher_access", 0.0)
-    risk = assess_student_query_against_protected_corpus(query, protected_chunks)
-    if not risk.allowed:
-        return risk
     union = protected_text_union(protected_chunks)
+    if role not in {"teacher", "moderator", "admin"}:
+        risk = assess_student_query_against_protected_corpus(query, protected_chunks)
+        if not risk.allowed:
+            return risk
+    elif not union:
+        return PrivacyDecision(True, "teacher_access_no_protected_corpus", 0.0)
+
     if not union:
         return PrivacyDecision(True, "no_protected_corpus", 0.0)
     leakage = protected_leakage_score(answer, union)
     overlap = leakage["overlap_ratio"]
     if leakage["longest_common_span"] >= MIN_EXTRACTIVE_SPAN_TOKENS:
+        if role in {"teacher", "moderator", "admin"}:
+            return PrivacyDecision(False, "teacher_output_copied_protected_span", leakage["longest_common_span"])
         return PrivacyDecision(
             False,
             "protected_span_copied",
             min(1.0, leakage["longest_common_span"] / MIN_EXTRACTIVE_SPAN_TOKENS),
         )
     if leakage["ngram_containment"] >= 0.35 and len(_norm_tokens(answer)) >= MIN_NGRAM_SIZE:
+        if role in {"teacher", "moderator", "admin"}:
+            return PrivacyDecision(False, "teacher_output_copied_protected_ngram", leakage["ngram_containment"])
         return PrivacyDecision(False, "protected_ngram_copied", leakage["ngram_containment"])
-    if leakage["semantic_concept_ratio"] >= MAX_SEMANTIC_CONCEPT_RATIO and len(_concept_tokens(answer)) >= 4:
+    if (
+        role not in {"teacher", "moderator", "admin"}
+        and leakage["semantic_concept_ratio"] >= MAX_SEMANTIC_CONCEPT_RATIO
+        and len(_concept_tokens(answer)) >= 4
+    ):
         return PrivacyDecision(False, "protected_semantic_leakage", leakage["semantic_concept_ratio"])
     if overlap >= MAX_STUDENT_PROTECTED_OVERLAP and len(_norm_tokens(answer)) >= 8:
+        if role in {"teacher", "moderator", "admin"}:
+            return PrivacyDecision(False, "teacher_output_high_protected_overlap", overlap)
         return PrivacyDecision(False, "protected_overlap_high", overlap)
+    combined = f"{query}\n{answer}"
+    fed_risk = _federated_risk_score(combined)
+    if (
+        role not in {"teacher", "moderator", "admin"}
+        and _mentions_protected_artifact(combined)
+        and _federated_blocks(combined)
+    ):
+        return PrivacyDecision(False, "federated_output_privacy_risk", fed_risk)
     return PrivacyDecision(True, "ok", max(overlap, leakage["ngram_containment"]))
+
+
+def safe_moderation_output(
+    requester_role: str,
+    query: str,
+    answer: str,
+    protected_chunks: Sequence[DocumentChunk],
+) -> str:
+    """Return answer only if it does not copy protected question wording."""
+    decision = screen_generation_output(requester_role, query, answer, protected_chunks)
+    if decision.allowed:
+        return answer
+    role = requester_role.lower().strip()
+    if role in {"teacher", "moderator", "admin"}:
+        return TEACHER_SAFE_MODERATION_REFUSAL
+    return STUDENT_REFUSAL
 
 
 def policy_instruction(requester_role: str, access_scope: str) -> str:
@@ -281,7 +354,8 @@ def policy_instruction(requester_role: str, access_scope: str) -> str:
     if role in {"teacher", "moderator", "admin"} and scope == "protected":
         return (
             "This is a protected moderation workflow. Use the context only for classification, moderation support, "
-            "or high-level analysis. Do not quote long spans verbatim."
+            "or high-level analysis. Do not quote, paraphrase closely, list, or reconstruct protected question wording. "
+            "Return only Bloom level, issue tags, difficulty, ambiguity notes, and abstract revision guidance."
         )
     return (
         "Never reveal, reconstruct, or quote protected exam content. If the request seeks exact exam wording, "
