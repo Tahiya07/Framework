@@ -1,2 +1,0 @@
-rater_id,item_id,system_id,bloom_label_correctness,moderation_usefulness,ambiguity_detection,difficulty_assessment,revision_quality,leakage_safety,quotes_protected_wording,close_paraphrase, reveals_answer_or_unique_context,preferred_system,comments
-

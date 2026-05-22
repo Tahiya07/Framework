@@ -1,0 +1,12 @@
+              precision    recall  f1-score   support
+
+    Remember     0.9860    0.4393    0.6078       321
+  Understand     0.7947    0.8208    0.8075       915
+       Apply     0.6387    0.6140    0.6261       285
+     Analyze     0.7042    0.7993    0.7487       274
+    Evaluate     0.6411    0.9120    0.7529       284
+      Create     0.7787    0.7849    0.7817       251
+
+    accuracy                         0.7476      2330
+   macro avg     0.7572    0.7284    0.7208      2330
+weighted avg     0.7709    0.7476    0.7415      2330

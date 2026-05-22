@@ -1,4 +1,0 @@
-sample_id,engine,access_level_preserved,modality_preserved,token_f1,word_error_rate,n_chunks,gold_text,extracted_text
-typed_exam_item,pytesseract,1.0,1.0,1.0,0.0,1,Q1 Explain Ohm's law and voltage current resistance.,Q1 Explain Ohm's law and voltage current resistance.
-typed_study_note,pytesseract,1.0,1.0,0.888888888888889,0.14285714285714285,1,Merge sort recursively divides a list and runs in O n log n time.,Merge sort recursively divides a list and runs in On log n time.
-typed_statistics_note,pytesseract,1.0,1.0,1.0,0.0,1,A p value below alpha supports rejecting the null hypothesis.,A p value below alpha supports rejecting the null hypothesis.
