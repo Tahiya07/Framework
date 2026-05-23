@@ -1,0 +1,56 @@
+This chapter summarizes project scheduling and notional cost for the privacy-preserving academic assistant framework.
+
+\section{Project Timeline}
+Table~\ref{tab:gantt_chart} shows major phases from September through the CSE~400 submission period (May). The schedule was prepared in Excel with monthly milestones; implementation overlapped design during November--December to accommodate LoRA training and RAG integration.
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\caption{Project Gantt chart (major phases)}
+\label{tab:gantt_chart}
+\begin{tabular}{|p{0.28\textwidth}|p{0.1\textwidth}|p{0.1\textwidth}|p{0.1\textwidth}|p{0.1\textwidth}|p{0.1\textwidth}|p{0.1\textwidth}|}
+\hline
+\textbf{Project Phase} & \textbf{Sep} & \textbf{Oct} & \textbf{Nov} & \textbf{Dec} & \textbf{Jan} & \textbf{Feb--May} \\
+\hline
+Requirement \& literature review & \cellcolor{gray!40} & \cellcolor{gray!40} &  &  &  &  \\
+\hline
+System analysis \& design &  & \cellcolor{gray!40} & \cellcolor{gray!40} &  &  &  \\
+\hline
+LoRA training \& RAG implementation &  &  & \cellcolor{gray!40} & \cellcolor{gray!40} &  &  \\
+\hline
+Privacy \& federated modules &  &  &  & \cellcolor{gray!40} & \cellcolor{gray!40} &  \\
+\hline
+Evaluation \& CSE 400 report &  &  &  &  & \cellcolor{gray!40} & \cellcolor{gray!40} \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Budget Estimation}
+Table~\ref{tab:project_budget} lists notional costs. Core software (Python, Hugging Face, FAISS, llama.cpp, Streamlit) is open source. The primary optional expense is cloud GPU time for LoRA training; all other development used an existing lab PC.
+
+\begin{table}[H]
+\centering
+\caption{Estimated project budget (notional)}
+\label{tab:project_budget}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{0.35\textwidth}|p{0.12\textwidth}|p{0.15\textwidth}|p{0.2\textwidth}|}
+\hline
+\textbf{Item/Resource} & \textbf{Qty} & \textbf{Unit (BDT)} & \textbf{Total (BDT)} \\
+\hline
+Development PC (existing lab machine) & 1 & 0 & 0 \\
+\hline
+Qwen GGUF + open-source libraries & 1 & 0 & 0 \\
+\hline
+Optional GPU cloud for LoRA (4 months) & 4 & 3,000 & 12,000 \\
+\hline
+Report printing \& presentation & 1 & 1,500 & 1,500 \\
+\hline
+\textbf{Total (with optional GPU)} & & & \textbf{13,500} \\
+\hline
+\textbf{Total (lab-only, no cloud GPU)} & & & \textbf{1,500} \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Summary}
+The phased timeline separated privacy/federated work from core RAG and Bloom training, reducing integration risk. The budget demonstrates feasibility on zero-cost lab hardware, with optional cloud GPU as the main variable expense.

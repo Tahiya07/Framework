@@ -148,7 +148,12 @@ def main() -> None:
         help="Gaussian noise multiplier for clipped client updates. Default is nonzero for DP-style protection.",
     )
     parser.add_argument("--dp-delta", type=float, default=1e-5)
-    parser.add_argument("--threshold", type=float, default=0.55)
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.62,
+        help="Higher threshold reduces false blocks on benign student prompts.",
+    )
     parser.add_argument("--n-features", type=int, default=2048)
     args = parser.parse_args()
 

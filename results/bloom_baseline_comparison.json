@@ -1,0 +1,56 @@
+{
+  "sources": {
+    "holdout_baselines": "evaluation_outputs\\evaluation_report.json",
+    "trained_lora": "evaluation_results\\metrics.json",
+    "holdout_split": "15% stratified hold-out (figshare_combined_dataset.csv, random_state=42)",
+    "lora_split": "Official Figshare test split (evaluation_results from predict_bloom / training eval)"
+  },
+  "n_test_holdout": 379,
+  "n_test_lora": 2330,
+  "SVM": {
+    "accuracy": 0.8391,
+    "macro_f1": 0.8256,
+    "weighted_f1": 0.8377,
+    "mean_ordinal_distance": 0.3219,
+    "within_one_level_accuracy": 0.9156,
+    "severe_error_rate": 0.0844,
+    "kappa": 0.7896
+  },
+  "zero_shot_gguf": {
+    "accuracy": 0.4406,
+    "macro_f1": 0.3691,
+    "weighted_f1": 0.4239,
+    "mean_ordinal_distance": 1.0739,
+    "within_one_level_accuracy": 0.686,
+    "severe_error_rate": 0.314,
+    "kappa": 0.2444
+  },
+  "QWEN": {
+    "accuracy": 0.4406,
+    "macro_f1": 0.3691,
+    "weighted_f1": 0.4239,
+    "mean_ordinal_distance": 1.0739,
+    "within_one_level_accuracy": 0.686,
+    "severe_error_rate": 0.314,
+    "kappa": 0.2444
+  },
+  "lora_trained": {
+    "accuracy": 0.7476,
+    "macro_f1": 0.7208,
+    "weighted_f1": 0.7415,
+    "mean_ordinal_distance": 0.4519,
+    "within_one_level_accuracy": 0.8798,
+    "severe_error_rate": 0.0639
+  },
+  "trained_model_reference": {
+    "accuracy": 0.7476394849785408,
+    "macro_f1": 0.7207957545994641,
+    "weighted_f1": 0.7414651573827361,
+    "mean_ordinal_distance": 0.4519,
+    "within_one_level_accuracy": 0.8798,
+    "severe_error_rate": 0.0639
+  },
+  "agreement_rate": 0.47493403693931396,
+  "svm_zero_shot_agreement": 0.47493403693931396,
+  "num_disagreements": 199
+}

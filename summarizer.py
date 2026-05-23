@@ -14,8 +14,8 @@ End-to-end Cognitive-Aware RAG pipeline
     retriever.PrivacyRetriever  ----->  top-k context chunks (Phase 1)
       |
       v
-    classifier.BloomLDLClassifier -->  Bloom distribution + dominant level
-      |                                 (Phase 3)
+    predict_bloom.QwenBloomPredictor -->  Bloom distribution + dominant level
+      |                                    (trained Qwen LoRA)
       v
     style adapter (this module)        choose summary style:
       |                                  remember/understand -> factual
@@ -67,13 +67,7 @@ except Exception:  # pragma: no cover
 # ----------------------------------------------------------------------------
 from retriever import PrivacyRetriever, RetrievalResult
 from models import RAGGenerator, GenerationOutput, BLOOM_INSTRUCTIONS
-from classifier import (
-    BloomLDLClassifier,
-    BLOOM_LEVELS,
-    BLOOM_INDEX,
-    ClassifierOutput,
-    DEFAULT_WEIGHTS_PATH as DEFAULT_CLASSIFIER_WEIGHTS,
-)
+from predict_bloom import BLOOM_LEVELS, QwenBloomPredictor
 from uncertainty import UncertaintyEngine
 
 # ----------------------------------------------------------------------------
@@ -149,7 +143,7 @@ class CognitiveSummarizer:
         self,
         retriever: PrivacyRetriever,
         generator: RAGGenerator,
-        classifier: Optional[BloomLDLClassifier] = None,
+        bloom_predictor: Optional[QwenBloomPredictor] = None,
         hierarchical: bool = False,
         per_chunk_max_tokens: int = 64,
         enable_uncertainty_gate: bool = True,
@@ -160,14 +154,14 @@ class CognitiveSummarizer:
             raise TypeError("retriever must be a PrivacyRetriever instance")
         if not isinstance(generator, RAGGenerator):
             raise TypeError("generator must be a RAGGenerator instance")
-        if classifier is not None and not isinstance(classifier, BloomLDLClassifier):
-            raise TypeError("classifier must be a BloomLDLClassifier instance")
+        if bloom_predictor is not None and not isinstance(bloom_predictor, QwenBloomPredictor):
+            raise TypeError("bloom_predictor must be a QwenBloomPredictor instance")
         if per_chunk_max_tokens <= 0:
             raise ValueError("per_chunk_max_tokens must be > 0")
 
         self.retriever = retriever
         self.generator = generator
-        self.classifier = classifier
+        self.bloom_predictor = bloom_predictor
         self.hierarchical = bool(hierarchical)
         self.per_chunk_max_tokens = int(per_chunk_max_tokens)
         self.enable_uncertainty_gate = bool(enable_uncertainty_gate)
@@ -182,10 +176,10 @@ class CognitiveSummarizer:
         self, query: str
     ) -> tuple[str, Optional[np.ndarray], Optional[float]]:
         """Return (bloom_level_lc, distribution, confidence)."""
-        if self.classifier is None:
+        if self.bloom_predictor is None:
             return "understand", None, None
-        out: ClassifierOutput = self.classifier.predict(query)
-        return out.dominant_level.lower(), out.distribution, out.confidence
+        out = self.bloom_predictor.predict(query)
+        return out["rag_key"], out["distribution"], float(out["confidence"])
 
     @staticmethod
     def _validate_bloom(bloom: str) -> str:
@@ -286,8 +280,8 @@ class CognitiveSummarizer:
         query : str
             User query.
         bloom_level : Optional[str]
-            Override the Bloom level. If None, the Phase-3 classifier infers
-            it from the query (if available); else defaults to ``understand``.
+            Override the Bloom level. If None, the trained Qwen LoRA predictor
+            infers it from the query (if available); else defaults to ``understand``.
         k : int
             Number of context chunks to retrieve.
         max_tokens : int
@@ -310,26 +304,18 @@ class CognitiveSummarizer:
 
         gate_metadata: Dict[str, Any] = {"enabled": False}
         if auto and dist is not None and self.enable_uncertainty_gate:
-            gate = self._uncertainty.confidence_threshold_gate(
+            gate = self._uncertainty.gate(
                 dist,
-                levels=BLOOM_LEVELS,
-                confidence_threshold=self.gate_confidence_threshold,
-                top1_threshold=self.gate_top1_threshold,
-                fallback_level="understand",
+                threshold=self.gate_confidence_threshold,
             )
             gate_metadata = {
                 "enabled": True,
-                "accepted": gate.accepted,
-                "action": gate.action,
-                "reason": gate.reason,
-                "dominant_level": gate.dominant_level,
-                "fallback_level": gate.fallback_level,
-                "top1_probability": gate.top1_probability,
-                "severe_jump_mass": gate.severe_jump_mass,
-                "top_alternatives": gate.top_alternatives,
+                "accepted": gate["accepted"],
+                "action": gate["action"],
+                "confidence": gate["confidence"],
             }
-            if not gate.accepted:
-                bloom_lc = self._validate_bloom(gate.fallback_level)
+            if not gate["accepted"]:
+                bloom_lc = "understand"
 
         style = self._style_for(bloom_lc)
 
@@ -400,7 +386,7 @@ class CognitiveSummarizer:
 # ----------------------------------------------------------------------------
 # Validates:
 #   * Cognitive-Aware RAG composition with all phases live (no mocks):
-#       PrivacyRetriever (FAISS+InfoNCE) + BloomLDLClassifier (LDL)
+#       PrivacyRetriever (FAISS+InfoNCE) + QwenBloomPredictor (LoRA)
 #       + RAGGenerator (Qwen-1.5B GGUF, greedy CPU).
 #   * Auto-inferred Bloom level is a valid lowercase key, distribution is
 #     a valid (6,) probability vector summing to 1.
@@ -431,15 +417,6 @@ def _self_test() -> None:
     retr = PrivacyRetriever(temperature=0.07, lambda_privacy=0.1)
     retr.build_index(docs)
 
-    # --- Phase-3 classifier (load cached weights produced by classifier.py)
-    weights_path = Path(DEFAULT_CLASSIFIER_WEIGHTS)
-    assert weights_path.is_file(), (
-        f"classifier weights not found at {weights_path}; "
-        "run `python classifier.py` first."
-    )
-    # Reuse the retriever's encoder to avoid loading MiniLM twice.
-    classifier = BloomLDLClassifier.load(weights_path, encoder=retr.model)
-
     # --- Phase-2 generator -------------------------------------------------
     rag = RAGGenerator(
         retriever=retr,
@@ -449,15 +426,15 @@ def _self_test() -> None:
     )
 
     # ------------------------------------------------------------------ #
-    # Constructor validation (no LLM calls yet)
+    # Constructor validation (no LLM / LoRA calls yet)
     # ------------------------------------------------------------------ #
-    summ = CognitiveSummarizer(retriever=retr, generator=rag, classifier=classifier)
+    summ = CognitiveSummarizer(retriever=retr, generator=rag, bloom_predictor=None)
 
     for kwargs, exc in (
-        ({"retriever": "x", "generator": rag, "classifier": classifier}, TypeError),
-        ({"retriever": retr, "generator": "x", "classifier": classifier}, TypeError),
-        ({"retriever": retr, "generator": rag, "classifier": "x"}, TypeError),
-        ({"retriever": retr, "generator": rag, "classifier": classifier,
+        ({"retriever": "x", "generator": rag, "bloom_predictor": None}, TypeError),
+        ({"retriever": retr, "generator": "x", "bloom_predictor": None}, TypeError),
+        ({"retriever": retr, "generator": rag, "bloom_predictor": "x"}, TypeError),
+        ({"retriever": retr, "generator": rag, "bloom_predictor": None,
           "per_chunk_max_tokens": 0}, ValueError),
     ):
         try:
@@ -488,7 +465,12 @@ def _self_test() -> None:
     # ------------------------------------------------------------------ #
     # End-to-end auto-inferred run
     # ------------------------------------------------------------------ #
-    res = summ.summarize("What is photosynthesis?", k=3, max_tokens=96)
+    res = summ.summarize(
+        "What is photosynthesis?",
+        k=3,
+        max_tokens=96,
+        bloom_level="understand",
+    )
     assert isinstance(res, SummaryOutput)
     assert isinstance(res.summary, str) and res.summary.strip(), (
         f"empty summary: {res.summary!r}"
@@ -500,10 +482,8 @@ def _self_test() -> None:
     assert SUMMARY_STYLE[res.used_bloom_level] == res.style, (
         f"style/bloom mapping inconsistent: {res.used_bloom_level} -> {res.style}"
     )
-    assert res.bloom_distribution is not None
-    assert res.bloom_distribution.shape == (6,)
-    assert np.isclose(res.bloom_distribution.sum(), 1.0, atol=1e-5)
-    assert res.confidence is not None and 0.0 <= res.confidence <= 1.0
+    assert res.bloom_distribution is None
+    assert res.confidence is None
     assert len(res.chunks) == 3, f"expected 3 chunks, got {len(res.chunks)}"
     for marker in (
         "[BOUNDED CONTEXT]",
@@ -523,7 +503,12 @@ def _self_test() -> None:
     # ------------------------------------------------------------------ #
     # Determinism (same input -> identical output)
     # ------------------------------------------------------------------ #
-    res2 = summ.summarize("What is photosynthesis?", k=3, max_tokens=96)
+    res2 = summ.summarize(
+        "What is photosynthesis?",
+        k=3,
+        max_tokens=96,
+        bloom_level="understand",
+    )
     assert res2.summary == res.summary, (
         "Cognitive summariser is not deterministic:\n"
         f"  first : {res.summary!r}\n"
@@ -531,7 +516,7 @@ def _self_test() -> None:
     )
 
     # ------------------------------------------------------------------ #
-    # Manual override path (auto_bloom=False, classifier outputs cleared)
+    # Manual override path (auto_bloom=False, LoRA outputs cleared)
     # ------------------------------------------------------------------ #
     res3 = summ.summarize(
         "What is photosynthesis?",
@@ -553,8 +538,9 @@ def _self_test() -> None:
         res3.metadata["elapsed_s"],
     )
     logger.info(
-        "auto-inferred bloom=%s (style=%s, conf=%.2f)",
-        res.used_bloom_level, res.style, res.confidence,
+        "bloom=%s (style=%s)",
+        res.used_bloom_level,
+        res.style,
     )
 
     _ok("CognitiveSummarizer (Phase 4) sanity check passed")

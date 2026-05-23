@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parent
 MODEL_DIR = ROOT / "models"
 SHARED_QWEN_GGUF = MODEL_DIR / "Qwen2.5-1.5B-Instruct-Q4_K_M.gguf"
 LEGACY_QWEN_GGUF = MODEL_DIR / "qwen2.5-1.5b-instruct-q4_k_m.gguf"
+SHORT_QWEN_GGUF = MODEL_DIR / "qwen.gguf"
 
 
 @dataclass(frozen=True)
@@ -136,6 +137,8 @@ def resolve_slm_model_path(task_id: str, explicit_path: str | Path | None = None
 
     if SHARED_QWEN_GGUF.is_file():
         return SHARED_QWEN_GGUF
+    if SHORT_QWEN_GGUF.is_file():
+        return SHORT_QWEN_GGUF
     return LEGACY_QWEN_GGUF
 
 

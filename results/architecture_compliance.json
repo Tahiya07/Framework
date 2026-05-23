@@ -1,0 +1,96 @@
+{
+  "all_pass": true,
+  "passed": 12,
+  "total": 12,
+  "checks": [
+    {
+      "pillar": "1. Federated learning (update paradox)",
+      "check": "FL scripts present",
+      "ok": true,
+      "detail": "Teacher LoRA FedAvg with encrypted adapter bundles (XOR+SHA-256).",
+      "evidence": "federated/client_train.py, federated/server_aggregate.py, federated/secure_bundle.py, federated/run_simulation.py"
+    },
+    {
+      "pillar": "1. Federated learning (update paradox)",
+      "check": "Privacy-guard FL model",
+      "ok": true,
+      "detail": "Federated privacy-risk guard trains on hashed features only.",
+      "evidence": "privacy/federated_privacy.py"
+    },
+    {
+      "pillar": "1. Federated learning (update paradox)",
+      "check": "No raw exam text in FL bundles",
+      "ok": true,
+      "detail": "Bundles carry adapter tensors + metadata only (see pack_update).",
+      "evidence": "federated/secure_bundle.py"
+    },
+    {
+      "pillar": "2. Capability-resource gap",
+      "check": "Quantized Qwen GGUF on disk",
+      "ok": true,
+      "detail": "Local GGUF for CPU inference (qwen.gguf).",
+      "evidence": "C:\\Users\\tahiy\\PycharmProjects\\Framework\\models\\qwen.gguf"
+    },
+    {
+      "pillar": "2. Capability-resource gap",
+      "check": "LoRA Bloom classifier",
+      "ok": true,
+      "detail": "Qwen2.5-1.5B LoRA sequence classifier for teacher Bloom labels.",
+      "evidence": "predict_bloom.py / train_qwen_bloom.py"
+    },
+    {
+      "pillar": "2. Capability-resource gap",
+      "check": "Offline / on-premises flags",
+      "ok": true,
+      "detail": "HF_HUB_OFFLINE used in app; llama.cpp CPU path in models.py.",
+      "evidence": "streamlit_app.py, models.py"
+    },
+    {
+      "pillar": "3. Mixed-mode access",
+      "check": "Separate public/protected FAISS stores",
+      "ok": true,
+      "detail": "Distinct retrievers and data/vector_store/{public,protected} paths.",
+      "evidence": "streamlit_app.py, retriever.py"
+    },
+    {
+      "pillar": "3. Mixed-mode access",
+      "check": "Role access module",
+      "ok": true,
+      "detail": "Students blocked from protected upload and teacher-only Bloom task.",
+      "evidence": "role_access.py"
+    },
+    {
+      "pillar": "3. Mixed-mode access",
+      "check": "Teacher LoRA vs student GGUF pathways",
+      "ok": true,
+      "detail": "Teacher: LoRA labels + GGUF rewrite; Student: public RAG via GGUF only.",
+      "evidence": "predict_bloom.py, bloom_prompt.py, models.py"
+    },
+    {
+      "pillar": "4. Student mandate",
+      "check": "PrivacyGuard module",
+      "ok": true,
+      "detail": "Query/output screening + federated risk scorer.",
+      "evidence": "privacy/privacy_guard.py"
+    },
+    {
+      "pillar": "4. Student mandate",
+      "check": "Public-only student retrieval policy",
+      "ok": true,
+      "detail": "allowed_chunks_for_role + role_access enforcement.",
+      "evidence": "privacy/privacy_guard.py, role_access.py"
+    },
+    {
+      "pillar": "4. Teacher mandate",
+      "check": "Six-level Bloom + rewrite",
+      "ok": true,
+      "detail": "LoRA six-way head; GGUF generates reason and higher-level rewrite.",
+      "evidence": "predict_bloom.py, bloom_prompt.py"
+    }
+  ],
+  "notes": [
+    "Federated transport uses encrypted adapter bundles (prototype XOR); production needs TLS + secure aggregation.",
+    "Role separation is logical + index isolation; per-department crypto keys are a deployment extension (FEDERATED_UPDATE_KEY / site partition).",
+    "Intra-department peer isolation is simulated via federated client partitions, not full multi-tenant KMS in the demo UI."
+  ]
+}

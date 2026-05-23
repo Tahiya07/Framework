@@ -8,6 +8,7 @@
 import os
 import json
 import argparse
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
@@ -41,6 +42,29 @@ LABELS = {
     5: "Create",
 }
 
+# Canonical order for probability vectors and UI tables.
+BLOOM_LABELS: list[str] = [LABELS[i] for i in range(len(LABELS))]
+
+# Lowercase keys used by RAGGenerator / CognitiveSummarizer.
+BLOOM_LEVELS: list[str] = [
+    "remember",
+    "understand",
+    "apply",
+    "analyze",
+    "evaluate",
+    "create",
+]
+
+LABEL_TO_RAG_KEY: dict[str, str] = dict(zip(BLOOM_LABELS, BLOOM_LEVELS))
+RAG_KEY_TO_LABEL: dict[str, str] = {v: k for k, v in LABEL_TO_RAG_KEY.items()}
+
+DEFAULT_LORA_DIR = "models/qwen_bloom_3000"
+DEFAULT_FEDERATED_LORA_DIR = "models/qwen_bloom_federated"
+DEFAULT_MERGED_DIR = "models/qwen_bloom_merged"
+DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+# Back-compat alias
+DEFAULT_MODEL_DIR = DEFAULT_MERGED_DIR
+
 
 # ============================================================
 # PROMPT TEMPLATE
@@ -56,30 +80,62 @@ def build_prompt(question):
 
 
 # ============================================================
-# LOAD MODEL
+# LOAD MODEL (merged checkpoint or LoRA adapter)
 # ============================================================
 
-def load_model(model_dir, base_model):
+def is_lora_adapter(model_dir: str | os.PathLike) -> bool:
+    return (Path(model_dir) / "adapter_config.json").is_file()
 
-    print("\nLoading tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained(model_dir)
 
-    print("Loading base model...")
-    model = AutoModelForSequenceClassification.from_pretrained(
-        base_model,
-        num_labels=6,
-        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-        trust_remote_code=True,
-    )
+def resolve_model_dir(model_dir: str | None = None, *, prefer_merged: bool = True) -> str:
+    if model_dir:
+        return str(model_dir)
+    merged = Path(DEFAULT_MERGED_DIR)
+    lora = Path(DEFAULT_LORA_DIR)
+    if prefer_merged and merged.is_dir() and (merged / "config.json").is_file():
+        return str(merged)
+    fed = Path(DEFAULT_FEDERATED_LORA_DIR)
+    if fed.is_dir() and (fed / "adapter_config.json").is_file():
+        return str(fed)
+    if lora.is_dir() and (lora / "adapter_config.json").is_file():
+        return str(lora)
+    if merged.is_dir() and (merged / "config.json").is_file():
+        return str(merged)
+    return str(lora)
 
-    print("Loading LoRA adapter...")
-    model = PeftModel.from_pretrained(model, model_dir)
+
+def load_model(model_dir: str, base_model: str | None = None):
+    path = Path(model_dir)
+    dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+
+    if is_lora_adapter(path):
+        if not base_model:
+            base_model = DEFAULT_BASE_MODEL
+        print(f"\nLoading LoRA adapter from {path} (base={base_model})...")
+        tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
+        model = AutoModelForSequenceClassification.from_pretrained(
+            base_model,
+            num_labels=6,
+            torch_dtype=dtype,
+            trust_remote_code=True,
+        )
+        model = PeftModel.from_pretrained(model, str(path))
+    else:
+        if not (path / "config.json").is_file():
+            raise FileNotFoundError(
+                f"No merged model at {path}. Run: python merge_model.py"
+            )
+        print(f"\nLoading merged Bloom classifier from {path}...")
+        tokenizer = AutoTokenizer.from_pretrained(str(path), trust_remote_code=True)
+        model = AutoModelForSequenceClassification.from_pretrained(
+            str(path),
+            torch_dtype=dtype,
+            trust_remote_code=True,
+        )
 
     model.eval()
-
     if torch.cuda.is_available():
         model.cuda()
-
     return tokenizer, model
 
 
@@ -119,15 +175,62 @@ def predict(question, tokenizer, model, max_length=256):
         "probabilities": {
             LABELS[i]: round(probs[i].item(), 4)
             for i in range(len(LABELS))
-        }
+        },
     }
+
+
+def probabilities_to_distribution(probabilities: dict[str, float]) -> np.ndarray:
+    """Map label probabilities to a (6,) vector in ``BLOOM_LEVELS`` order."""
+    return np.asarray(
+        [float(probabilities.get(RAG_KEY_TO_LABEL[level], 0.0)) for level in BLOOM_LEVELS],
+        dtype=np.float32,
+    )
+
+
+def label_to_rag_key(label: str) -> str:
+    key = (label or "").strip()
+    if key.lower() in BLOOM_LEVELS:
+        return key.lower()
+    return LABEL_TO_RAG_KEY.get(key, "understand")
+
+
+class QwenBloomPredictor:
+    """Lazy-loaded Qwen2.5-1.5B Bloom classifier (merged or LoRA; see ``merge_model.py``)."""
+
+    def __init__(
+        self,
+        model_dir: str | None = None,
+        base_model: str = DEFAULT_BASE_MODEL,
+        *,
+        prefer_merged: bool = True,
+    ) -> None:
+        self.model_dir = resolve_model_dir(model_dir, prefer_merged=prefer_merged)
+        self.base_model = base_model
+        self._tokenizer = None
+        self._model = None
+
+    def _ensure_loaded(self) -> None:
+        if self._model is not None:
+            return
+        base = self.base_model if is_lora_adapter(self.model_dir) else None
+        self._tokenizer, self._model = load_model(self.model_dir, base)
+
+    def predict(self, question: str, max_length: int = 256) -> dict:
+        self._ensure_loaded()
+        raw = predict(question, self._tokenizer, self._model, max_length=max_length)
+        dist = probabilities_to_distribution(raw["probabilities"])
+        return {
+            **raw,
+            "rag_key": label_to_rag_key(raw["prediction"]),
+            "distribution": dist,
+        }
 
 
 # ============================================================
 # ORDINAL ERROR
 # ============================================================
 
-def ordinal_metrics(y_true, y_pred):
+def ordinal_metrics(y_true, y_pred) -> dict:
 
     distances = [
         abs(t - p)
@@ -340,7 +443,8 @@ def main():
     parser.add_argument(
         "--model_dir",
         type=str,
-        default="models/qwen_bloom_3000",
+        default=None,
+        help="Merged dir or LoRA adapter dir (default: merged if present).",
     )
 
     parser.add_argument(
@@ -375,10 +479,9 @@ def main():
 
     args = parser.parse_args()
 
-    tokenizer, model = load_model(
-        args.model_dir,
-        args.base_model,
-    )
+    model_dir = resolve_model_dir(args.model_dir)
+    base = args.base_model if is_lora_adapter(model_dir) else None
+    tokenizer, model = load_model(model_dir, base)
 
     # ========================================================
     # FULL EVALUATION

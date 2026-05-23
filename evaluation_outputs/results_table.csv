@@ -1,3 +1,4 @@
-Model,Accuracy,Macro-F1,Weighted-F1,Ordinal Error,Within-One-Level,Severe Error,Kappa
-SVM,0.8391,0.8256,0.8377,0.3219,0.9156,0.0844,0.7896
-QWEN,0.4116,0.3974,0.4081,1.0818,0.6939,0.3061,0.2651
+Model,Evaluation split,accuracy,macro_f1,weighted_f1,mean_ordinal_distance,within_one_level_accuracy,severe_error_rate,kappa
+TF-IDF + LinearSVC (SVM),15% hold-out,0.8391,0.8256,0.8377,0.3219,0.9156,0.0844,0.7896
+Qwen2.5 zero-shot (GGUF),15% hold-out,0.4406,0.3691,0.4239,1.0739,0.686,0.314,0.2444
+Qwen2.5 LoRA (trained),Official test,0.7476,0.7208,0.7415,0.4519,0.8798,0.0639,

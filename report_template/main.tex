@@ -1,0 +1,274 @@
+\documentclass[12pt]{report}
+\usepackage{setspace}
+\usepackage[utf8]{inputenc}
+\usepackage[titletoc]{appendix}
+\usepackage{graphicx}
+\usepackage{listings}
+\graphicspath{ {images/} }
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1em}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{colortbl}%
+  \newcommand{\myrowcolour}{\rowcolor[gray]{0.925}}
+\usepackage{booktabs}
+\usepackage{cite}
+% hyperlinks
+\usepackage{hyperref} 
+\hypersetup{ colorlinks, citecolor=red, filecolor=black, linkcolor=black, urlcolor=blue } 
+
+% blank page
+\usepackage{afterpage}
+\newcommand\blankpage{%
+    \null
+    \thispagestyle{empty}%
+    \addtocounter{page}{-1}%
+    \newpage}
+
+\usepackage{pgf}
+\usepackage{pgfpages}
+
+% Border
+% \pgfpagesdeclarelayout{boxed}
+% {
+%   \edef\pgfpageoptionborder{0pt}
+% }
+% {
+%   \pgfpagesphysicalpageoptions
+%   {%
+%     logical pages=1,%
+%   }
+%   \pgfpageslogicalpageoptions{1}
+%   {
+%     border code=\pgfsetlinewidth{0.5pt}\pgfstroke,%
+%     border shrink=\pgfpageoptionborder,%
+%     resized width=.95\pgfphysicalwidth,%
+%     resized height=.95\pgfphysicalheight,%
+%     center=\pgfpoint{.5\pgfphysicalwidth}{.5\pgfphysicalheight}%
+%   }%
+% }
+% \pgfpagesuselayout{boxed}
+
+% page layout including header and footer
+\usepackage{xcolor}
+% \usepackage[a4paper,top=2cm, bottom=2cm, left=3cm, right=3cm]{geometry}
+\usepackage[a4paper, left=1.25in, right=1in, top=1in, bottom=1in]{geometry}
+\definecolor{myred}{HTML}{581000}
+\usepackage{fancyhdr}
+\usepackage{longtable}
+
+
+
+
+
+
+
+
+
+
+% \usepackage{newtxtext,newtxmath} 
+% setting the font size of chapter, title and subtitle
+\usepackage{ulem}
+\usepackage{lmodern} 
+\usepackage{sectsty}
+\chapterfont{\fontsize{22pt}{22pt}\selectfont\bfseries}
+\sectionfont{\fontsize{16pt}{16pt}\selectfont\bfseries}
+\subsectionfont{\fontsize{14pt}{14pt}\selectfont\bfseries}
+
+\makeatletter
+\renewcommand\@seccntformat[1]{\csname the#1\endcsname\enspace} % was \quad
+\makeatother
+
+% %Adding footer
+% % --- Fancy footer: wrapped chapter title (left) + centered page number ---
+% \usepackage{fancyhdr}
+% \pagestyle{fancy}
+% \fancyhf{} % clear
+
+% % --- Keep only CHAPTER info in the marks ---
+% \renewcommand{\chaptermark}[1]{\markboth{#1}{}} % leftmark = chapter title
+% \renewcommand{\sectionmark}[1]{}                % sections do NOT change marks
+% \renewcommand{\subsectionmark}[1]{}             % (optional) subsections too
+
+% % --- Footer: number left, page center, CHAPTER TITLE right (wrapped) ---
+% \fancyfoot[L]{\textbf{Chapter \thechapter}}
+% \fancyfoot[C]{\thepage}
+% \fancyfoot[R]{\parbox[t]{0.45\textwidth}{\raggedleft\nouppercase{\leftmark}}}
+
+% \renewcommand{\headrulewidth}{0pt}
+% \renewcommand{\footrulewidth}{0.4pt}
+% \setlength{\footskip}{28pt}
+
+% Apply same to chapter-opening pages
+% \fancypagestyle{plain}{
+%   \fancyhf{}
+%   \fancyfoot[L]{\textbf{Chapter \thechapter}}
+%   \fancyfoot[C]{\thepage}
+%   \fancyfoot[R]{\parbox[t]{0.45\textwidth}{\raggedleft\nouppercase{\leftmark}}}
+%   \renewcommand{\headrulewidth}{0pt}
+%   \renewcommand{\footrulewidth}{0.4pt}
+% }
+
+
+
+
+
+
+
+
+
+
+
+\usepackage{caption}
+\usepackage{subcaption}
+\setcounter{page}{1}
+\setcounter{chapter}{0}
+
+
+
+
+% table format
+\usepackage{array}
+\newcolumntype{Y}{>{\centering\arraybackslash}m{4.4cm}}
+\newcolumntype{X}{>{\centering\arraybackslash}m{7cm}}
+\newcolumntype{P}{>{\centering\arraybackslash}m{2.5cm}}
+\newcolumntype{L}{>{\raggedright\arraybackslash}m{8cm}}
+\newcolumntype{M}{>{\raggedright\arraybackslash}m{3.7cm}}
+\newcolumntype{Z}{>{\justify}m{15cm}}
+
+% references
+%\usepackage{biblatex}
+%\addbibresource{chapters/references.bib}
+\renewcommand\bibname{References}
+
+% \title{
+% {End to End Bangladeshi License Plate Detection \& Recognition}}
+% \author{Rashik Rahman,17201012\\Mehedi UL Hasnain,17201041\\
+% Rafat Meraz,17201076\\}
+% \date{2021}
+
+\usepackage{nomencl}
+\makenomenclature
+
+\begin{document}
+
+% page no. roman
+\renewcommand{\thepage}{\roman{page}}
+\newcommand{\etal}{\textit{et al. }}
+
+
+
+\input{chapters/titlepage}
+
+\setstretch{1.5}
+
+%\input{chapters/certificate}
+
+
+
+\input{chapters/declaration}
+
+\input{chapters/examiner}
+
+\input{chapters/acknowledgements}
+\input{chapters/abstract}
+\tableofcontents
+
+\setlength{\parskip}{0pt}
+
+\addcontentsline{toc}{chapter}{List of Figures}
+\listoffigures
+\addcontentsline{toc}{chapter}{List of Tables}
+\listoftables
+
+
+%\addcontentsline{toc}{chapter}{Abstract}
+%\input{chapters/abstract}
+
+
+
+
+
+%\addcontentsline{toc}{chapter}{Nomenclature}
+%\input{chapters/abbreviations}
+% \afterpage{\blankpage}
+
+
+
+%%%%%%%%%%%%
+% Chapters
+
+% page number numeric
+\clearpage
+\setcounter{page}{1}
+\setcounter{chapter}{0}
+% main page numbers:  1, 2, 3, ...
+\renewcommand{\thepage}{\arabic{page}}	
+
+\setlength{\parskip}{1em}
+\chapter{Introduction}\label{cha:introduction}
+\input{chapters/introduction}
+
+\chapter{Background and Literature Review} \label{cha:LiteratureReviewU}
+\input{chapters/Background_LiteratureReview}
+
+\chapter{System Analysis and Design} \label{cha:SystemAnalysisAndDesignU}
+\input{chapters/SystemAnalysisAndDesignU}
+
+\chapter{Methodology and Implementation} 
+\label{cha:MethodologyAndImplementationU}
+\input{chapters/MethodologyAndImplementationU}
+
+\chapter{Results and Evaluation} \label{cha:ResultsAndEvaluationU}
+\input{chapters/ResultsAndEvaluationU}
+
+\chapter{Project Planning and Budget\label{cha:cost_time}}
+\input{chapters/time_cost}
+
+\chapter{Standards and Design Constraints} \label{cha:AccreditationComponents}
+\input{chapters/Standards_CEP}
+
+\chapter{Conclusion and Future Work} \label{cha:ConclusionAndFutureWork}
+\input{chapters/ConclusionAndFutureWork}
+
+
+
+
+
+% \chapter{Background Study}\label{cha:BS}
+% \input{chapters/background}
+
+% \chapter{Literature review}\label{chap:lit}
+% \input{chapters/literature}
+
+
+% \chapter{Dataset Description}\label{chap:dataset}
+% \input{chapters/dataset}
+
+% \chapter{Proposed System\label{cha:design}}
+% \input{chapters/project design}
+
+% \chapter{Cost and Time Estimation\label{cha:cost_time}}
+% \input{chapters/time_cost}
+
+
+% \chapter{Results\label{cha:rest}}
+% \input{chapters/results}
+
+% \chapter{Conclusions\label{cha:cons}}
+% \input{chapters/conclusion}
+
+
+
+\bibliographystyle{plain}
+
+\bibliography{references.bib}
+
+\appendix 
+% \input{chapters/appendix}
+\input{chapters/Appendices}
+
+\end{document}

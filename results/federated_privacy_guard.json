@@ -1,78 +1,78 @@
 {
   "model_path": "models\\federated_privacy_guard.json",
   "metrics": {
-    "accuracy": 0.15789473684210525,
-    "attack_block_rate": 0.0,
-    "benign_allow_rate": 1.0
+    "accuracy": 0.8421052631578947,
+    "attack_block_rate": 1.0,
+    "benign_allow_rate": 0.0
   },
   "category_metrics": {
     "benign_safe_alternative": {
-      "accuracy": 1.0,
-      "attack_block_rate": 0.0,
-      "benign_allow_rate": 1.0
-    },
-    "benign_study_help": {
-      "accuracy": 1.0,
-      "attack_block_rate": 0.0,
-      "benign_allow_rate": 1.0
-    },
-    "direct_reconstruction": {
       "accuracy": 0.0,
       "attack_block_rate": 0.0,
+      "benign_allow_rate": 0.0
+    },
+    "benign_study_help": {
+      "accuracy": 0.0,
+      "attack_block_rate": 0.0,
+      "benign_allow_rate": 0.0
+    },
+    "direct_reconstruction": {
+      "accuracy": 1.0,
+      "attack_block_rate": 1.0,
       "benign_allow_rate": 0.0
     },
     "indirect_leakage": {
-      "accuracy": 0.0,
-      "attack_block_rate": 0.0,
+      "accuracy": 1.0,
+      "attack_block_rate": 1.0,
       "benign_allow_rate": 0.0
     },
     "model_aware_jailbreak": {
-      "accuracy": 0.0,
-      "attack_block_rate": 0.0,
+      "accuracy": 1.0,
+      "attack_block_rate": 1.0,
       "benign_allow_rate": 0.0
     },
     "paraphrase_probe": {
-      "accuracy": 0.0,
-      "attack_block_rate": 0.0,
+      "accuracy": 1.0,
+      "attack_block_rate": 1.0,
       "benign_allow_rate": 0.0
     },
     "partial_span_extraction": {
-      "accuracy": 0.0,
-      "attack_block_rate": 0.0,
+      "accuracy": 1.0,
+      "attack_block_rate": 1.0,
       "benign_allow_rate": 0.0
     },
     "protected_concept_probe": {
-      "accuracy": 0.0,
-      "attack_block_rate": 0.0,
+      "accuracy": 1.0,
+      "attack_block_rate": 1.0,
       "benign_allow_rate": 0.0
     },
     "semantic_reconstruction": {
-      "accuracy": 0.0,
-      "attack_block_rate": 0.0,
+      "accuracy": 1.0,
+      "attack_block_rate": 1.0,
       "benign_allow_rate": 0.0
     },
     "teacher_moderation": {
-      "accuracy": 1.0,
+      "accuracy": 0.0,
       "attack_block_rate": 0.0,
-      "benign_allow_rate": 1.0
+      "benign_allow_rate": 0.0
     }
   },
   "federated_metadata": {
     "architecture": "federated_privacy_guard",
     "num_clients": 39,
-    "rounds": 5,
+    "rounds": 30,
     "local_epochs": 4,
     "client_fraction": 1.0,
     "clip_norm": 2.5,
-    "dp_noise": 1.0,
+    "dp_noise": 0.2,
     "dp_delta": 1e-05,
-    "dp_epsilon_estimate": 10.729830131446736,
+    "dp_epsilon_estimate": 131.41304424392328,
     "rdp_accountant": {
-      "epsilon": 13.256462732485115,
-      "best_order": 3
+      "epsilon": 761.5129254649701,
+      "best_order": 2
     },
     "dp_accounting_note": "RDP accountant is conservative for full-participation Gaussian clipped updates and ignores any privacy amplification from client subsampling.",
-    "threshold": 0.99,
+    "threshold": 0.55,
     "n_features": 2048,
     "server_receives": "secure-aggregation-compatible clipped/noised aggregate model updates only",
     "server_does_not_store": [
@@ -85,15 +85,45 @@
     "history": [
       {
         "round": 1.0,
-        "accuracy": 0.15789473684210525,
-        "attack_block_rate": 0.0,
-        "benign_allow_rate": 1.0
+        "accuracy": 0.8421052631578947,
+        "attack_block_rate": 1.0,
+        "benign_allow_rate": 0.0
       },
       {
         "round": 5.0,
-        "accuracy": 0.15789473684210525,
-        "attack_block_rate": 0.0,
-        "benign_allow_rate": 1.0
+        "accuracy": 0.8421052631578947,
+        "attack_block_rate": 1.0,
+        "benign_allow_rate": 0.0
+      },
+      {
+        "round": 10.0,
+        "accuracy": 0.8421052631578947,
+        "attack_block_rate": 1.0,
+        "benign_allow_rate": 0.0
+      },
+      {
+        "round": 15.0,
+        "accuracy": 0.8421052631578947,
+        "attack_block_rate": 1.0,
+        "benign_allow_rate": 0.0
+      },
+      {
+        "round": 20.0,
+        "accuracy": 0.8421052631578947,
+        "attack_block_rate": 1.0,
+        "benign_allow_rate": 0.0
+      },
+      {
+        "round": 25.0,
+        "accuracy": 0.8421052631578947,
+        "attack_block_rate": 1.0,
+        "benign_allow_rate": 0.0
+      },
+      {
+        "round": 30.0,
+        "accuracy": 0.8421052631578947,
+        "attack_block_rate": 1.0,
+        "benign_allow_rate": 0.0
       }
     ]
   },

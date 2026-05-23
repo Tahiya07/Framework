@@ -23,10 +23,15 @@ tmp*/
 .paper_deps/
 .mplconfig/
 data/vector_store/
+federated/updates/
+federated/bundles/
+federated/_client_cache/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Regenerable submission bundle (use: python evaluate.py --build-paper)
+# Regenerable evaluation artifacts
+evaluation_outputs/
+evaluation_results/
 paper_bundle/

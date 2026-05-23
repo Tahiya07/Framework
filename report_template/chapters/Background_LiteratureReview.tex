@@ -1,0 +1,42 @@
+
+\section{Preliminaries}
+\subsection{Bloom's Taxonomy}
+Bloom's taxonomy classifies learning objectives into six cognitive levels: Remember, Understand, Apply, Analyze, Evaluate, and Create. Ordinal distance between levels is used in this project to penalize severe misclassifications (jumps of two or more levels).
+
+\subsection{Retrieval-Augmented Generation (RAG)}
+RAG retrieves relevant document chunks for a query and conditions generation on that context \cite{rag_knowledge_intensive}. Privacy risks arise when the index contains sensitive material accessible to unauthorized roles \cite{good_bad_rag,dp_rag}.
+
+\subsection{Parameter-Efficient Fine-Tuning}
+LoRA adapts large models by training low-rank matrices while freezing base weights \cite{qlora}, enabling Bloom classification on Qwen2.5-1.5B with modest GPU memory.
+
+\subsection{Federated Learning}
+Federated learning trains a global model by aggregating client updates computed on local data. Only parameters (not raw text) should leave client devices in privacy-sensitive education settings.
+
+\section{Related Works / Existing Systems}
+Commercial LMS assistants and cloud LLM APIs provide tutoring but rarely offer on-premises Bloom moderation with explicit protected-corpus isolation. Research on privacy-preserving RAG \cite{dp_rag,remoterag,privtabrag} and educational vector databases \cite{pp_eduvec} motivates hashed-feature guards and role-aware retrieval. Automated Bloom classification has been studied with transformer classifiers \cite{roberta_bloom_assessment}.
+
+\section{Comparative Analysis of Related Works}
+\begin{table}[H]
+\centering
+\caption{Comparison of related approaches}
+\label{tab:related_compare}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{3.2cm}|p{2.2cm}|p{2.2cm}|p{4.5cm}|}
+\hline
+\rowcolor{gray!30}
+\textbf{Approach} & \textbf{On-device} & \textbf{Exam privacy} & \textbf{Bloom moderation} \\
+\hline
+Cloud LMS + GPT API & Rarely & Weak & Prompt-only, no ordinal metrics \\
+\hline
+RAG tutoring (general) & Partial & Not role-split & Not primary goal \\
+\hline
+\textbf{Proposed framework} & Yes (GGUF+LoRA) & Role + FL guard & LoRA + generative rewrite \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Research Gap / Limitations of Existing Methods}
+Prior systems seldom combine (i) multi-modal local ingestion, (ii) sub-1\,GB SLM inference, (iii) teacher Bloom LoRA with federated aggregation, and (iv) measurable adversarial privacy benchmarks in one codebase.
+
+\section{Summary}
+The literature supports RAG for grounding, LoRA for efficient fine-tuning, and federated/privacy-aware retrieval research. The proposed work integrates these ideas into a single university-focused prototype with explicit evaluation protocols.

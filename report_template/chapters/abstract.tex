@@ -1,0 +1,9 @@
+\newpage
+\begin{center}
+    \vspace*{0.05cm}
+    \Large
+    \textbf{Abstract}\\
+    \vspace{0.5cm}
+\end{center}
+
+Universities need academic assistants that help students learn from course materials while allowing teachers to moderate exam questions without leaking protected assessments into student-facing retrieval. This project designs and implements a \textbf{lightweight, offline, multi-modal tiny language-model framework} for privacy-preserving academic assistance. The student role supports retrieval-augmented generation (RAG) over PDF, image, and text study materials using PyMuPDF extraction, Tesseract OCR, all-MiniLM embeddings, and a FAISS vector index with metadata. The teacher role performs Bloom's taxonomy labelling on exam questions using a fine-tuned \textbf{Qwen2.5-1.5B-Instruct} LoRA classifier, providing the predicted cognitive level, reasoning, and a higher-level rewrite for moderation. A role-aware \textbf{PrivacyGuard} combines rule-based checks, overlap screening, and a federated privacy-risk model so students cannot reconstruct protected exam content through adversarial prompts. Federated learning is implemented at two layers: FedAvg aggregation of encrypted LoRA adapter updates across simulated teacher clients, and federated training of the privacy guard using clipped, differential-privacy-style noise on model updates only. On held-out Bloom classification data, the merged Qwen LoRA model achieved \textbf{74.8\%} accuracy, macro-F1 \textbf{0.721}, and within-one-level accuracy \textbf{88.0\%}. On a local academic QA benchmark, retrieval hit@3 reached \textbf{100\%} with mean token-F1 \textbf{0.91}. Privacy evaluation reported \textbf{100\%} attack block rate on a defined adversarial taxonomy while preserving \textbf{86.7\%} benign student allow rate. The system targets sub-1\,GB model footprints and CPU-only deployment suitable for on-premises university environments.

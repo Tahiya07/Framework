@@ -1,0 +1,42 @@
+
+\section{Background and Motivation}
+Universities increasingly adopt intelligent tutoring and question-bank tools, but cloud-hosted large language models raise concerns about data sovereignty, examination integrity, and regulatory compliance. Students need grounded answers from lecture notes and textbooks, while teachers need cognitive-level feedback on exam items without exposing those items to student-facing search. Retrieval-augmented generation (RAG) improves factual grounding, yet RAG systems can leak private corpus content when access control and output screening are weak \cite{good_bad_rag,beyond_text_mrag_privacy}. Small language models (SLMs) such as Qwen2.5-1.5B-Instruct enable on-device inference with quantized weights, making them attractive for resource-constrained campus deployments \cite{tinyllama,qlora}.
+
+\section{Problem Statement}
+Existing academic chat systems often (i) mix public learning corpora with protected exam banks in a single index, (ii) rely on cloud APIs that transmit raw questions and documents, and (iii) lack explicit Bloom-level moderation outputs for teachers. There is no integrated, lightweight pipeline that combines multi-modal ingestion, role-separated retrieval, teacher Bloom labelling, and federated privacy mechanisms in one reproducible framework.
+
+\section{Objectives of the Project}
+The main objectives are:
+\begin{itemize}
+    \item O1: Build an offline student RAG assistant for PDF, image, and text materials with bounded-context Qwen generation.
+    \item O2: Implement teacher-side Bloom taxonomy classification with reasoning and higher-level question rewrite.
+    \item O3: Enforce role-aware privacy so protected exam corpora are not retrievable or reconstructable by students.
+    \item O4: Apply federated learning for privacy-risk detection and for aggregating teacher LoRA updates without sharing raw questions.
+    \item O5: Evaluate cognitive classification, RAG grounding, multimodal ingestion, and privacy resistance using reproducible benchmarks.
+\end{itemize}
+
+\section{Research Questions}
+\begin{enumerate}
+    \item RQ1: Can a sub-1\,GB Qwen2.5-1.5B model, fine-tuned with LoRA, classify Bloom levels with acceptable ordinal accuracy on real exam questions?
+    \item RQ2: Does separating public and protected FAISS corpora plus PrivacyGuard reduce reconstruction-style attacks while preserving benign study queries?
+    \item RQ3: Can federated aggregation of LoRA adapters improve deployability across distributed teacher clients without centralizing raw data?
+\end{enumerate}
+
+\section{Scope of the Work}
+The scope includes local ingestion, embedding, retrieval, GGUF-based generation, LoRA Bloom classification, privacy guard evaluation, and federated simulation on public datasets (Figshare Bloom v1). Out of scope are production secure-aggregation cryptography, large-scale multi-campus deployment, and training a full student RAG LoRA on institution-specific chat logs.
+
+\section{Expected Outcomes}
+A working prototype (\texttt{streamlit\_app.py}), trained LoRA and merged Bloom classifier, evaluation pipeline (\texttt{run\_evaluation\_pipeline.py}), unified results tables, and this CSE~400 report documenting design, implementation, and evaluation.
+
+\section{Impacts of the Project}
+\subsection{Impact on Societal and Cultural Issues}
+The framework promotes equitable access to study support without requiring paid API subscriptions, and cultural sensitivity can be improved by keeping moderation and corpus data on-premises.
+
+\subsection{Impact on Health, Safety, and Legal Issues}
+Reducing exam leakage supports academic integrity policies. Privacy screening aligns with FERPA-style obligations to limit disclosure of assessment content. The system does not provide medical or safety-critical advice.
+
+\subsection{Impact on Environment and Sustainability Issues}
+CPU-only, quantized models reduce GPU energy demand compared with always-on cloud LLM services, supporting greener campus IT when deployed on existing lab hardware.
+
+\section{Report Organization}
+Chapter~\ref{cha:LiteratureReviewU} reviews related work. Chapter~\ref{cha:SystemAnalysisAndDesignU} presents requirements and architecture. Chapter~\ref{cha:MethodologyAndImplementationU} describes implementation. Chapter~\ref{cha:ResultsAndEvaluationU} reports evaluation results. Chapter~\ref{cha:cost_time} covers planning. Chapter~\ref{cha:AccreditationComponents} maps CEP/CEA coverage. Chapter~\ref{cha:ConclusionAndFutureWork} concludes and outlines future work.

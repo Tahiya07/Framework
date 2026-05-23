@@ -1,0 +1,41 @@
+\chapter{Appendices}
+
+\section{Key Evaluation Summary}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Summary of measured results (current artifacts)}
+\label{tab:appendix_key_results}
+\begin{tabular}{@{}p{0.55\textwidth}r@{}}
+\toprule
+\textbf{Metric} & \textbf{Value}\\
+\midrule
+Qwen LoRA Bloom accuracy (official test, $n{=}2330$) & 0.748\\
+Qwen LoRA macro-F1 & 0.721\\
+Qwen LoRA within-one-level accuracy & 0.880\\
+TF-IDF SVM accuracy (15\% hold-out, $n{=}379$) & 0.839\\
+Qwen zero-shot GGUF accuracy (hold-out) & 0.441\\
+Student attack block rate & 1.000\\
+Student benign allow rate & 0.867\\
+Qwen GGUF QA token-F1 ($n{=}10$) & 0.914\\
+Qwen GGUF retrieval hit@3 & 1.000\\
+OCR mean token-F1 & 0.963\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Artifact Paths}
+
+\begin{itemize}
+    \item \texttt{evaluation\_results/metrics.json} --- Qwen LoRA official test.
+    \item \texttt{evaluation\_outputs/evaluation\_report.json} --- hold-out SVM vs.\ zero-shot.
+    \item \texttt{results/bloom\_baseline\_comparison.json}, \texttt{results/qwen\_rag\_eval.json}.
+    \item \texttt{run\_evaluation\_pipeline.py}, \texttt{build\_bloom\_comparison.py}.
+\end{itemize}
+
+\section{Claim Boundaries}
+
+Supported: role-separated RAG; Qwen LoRA Bloom moderation; measured privacy resistance on defined attacks; local Qwen GGUF QA with retrieval.
+
+Not claimed: perfect privacy; universal Bloom generalization; large-scale multimodal visual reasoning beyond OCR text.

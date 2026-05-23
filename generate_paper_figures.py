@@ -8,65 +8,46 @@ import numpy as np
 import pandas as pd
 
 
-RESULTS = Path("results/cross_dataset_bloom_transfer.json")
+RESULTS = Path("results/bloom_lora_eval.json")
+PRIVACY = Path("results/privacy_guard_eval.json")
+UNIFIED = Path("results/unified_results_table.csv")
 FIG_DIR = Path("figures")
 
 
-def _load() -> dict:
-    return json.loads(RESULTS.read_text(encoding="utf-8"))
+def _plot_bloom_confusion() -> None:
+    data = json.loads(RESULTS.read_text(encoding="utf-8"))
+    cm = np.array(data.get("confusion_matrix") or [], dtype=int)
+    if cm.size == 0:
+        # fallback: regenerate from rows if only metrics saved
+        rows_path = Path("results/bloom_lora_eval_rows.csv")
+        if not rows_path.is_file():
+            return
+        return
+    labels = ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"]
+    fig, ax = plt.subplots(figsize=(7, 6))
+    im = ax.imshow(cm, cmap="Blues")
+    ax.set_xticks(range(len(labels)), labels, rotation=45, ha="right")
+    ax.set_yticks(range(len(labels)), labels)
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("True")
+    ax.set_title("Qwen LoRA Bloom Confusion Matrix (Figshare Test)")
+    fig.colorbar(im, ax=ax, fraction=0.046)
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / "bloom_lora_confusion_matrix.png", dpi=220, bbox_inches="tight")
+    plt.close(fig)
 
 
-def _rows(data: dict) -> list[dict]:
-    rows = []
-    for scheme in ["binary", "ternary"]:
-        block = data["schemes"][scheme]
-        for name in [
-            "within_dataset_figshare",
-            "within_dataset_moocradar",
-            "figshare_to_moocradar",
-            "moocradar_to_figshare",
-        ]:
-            m = block[name]["selected_metrics"]
-            gate_050 = (
-                m.get("confidence_gate", {})
-                .get("thresholds", {})
-                .get("0.50", {})
-            )
-            rows.append(
-                {
-                    "scheme": scheme,
-                    "setting": name,
-                    "model": block[name]["selected_model"],
-                    "accuracy": m["accuracy"],
-                    "macro_f1": m["macro_f1"],
-                    "mean_ordinal_error": m["mean_ordinal_error"],
-                    "within_one_level_accuracy": m["within_one_level_accuracy"],
-                    "severe_error_rate": m["severe_error_rate"],
-                    "gate_050_human_loop_rate": gate_050.get("human_loop_rate", np.nan),
-                    "gate_050_accepted_severe_error_rate": gate_050.get("accepted_severe_error_rate", np.nan),
-                    "gate_050_severe_error_caught_rate": gate_050.get("severe_error_caught_rate", np.nan),
-                }
-            )
-    return rows
-
-
-def _save_performance_table(df: pd.DataFrame) -> None:
-    out_csv = FIG_DIR / "cross_domain_performance_table.csv"
-    df.to_csv(out_csv, index=False)
-
-    disp = df.copy()
-    for col in [
-        "accuracy",
-        "macro_f1",
-        "mean_ordinal_error",
-        "within_one_level_accuracy",
-        "severe_error_rate",
-        "gate_050_human_loop_rate",
-        "gate_050_accepted_severe_error_rate",
-        "gate_050_severe_error_caught_rate",
-    ]:
-        disp[col] = disp[col].map(lambda x: f"{x:.3f}")
-    fig, ax = plt.subplots(figsize=(18, 4.8))
+def _plot_unified_table() -> None:
+    if not UNIFIED.is_file():
+        return
+    df = pd.read_csv(UNIFIED)
+    disp = df[
+        ["evidence_area", "protocol", "setting", "model", "primary_metric", "primary_value"]
+    ].copy()
+    disp["primary_value"] = disp["primary_value"].map(
+        lambda x: f"{float(x):.3f}" if pd.notna(x) and str(x) != "" else ""
+    )
+    fig, ax = plt.subplots(figsize=(16, max(3, 0.35 * len(disp) + 1)))
     ax.axis("off")
     table = ax.table(
         cellText=disp.values,
@@ -75,128 +56,42 @@ def _save_performance_table(df: pd.DataFrame) -> None:
         loc="center",
     )
     table.auto_set_font_size(False)
-    table.set_fontsize(8)
-    table.scale(1, 1.5)
-    ax.set_title("Cross-Domain Bloom Performance", fontsize=14, pad=16)
+    table.set_fontsize(7)
+    table.scale(1, 1.35)
+    ax.set_title("Unified Evaluation Summary", fontsize=13, pad=12)
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "cross_domain_performance_table.png", dpi=220, bbox_inches="tight")
+    fig.savefig(FIG_DIR / "unified_results_table.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 
-def _plot_heatmaps(data: dict) -> None:
-    block = data["schemes"]["ternary"]
-    pairs = [
-        ("figshare_to_moocradar", "Figshare -> MoocRadar"),
-        ("moocradar_to_figshare", "MoocRadar -> Figshare"),
+def _plot_privacy_bars() -> None:
+    if not PRIVACY.is_file():
+        return
+    data = json.loads(PRIVACY.read_text(encoding="utf-8"))
+    labels = ["Attack block", "Benign allow", "Teacher allow"]
+    values = [
+        float(data.get("student_attack_block_rate", 0)),
+        float(data.get("student_benign_allow_rate", 0)),
+        float(data.get("teacher_moderation_allow_rate", 0)),
     ]
-    labels = block["labels"]
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
-    for ax, (key, title) in zip(axes, pairs):
-        cm = np.array(block[key]["selected_metrics"]["confusion_matrix"], dtype=float)
-        row_sums = np.clip(cm.sum(axis=1, keepdims=True), 1e-9, None)
-        norm = cm / row_sums
-        im = ax.imshow(norm, cmap="Blues", vmin=0.0, vmax=1.0)
-        ax.set_xticks(range(len(labels)), labels)
-        ax.set_yticks(range(len(labels)), labels)
-        ax.set_xlabel("Predicted")
-        ax.set_ylabel("True")
-        ax.set_title(title)
-        for i in range(norm.shape[0]):
-            for j in range(norm.shape[1]):
-                ax.text(j, i, f"{norm[i,j]:.2f}", ha="center", va="center", fontsize=9)
-    fig.colorbar(im, ax=axes.ravel().tolist(), fraction=0.03, pad=0.04)
-    fig.suptitle("Cross-Domain Transfer Heatmaps (Ternary Collapse Space)", fontsize=14)
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.bar(labels, values, color=["#d62728", "#2ca02c", "#1f77b4"])
+    ax.set_ylim(0, 1.05)
+    ax.set_ylabel("Rate")
+    ax.set_title("PrivacyGuard Role-Aware Outcomes")
+    for i, v in enumerate(values):
+        ax.text(i, v + 0.02, f"{v:.2f}", ha="center")
     fig.tight_layout()
-    fig.savefig(FIG_DIR / "transfer_heatmaps_ternary.png", dpi=220, bbox_inches="tight")
-    plt.close(fig)
-
-
-def _plot_ordinal_shift(data: dict) -> None:
-    block = data["schemes"]["ternary"]
-    labels = [
-        "Fig in-domain",
-        "Mooc in-domain",
-        "Fig -> Mooc",
-        "Mooc -> Fig",
-    ]
-    keys = [
-        "within_dataset_figshare",
-        "within_dataset_moocradar",
-        "figshare_to_moocradar",
-        "moocradar_to_figshare",
-    ]
-    buckets = ["distance_0", "distance_1", "distance_2plus"]
-    counts = []
-    for key in keys:
-        cm = np.array(block[key]["selected_metrics"]["confusion_matrix"])
-        dist = {"distance_0": 0, "distance_1": 0, "distance_2plus": 0}
-        for i in range(cm.shape[0]):
-            for j in range(cm.shape[1]):
-                d = abs(i - j)
-                if d == 0:
-                    dist["distance_0"] += int(cm[i, j])
-                elif d == 1:
-                    dist["distance_1"] += int(cm[i, j])
-                else:
-                    dist["distance_2plus"] += int(cm[i, j])
-        total = max(1, sum(dist.values()))
-        counts.append([dist[b] / total for b in buckets])
-    arr = np.array(counts)
-    fig, ax = plt.subplots(figsize=(11, 5))
-    bottom = np.zeros(len(labels))
-    colors = ["#1f77b4", "#ffbf00", "#d62728"]
-    pretty = ["Exact level", "Within one level", "Severe (2+)"]
-    for i, bucket in enumerate(buckets):
-        ax.bar(labels, arr[:, i], bottom=bottom, label=pretty[i], color=colors[i])
-        bottom += arr[:, i]
-    ax.set_ylim(0, 1.0)
-    ax.set_ylabel("Fraction of predictions")
-    ax.set_title("Ordinal Error Shift Across Domains (Ternary)")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(FIG_DIR / "ordinal_error_shift.png", dpi=220, bbox_inches="tight")
-    plt.close(fig)
-
-
-def _plot_key_figure(df: pd.DataFrame) -> None:
-    sub = df[df["scheme"] == "ternary"].copy()
-    order = [
-        "within_dataset_figshare",
-        "within_dataset_moocradar",
-        "figshare_to_moocradar",
-        "moocradar_to_figshare",
-    ]
-    labels = ["Fig in-domain", "Mooc in-domain", "Fig -> Mooc", "Mooc -> Fig"]
-    sub["order"] = sub["setting"].map({k: i for i, k in enumerate(order)})
-    sub = sub.sort_values("order")
-    x = np.arange(len(labels))
-    w = 0.35
-
-    fig, ax = plt.subplots(figsize=(11, 5))
-    ax.bar(x - w / 2, sub["macro_f1"], width=w, label="Macro-F1", color="#4c72b0")
-    ax.bar(x + w / 2, sub["within_one_level_accuracy"], width=w, label="Within-one-level acc.", color="#55a868")
-    ax.set_xticks(x, labels)
-    ax.set_ylim(0, 1.0)
-    ax.set_ylabel("Score")
-    ax.set_title("Domain Shift Retains More Ordinal Than Exact Bloom Signal")
-    ax.legend()
-    for xi, v in zip(x - w / 2, sub["macro_f1"]):
-        ax.text(xi, v + 0.02, f"{v:.2f}", ha="center", va="bottom", fontsize=9)
-    for xi, v in zip(x + w / 2, sub["within_one_level_accuracy"]):
-        ax.text(xi, v + 0.02, f"{v:.2f}", ha="center", va="bottom", fontsize=9)
-    fig.tight_layout()
-    fig.savefig(FIG_DIR / "domain_shift_preserves_ordinal_structure.png", dpi=220, bbox_inches="tight")
+    fig.savefig(FIG_DIR / "privacy_guard_summary.png", dpi=220, bbox_inches="tight")
     plt.close(fig)
 
 
 def main() -> None:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
-    data = _load()
-    df = pd.DataFrame(_rows(data))
-    _save_performance_table(df)
-    _plot_heatmaps(data)
-    _plot_ordinal_shift(data)
-    _plot_key_figure(df)
+    if RESULTS.is_file():
+        _plot_bloom_confusion()
+    _plot_unified_table()
+    _plot_privacy_bars()
     print("figures-generated")
 
 

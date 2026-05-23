@@ -1,0 +1,59 @@
+\section{Preliminaries}
+
+\subsection{Retrieval-Augmented Generation}
+Retrieval-augmented generation combines document retrieval with language-model generation. A user query is used to retrieve relevant chunks from an external knowledge base, and the retrieved context is then supplied to a language model to produce an answer \cite{lewis2020rag}. This design is suitable for academic assistance because course content changes frequently and can be updated by modifying the document store instead of retraining the model.
+
+\subsection{Role-Separated Academic Corpora}
+The central design concept in this project is role separation. Public material includes lecture notes, general course explanations, and student-accessible resources. Protected material includes exam drafts, question banks, model answers, and teacher-only moderation resources. The system must preserve this distinction during ingestion, indexing, retrieval, and response generation.
+
+\subsection{Bloom's Taxonomy}
+Bloom's taxonomy organizes educational objectives into cognitive levels such as Remember, Understand, Apply, Analyze, Evaluate, and Create. In this project, Bloom classification is used as a teacher-support and moderation component. It helps identify whether exam questions focus only on recall or include higher-order cognitive demand.
+
+\subsection{OCR-Backed Multimodal Ingestion}
+Academic documents are often not plain text. They may include PDFs, screenshots, scanned pages, and typed images. Optical Character Recognition (OCR) extracts text from image inputs so that the same retrieval and access-control policies can be applied to image-derived content.
+
+\section{Related Works / Existing Systems}
+
+\subsection{General RAG Systems}
+General RAG systems provide grounded answers from retrieved documents \cite{lewis2020rag}. They are useful for knowledge-intensive question answering, but many systems assume a shared retrieval corpus. This is insufficient for university environments where different users have different access rights to different academic artifacts.
+
+\subsection{Privacy Risks in RAG}
+Recent studies show that RAG systems can leak sensitive information through retrieved context, generation behavior, or adversarial prompts \cite{zeng2024goodbad,zhang2025beyondtext}. Privacy-preserving RAG work explores differential privacy, cloud service protection, and data-model co-design \cite{koga2024dprag,cheng2024remoterag,fu2026ppeduvec}. These works motivate the need for access-aware retrieval and output screening, but they often focus on general privacy rather than the specific student/teacher assessment boundary.
+
+\subsection{Bloom Classification in Education}
+Automated Bloom-taxonomy classification supports exam analysis, outcome-based education, and teacher moderation. Recent educational NLP work has explored transformer-based and ensemble approaches for question classification \cite{hamid2026bloom}. However, Bloom classification alone does not solve the privacy problem of protected assessment artifacts. This project integrates Bloom support into a broader privacy-constrained RAG workflow.
+
+\subsection{Tiny and Quantized Language Models}
+Tiny and quantized language models reduce the hardware barrier for local deployment \cite{zhang2024tinyllama,dettmers2023qlora,lin2023awq}. This matters for universities that may not want to send documents to cloud services. The project uses \qwenmodel{}.gguf through llama.cpp in CPU-only mode, with deterministic decoding and a context size of 512.
+
+\subsection{Multimodal Document Processing}
+Document AI and multimodal systems address layout and visual-language understanding \cite{huang2022layoutlmv3,liu2023llava}. This project uses a lighter OCR-backed route for typed images and PDFs. The goal is not full visual reasoning but metadata-preserving ingestion that allows PDF and image text to participate in the same RAG and privacy-control pipeline.
+
+\section{Comparative Analysis of Related Works}
+
+\begin{table}[H]
+\centering
+\caption{Comparison of related areas and the project gap}
+\label{tab:related_gap_report}
+\begin{tabular}{p{0.25\textwidth}p{0.33\textwidth}p{0.32\textwidth}}
+\toprule
+\textbf{Area} & \textbf{Main Focus} & \textbf{Remaining Gap} \\
+\midrule
+General RAG & Grounded answers from retrieved documents & Usually assumes a shared retrieval corpus. \\
+Privacy RAG & Leakage, query privacy, differential privacy, protected data & Often not specific to student/teacher assessment roles. \\
+Bloom classification & Cognitive-level prediction for exam questions & Usually not integrated with protected-resource RAG. \\
+Multimodal document AI & PDF, image, layout, and visual text handling & Often heavier than needed for local academic prototypes. \\
+This project & Local public/protected academic RAG with Bloom and guard evaluation & System-level integration with bounded evidence. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Research Gap / Limitations of Existing Methods}
+
+The research gap is the role-separated university workflow: one lightweight local framework that supports public student RAG, teacher-only protected exam moderation, Bloom/OBE-style analysis, multimodal ingestion, and explicit leakage screening. Existing RAG systems offer grounding, privacy-preserving RAG systems study leakage and protection, Bloom classifiers study exam-question labels, and multimodal document systems study visual/document ingestion. The proposed system combines these directions for a concrete university use case.
+
+The novelty is system-level integration and evaluation under a university threat model, not a new cryptographic privacy primitive. The system demonstrates bounded empirical leakage resistance under a defined prompt taxonomy, while clearly reporting that it does not provide formal differential privacy or universal security.
+
+\section{Summary}
+
+This chapter reviewed the concepts and literature needed to understand the project. RAG provides grounded academic answers, Bloom classification supports teacher moderation, OCR expands ingestion to image-based documents, and privacy literature motivates access-aware retrieval and output screening. The next chapter presents the system analysis and design used to combine these components into a role-separated academic assistant.

@@ -1,0 +1,55 @@
+
+\section{Methodological Framework}
+Development followed an incremental pipeline: (1) data preparation and Bloom LoRA training, (2) merge and GGUF RAG integration, (3) privacy guard and federated modules, (4) Streamlit demonstration, and (5) automated evaluation with unified result consolidation.
+
+\section{Tools, Libraries, and Technologies Used}
+\begin{table}[H]
+\centering
+\caption{Technology stack}
+\label{tab:stack}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{4cm}|p{9cm}|}
+\hline
+\textbf{Component} & \textbf{Technology} \\
+\hline
+Document ingestion & PyMuPDF, Tesseract OCR (pytesseract), Pillow \\
+\hline
+Embeddings \& index & sentence-transformers (all-MiniLM-L6-v2), FAISS \\
+\hline
+Generation & Qwen2.5-1.5B-Instruct Q4\_K\_M GGUF (llama.cpp) \\
+\hline
+Bloom classifier & Hugging Face Transformers, PEFT/LoRA \\
+\hline
+Privacy \& FL & Custom PrivacyGuard, federated FedAvg + DP noise \\
+\hline
+Demo UI & Streamlit \\
+\hline
+Evaluation & scikit-learn, pandas, project scripts in \texttt{evaluate\_*.py} \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Data Collection / Dataset Description}
+Bloom labels use the Figshare Bloom v1 splits (\texttt{data/figshare\_bloom\_v1\_train.csv}, test/val). RAG evaluation uses a 10-question local academic QA benchmark (\texttt{evaluate\_qa\_rag.py}). Privacy evaluation uses a structured adversarial prompt taxonomy (\texttt{privacy/evaluate\_privacy\_guard.py}).
+
+\section{Preprocessing Steps}
+Text normalization, fixed-size chunking (220 tokens, overlap 32), metadata tagging (\texttt{access\_level}, \texttt{content\_type}), and label mapping to six Bloom classes. Protected exam chunks are indexed separately from public study materials.
+
+\section{Model Development / Algorithm Design}
+\textbf{Centralized LoRA training} (\texttt{train\_qwen\_bloom.py}) optimizes cross-entropy with class weights on Qwen2.5-1.5B. \textbf{Merge} (\texttt{merge\_model.py}) produces a deployable classifier. \textbf{Federated teacher LoRA} (\texttt{federated/run\_simulation.py}) simulates multiple sites: local training, encrypted bundles, server FedAvg. \textbf{Federated privacy guard} (\texttt{privacy/federated\_privacy.py}) trains a hashed logistic model with clipped noisy updates.
+
+\section{System Implementation / Modules Description}
+\begin{itemize}
+    \item \texttt{ingestion.py} / \texttt{retriever.py}: multi-modal ingest and FAISS retrieval.
+    \item \texttt{models.py} / \texttt{summarizer.py}: bounded RAG and cognitive summarization.
+    \item \texttt{predict\_bloom.py}: merged/LoRA Bloom inference.
+    \item \texttt{bloom\_prompt.py}: teacher moderation narrative (reason, rewrite).
+    \item \texttt{privacy/privacy\_guard.py}: role-aware screening.
+    \item \texttt{streamlit\_app.py}: end-to-end demo.
+\end{itemize}
+
+\section{Hardware and Software Requirements}
+\textbf{Development:} 16\,GB RAM recommended, Python 3.10--3.11, optional CUDA for LoRA training. \textbf{Deployment demo:} CPU with 8\,GB+ RAM; GGUF mmap $\approx$986\,MB model file; additional RAM for embeddings and context.
+
+\section{Summary}
+The methodology combines efficient fine-tuning, local RAG, and two federated layers (privacy guard + optional teacher LoRA) into a reproducible research prototype.

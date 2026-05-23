@@ -1,0 +1,10 @@
+\newpage
+\begin{center}
+    \Large
+    \textbf{Abstract}\\
+    \vspace{0.5cm}
+\end{center}
+
+Universities increasingly need academic assistants that can answer questions from course material while preventing protected assessment artifacts from leaking to students. This project presents \systemname, a lightweight local framework for privacy-constrained academic assistance. The system separates public learning corpora from protected exam corpora, supports text, PDF, and OCR-backed image ingestion, preserves document metadata, performs Bloom-taxonomy-oriented moderation with a fine-tuned \textbf{Qwen2.5-1.5B LoRA} classifier, and applies role-aware query and output screening before student-facing generation.
+
+On the official Figshare test split ($n{=}2330$), the Qwen LoRA classifier achieves \textbf{0.748} accuracy, macro-F1 \textbf{0.721}, and within-one-level accuracy \textbf{0.880}. On a 15\% hold-out split, TF-IDF + LinearSVC reaches \textbf{0.839} accuracy while zero-shot Qwen GGUF reaches only \textbf{0.441}, demonstrating the value of LoRA fine-tuning over prompt-only classification. In privacy evaluation, all 104 student reconstruction attacks are blocked, \textbf{86.7\%} of benign student prompts are allowed, and teacher moderation prompts are fully allowed. A local QA/RAG benchmark reports token-F1 \textbf{0.914} and retrieval hit@3 \textbf{1.000}. OCR-backed ingestion obtains \textbf{0.963} token-F1 on synthetic typed images. These findings support a conservative claim: local role separation plus leakage screening is a practical deployment pattern, but not a proof of universal privacy.

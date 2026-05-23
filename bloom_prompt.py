@@ -1,17 +1,16 @@
 # ============================================================
-# EDUGUARD-RAG BLOOM MODERATION MODULE
-# Qwen2.5-1.5B-Q4_K_M GGUF
-# CPU OFFLINE LIGHTWEIGHT BLOOM ANALYZER
-# + CALIBRATION LAYER (POST-DECODING STABILITY)
+# Teacher-side Bloom moderation (generative)
+# Qwen2.5-1.5B-Instruct GGUF via llama.cpp
+#
+# Bloom *labels* come from the trained LoRA classifier in predict_bloom.py.
+# This module only generates Reason + Higher-Level Rewrite text for teachers.
 # ============================================================
 
-from llama_cpp import Llama
-from collections import Counter
+from __future__ import annotations
+
+from typing import Optional
+
 from multi_slm import resolve_slm_model_path
-
-# ============================================================
-# LABELS
-# ============================================================
 
 LABELS = [
     "Remembering",
@@ -19,38 +18,46 @@ LABELS = [
     "Applying",
     "Analyzing",
     "Evaluating",
-    "Creating"
+    "Creating",
 ]
 
-# ============================================================
-# LOAD GGUF MODEL
-# ============================================================
+_LLM = None
 
-MODEL_PATH = resolve_slm_model_path("bloom_moderation")
 
-print("\nLoading Qwen GGUF Bloom moderation model...\n")
+def _get_llm():
+    global _LLM
+    if _LLM is None:
+        from llama_cpp import Llama
 
-llm = Llama(
-    model_path=str(MODEL_PATH),
-    n_ctx=4096,
-    n_threads=8,
-    n_gpu_layers=0,
-    use_mmap=True,
-    use_mlock=False,
-    verbose=False
-)
+        model_path = resolve_slm_model_path("bloom_moderation")
+        _LLM = Llama(
+            model_path=str(model_path),
+            n_ctx=4096,
+            n_threads=8,
+            n_gpu_layers=0,
+            use_mmap=True,
+            use_mlock=False,
+            verbose=False,
+        )
+    return _LLM
 
-# ============================================================
-# PROMPT BUILDER (UNCHANGED)
-# ============================================================
 
-def build_prompt(question):
-
+def build_prompt(question: str, *, predicted_level: Optional[str] = None) -> str:
+    level_hint = (
+        f"\nThe trained classifier assigned Bloom level: {predicted_level}.\n"
+        "Use that level in your answer unless it is clearly wrong.\n"
+        if predicted_level
+        else ""
+    )
     return f"""
 <|im_start|>system
 You are an expert educational evaluator specialized in Bloom's Taxonomy.
+{level_hint}
+You MUST output EXACTLY 3 lines and nothing else:
 
-You MUST classify academic questions into EXACTLY ONE Bloom level.
+Bloom Level: <one label from the allowed list>
+Reason: <1-2 sentence explanation>
+Higher-Level Rewrite: <improved academic version>
 
 Allowed labels only:
 Remembering
@@ -59,42 +66,22 @@ Applying
 Analyzing
 Evaluating
 Creating
-
-CRITICAL RULES:
-- Output MUST contain EXACTLY 3 lines.
-- Do NOT add extra text.
-- Do NOT stop early.
-- Do NOT repeat the question.
-
-MANDATORY FORMAT:
-
-Bloom Level: <one label>
-Reason: <1-2 sentence explanation>
-Higher-Level Rewrite: <improved academic version>
-
-If any field is missing, output is INVALID.
-
 <|im_end|>
 
 <|im_start|>user
-
 Question:
-{question}
-
+{question.strip()}
 <|im_end|>
 
 <|im_start|>assistant
 Bloom Level:
 """.strip()
 
-# ============================================================
-# RAW MODEL CALL
-# ============================================================
 
-def analyze_bloom(question):
-
-    prompt = build_prompt(question)
-
+def analyze_bloom(question: str, *, predicted_level: Optional[str] = None) -> str:
+    """Generate moderation text (level, reason, rewrite) for teacher review."""
+    llm = _get_llm()
+    prompt = build_prompt(question, predicted_level=predicted_level)
     output = llm(
         prompt,
         temperature=0.1,
@@ -102,89 +89,81 @@ def analyze_bloom(question):
         top_k=40,
         repeat_penalty=1.1,
         max_tokens=120,
-        stop=["<|im_end|>", "<|im_start|>"]
+        stop=["<|im_end|>", "<|im_start|>"],
     )
-
     return output["choices"][0]["text"].strip()
 
-# ============================================================
-# STEP 1: LABEL EXTRACTION (STRICT CLEANING)
-# ============================================================
 
-def extract_bloom_label(text):
+def predict_bloom_label(question: str) -> str:
+    """Backward-compatible helper: label from trained LoRA, not GGUF voting."""
+    from predict_bloom import QwenBloomPredictor
 
-    text = text.lower()
+    return QwenBloomPredictor().predict(question)["prediction"]
 
-    for label in LABELS:
-        if label.lower() in text:
-            return label
 
-    return "Understanding"
+_LONG_TO_SHORT = {
+    "Remembering": "Remember",
+    "Understanding": "Understand",
+    "Applying": "Apply",
+    "Analyzing": "Analyze",
+    "Evaluating": "Evaluate",
+    "Creating": "Create",
+    "Knowledge": "Remember",
+    "Remember": "Remember",
+    "Recall": "Remember",
+    "Comprehension": "Understand",
+    "Understand": "Understand",
+    "Application": "Apply",
+    "Apply": "Apply",
+    "Analysis": "Analyze",
+    "Analyze": "Analyze",
+    "Evaluation": "Evaluate",
+    "Evaluate": "Evaluate",
+    "Synthesis": "Create",
+    "Create": "Create",
+}
 
-# ============================================================
-# STEP 2: CALIBRATION LAYER (NEW CORE ADDITION)
-# ============================================================
 
-def calibrated_predict(question, k=3, confidence_threshold=0.5):
+def _canonical_bloom_label(raw: str) -> str:
+    from predict_bloom import BLOOM_LABELS
 
-    """
-    1. Run multiple stochastic samples
-    2. Extract labels
-    3. Majority vote
-    4. Confidence estimation
-    """
+    token = raw.strip().split("\n")[0].strip().rstrip(".")
+    if ":" in token:
+        token = token.split(":", 1)[-1].strip()
+    short = _LONG_TO_SHORT.get(token, token)
+    if short not in BLOOM_LABELS:
+        for label in BLOOM_LABELS:
+            if label.lower() in token.lower():
+                return label
+        return "Remember"
+    return short
 
-    preds = []
 
-    for _ in range(k):
+def zero_shot_bloom_label(question: str) -> str:
+    """Bloom label from base Qwen GGUF (no LoRA fine-tuning)."""
+    llm = _get_llm()
+    prompt = build_prompt(question, predicted_level=None)
+    output = llm(
+        prompt,
+        temperature=0.1,
+        top_p=0.9,
+        top_k=40,
+        repeat_penalty=1.1,
+        max_tokens=32,
+        stop=["<|im_end|>", "<|im_start|>", "\n"],
+    )
+    return _canonical_bloom_label(output["choices"][0]["text"])
 
-        raw = analyze_bloom(question)
-        label = extract_bloom_label(raw)
-        preds.append(label)
-
-    # majority vote
-    counts = Counter(preds)
-    final_label, freq = counts.most_common(1)[0]
-
-    confidence = freq / k
-
-    # fallback safety (uncertain cases)
-    if confidence < confidence_threshold:
-        return "Understanding", confidence
-
-    return final_label, confidence
-
-# ============================================================
-# PUBLIC API (USE THIS IN EVALUATION)
-# ============================================================
-
-def predict_bloom_label(question):
-
-    label, _ = calibrated_predict(question)
-    return label
-
-# ============================================================
-# INTERACTIVE DEBUG MODE
-# ============================================================
 
 if __name__ == "__main__":
-
-    print("\n===================================================")
-    print(" EduGuard-RAG Bloom Moderation Module Ready ")
-    print(" (Calibration Enabled) ")
-    print("===================================================")
-
+    print("Teacher Bloom moderation (GGUF). Labels: use predict_bloom.py / train_qwen_bloom.py")
     while True:
-
-        question = input("\nEnter academic question (or 'exit'): ")
-
-        if question.lower() == "exit":
+        q = input("\nEnter academic question (or 'exit'): ")
+        if q.lower() == "exit":
             break
+        from predict_bloom import QwenBloomPredictor
 
-        raw = analyze_bloom(question)
-        label, conf = calibrated_predict(question)
-
-        print("\nRAW OUTPUT:\n", raw)
-        print("\nCALIBRATED LABEL:", label)
-        print("CONFIDENCE:", round(conf, 3))
-        print("----------------------------------------")
+        pred = QwenBloomPredictor().predict(q)
+        raw = analyze_bloom(q, predicted_level=pred["prediction"])
+        print("\nLoRA label:", pred["prediction"], f"(conf={pred['confidence']})")
+        print("\nModeration output:\n", raw)

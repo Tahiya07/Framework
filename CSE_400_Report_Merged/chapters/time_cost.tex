@@ -1,0 +1,77 @@
+\section{Project Timeline}
+
+The project was planned as a sequence of analysis, implementation, evaluation, and report-writing activities. Table~\ref{tab:timeline_report} summarizes the major tasks.
+
+\begin{longtable}{p{0.08\textwidth}p{0.48\textwidth}p{0.28\textwidth}}
+\caption{Project timeline}\label{tab:timeline_report}\\
+\toprule
+\textbf{Phase} & \textbf{Activities} & \textbf{Expected Duration}\\
+\midrule
+1 & Problem analysis, literature review, requirement identification & 2 weeks\\
+2 & System architecture design and module planning & 2 weeks\\
+3 & Text/PDF/image ingestion implementation & 3 weeks\\
+4 & Vector retrieval and metadata persistence & 3 weeks\\
+5 & Privacy guard and role-aware workflow implementation & 3 weeks\\
+6 & Bloom classifier training and evaluation & 3 weeks\\
+7 & Qwen GGUF integration and QA/RAG evaluation & 2 weeks\\
+8 & OCR, multimodal, and privacy evaluation & 2 weeks\\
+9 & Result consolidation, figure preparation, and report writing & 3 weeks\\
+\bottomrule
+\end{longtable}
+
+\section{Work Breakdown Structure}
+
+\begin{itemize}
+    \item \textbf{Research and analysis:} study RAG, privacy risks, Bloom classification, tiny LLMs, and OCR-backed document ingestion.
+    \item \textbf{System design:} define user roles, public/protected corpora, metadata model, and module boundaries.
+    \item \textbf{Implementation:} develop ingestion, retrieval, privacy guard, local generation, Streamlit demo, and evaluation scripts.
+    \item \textbf{Evaluation:} run Bloom (LoRA + baselines), privacy, Qwen QA/RAG, OCR, and multimodal tests.
+    \item \textbf{Documentation:} prepare Overleaf-ready report according to the CSE 400 format.
+\end{itemize}
+
+\section{Budget Estimation}
+
+The project is primarily software-based and uses open-source tools. No custom hardware is required. Table~\ref{tab:budget_report} gives an estimated budget for development and demonstration.
+
+\begin{table}[H]
+\centering
+\caption{Estimated project budget}
+\label{tab:budget_report}
+\begin{tabular}{p{0.45\textwidth}cc}
+\toprule
+\textbf{Item} & \textbf{Estimated Cost (BDT)} & \textbf{Remarks}\\
+\midrule
+Development laptop/workstation & 0 & Existing personal device used\\
+Open-source software libraries & 0 & FAISS, PyMuPDF, Streamlit, OCR tools\\
+Qwen GGUF model file & 0 & Open model artifact used locally\\
+Internet/data for research and setup & 1000 & Literature, package downloads, documentation\\
+Printing/report binding & 1500 & Final submission copy\\
+Miscellaneous contingency & 1000 & Backup storage and formatting needs\\
+\midrule
+\textbf{Total Estimated Cost} & \textbf{3500} & Approximate\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Risk Management}
+
+\begin{table}[H]
+\centering
+\caption{Project risks and mitigation}
+\label{tab:risks_report}
+\begin{tabular}{p{0.30\textwidth}p{0.30\textwidth}p{0.30\textwidth}}
+\toprule
+\textbf{Risk} & \textbf{Impact} & \textbf{Mitigation}\\
+\midrule
+OCR backend unavailable & Image RAG cannot be evaluated & Use pytesseract/Tesseract and report backend status clearly\\
+Local LLM binding failure & Qwen cannot run through Python package & Use standalone llama.cpp CLI\\
+Privacy overblocking & Benign student prompts may be blocked & Report benign allow rate and add safe alternatives\\
+Bloom label noise & Moderation suggestions may be wrong & Report ordinal metrics and human-in-the-loop review\\
+Small QA benchmark & Limited external validity & State limitation and propose larger future benchmarks\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Summary}
+
+The project can be completed with low financial cost because it relies mainly on open-source software and existing hardware. The main cost is development time, evaluation effort, and report preparation. The main risks involve OCR setup, local model runtime, privacy-utility trade-offs, and limited benchmark scale.

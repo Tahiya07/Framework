@@ -1,0 +1,73 @@
+\section{Background and Motivation}
+
+Digital learning environments now contain heterogeneous academic material such as lecture slides, textbook excerpts, lab sheets, scanned notes, assignment instructions, rubrics, question banks, and draft examinations. Students benefit from assistants that can search these materials and answer grounded questions. Teachers benefit from tools that can review exam questions, detect Bloom-taxonomy levels, and moderate assessment quality. A single academic assistant that supports both groups is attractive because it reduces repeated manual work and makes course resources easier to access.
+
+Retrieval-augmented generation (RAG) has become a practical way to build assistants that answer from external documents rather than relying only on a language model's parametric memory \cite{lewis2020rag}. In a university setting, however, the same convenience creates a serious operational risk. Public lecture notes can be retrieved for students, but protected exam artifacts must remain inaccessible to them. If both corpora are indexed in one retrieval surface, a student-facing assistant can become an unintended disclosure channel. The motivation for this project is therefore to build a local academic assistant that supports learning while protecting assessment confidentiality.
+
+The project is titled \textit{A Lightweight Multi-Modal Tiny LLM
+Framework for Privacy-Aware Academic
+Assistance in University Environments}. The title reflects the main design goals: lightweight local deployment, multimodal ingestion of text/PDF/images, a small quantized language model, privacy-constrained access to protected artifacts, and suitability for university academic workflows.
+
+\section{Problem Statement}
+
+The problem addressed in this work is the lack of a lightweight university-focused RAG framework that jointly supports academic question answering, multimodal document ingestion, teacher-only exam moderation, Bloom-taxonomy analysis, and protected-resource leakage control. Existing educational assistants can answer questions from course content, and existing Bloom classifiers can label questions, but many systems do not model the access-control boundary between student-facing learning material and teacher-only assessment artifacts.
+
+Similarly, privacy-preserving RAG research often focuses on general data protection, cloud settings, or formal privacy mechanisms rather than the practical course-management scenario where teachers and students interact with different parts of the same academic knowledge base. In a real course, a teacher may upload confidential exam questions for moderation while students upload public notes for study support. A naive RAG system may retrieve protected content when a student asks for summaries, practice questions, paraphrases, or semantically similar examples.
+
+The technical challenge is to provide useful study assistance without allowing students to reconstruct protected exam content through direct questions, summaries, paraphrases, partial-span requests, semantic hints, or jailbreak-style prompts. At the same time, the system must preserve teacher access to protected artifacts for legitimate moderation. This creates a privacy-utility trade-off: overly permissive retrieval risks leakage, while overly strict filtering can block harmless student study questions.
+
+\section{Objectives of the Project}
+
+The project objectives are:
+\begin{itemize}
+    \item To design a local academic RAG framework that separates public learning corpora from protected exam corpora.
+    \item To implement ingestion for text, PDF, and OCR-backed image material while preserving source, modality, page, and access-level metadata.
+    \item To fine-tune a Qwen2.5-1.5B LoRA Bloom classifier and compare it with lexical SVM and zero-shot GGUF baselines for exam-question moderation.
+    \item To use a lightweight quantized local LLM, \qwenmodel{}.gguf, for grounded academic question answering over retrieved context.
+    \item To implement role-aware query and output screening so student-facing responses do not reconstruct protected assessment artifacts.
+    \item To evaluate Qwen LoRA Bloom classification against SVM and zero-shot baselines, plus QA/RAG, privacy-guard, and OCR metrics.
+\end{itemize}
+
+\section{Research Questions}
+
+This study is guided by the following research questions:
+\begin{itemize}
+    \item RQ1: Can role-separated retrieval reduce protected assessment reconstruction risk while preserving useful student study assistance?
+    \item RQ2: Does fine-tuned Qwen LoRA outperform zero-shot GGUF and lexical SVM baselines on Bloom exam questions?
+    \item RQ3: Do ordinal Bloom metrics reveal moderation-relevant structure that exact accuracy alone hides?
+    \item RQ4: Can a CPU-oriented tiny-LLM pipeline provide grounded academic QA over retrieved course contexts?
+    \item RQ5: Is OCR-backed image ingestion reliable enough to support a modest multimodal academic-assistance claim?
+\end{itemize}
+
+\section{Scope of the Work}
+
+The scope is a local prototype and evaluation protocol, not a full institutional deployment. The system covers public student RAG, protected teacher moderation, Bloom classification, text/PDF/image ingestion, and leakage screening under an evaluated prompt taxonomy. It does not cover formal differential privacy, compromised accounts, encrypted retrieval, handwritten document understanding, large-scale student trials, or complete red-team assurance.
+
+The project is scoped as a software system. It does not require custom hardware. The intended deployment environment is a local CPU-oriented workstation or institutional server that can run a quantized language model and maintain local vector indexes.
+
+\section{Expected Outcomes}
+
+The expected outcomes are:
+\begin{itemize}
+    \item A working local academic-assistance framework with separate public and protected corpora.
+    \item A metadata-preserving ingestion pipeline for text, PDF, and OCR-backed image inputs.
+    \item A role-aware privacy guard evaluated against student reconstruction attacks and benign prompts.
+    \item Qwen LoRA Bloom classification with SVM and zero-shot baseline comparison.
+    \item QA/RAG results using both diagnostic retrieval baselines and \qwenmodel{}.gguf generation.
+    \item An Overleaf-ready CSE 400 report that follows the required project-report structure.
+\end{itemize}
+
+\section{Impacts of the Project}
+
+\subsection{Impact on Societal and Cultural Issues}
+The project supports more accessible academic assistance by allowing students to ask grounded questions over course materials. It can reduce repeated manual explanation work for teachers and provide students with timely study support. Culturally, it respects the academic integrity expectations of university education by separating study assistance from protected exam content.
+
+\subsection{Impact on Health, Safety, and Legal Issues}
+The system does not directly control physical devices, so physical safety risk is low. The major legal and ethical concern is data privacy and assessment confidentiality. The design addresses this through role separation, access-level metadata, and student-facing leakage screening. The report does not claim complete security or formal differential privacy.
+
+\subsection{Impact on Environment and Sustainability Issues}
+The system uses local CPU-oriented inference with a quantized model file below 1 GB. This reduces dependence on large cloud inference for small academic tasks. The sustainability benefit is lower infrastructure demand, although larger evaluations may require more compute.
+
+\section{Report Organization}
+
+Chapter 1 introduces the project, problem statement, objectives, research questions, scope, outcomes, and impact. Chapter 2 reviews related work on RAG, privacy in RAG, Bloom classification, tiny LLMs, and multimodal academic documents. Chapter 3 presents system analysis and design. Chapter 4 describes methodology and implementation. Chapter 5 reports results and evaluation. Chapter 6 presents project planning and budget. Chapter 7 discusses standards, design constraints, and complex engineering problem/activity coverage. Chapter 8 concludes the report and outlines future work.

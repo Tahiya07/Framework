@@ -7,18 +7,11 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
-import joblib
 import numpy as np
 import streamlit as st
 
-from llama_cpp import Llama  # ✅ ADDED (Bloom_prompt dependency)
-
-from classifier import (
-    BLOOM_LEVELS,
-    DEFAULT_WEIGHTS_PATH,
-    LocalOBEClassifier,
-    OBEClassifierOutput,
-)
+from predict_bloom import BLOOM_LABELS, BLOOM_LEVELS, QwenBloomPredictor
+from bloom_prompt import analyze_bloom
 
 from runtime_utils import (
     DEFAULT_N_CTX,
@@ -36,11 +29,21 @@ from ingestion import DocumentChunk, DocumentIngestor
 from models import RAGGenerator
 from privacy.privacy_guard import (
     STUDENT_REFUSAL,
-    allowed_chunks_for_role,
     assess_student_query_against_protected_corpus,
     policy_instruction,
     screen_generation_output,
 )
+from role_access import (
+    Role,
+    check_retriever_binding,
+    check_task,
+    check_upload_target,
+    normalize_role,
+    resolve_search_scope,
+    student_visible_chunks,
+    teacher_visible_chunks,
+)
+from architecture_compliance import check_all as architecture_compliance_report
 from retriever import PrivacyRetriever, RetrievalResult
 from summarizer import CognitiveSummarizer
 from uncertainty import UncertaintyEngine
@@ -55,136 +58,22 @@ DEFAULT_FAISS_POOL = 20
 VECTOR_STORE_DIR = Path("data/vector_store")
 
 
-# ============================================================
-# BLOOM_PROMPT STYLE MODEL (REPLACES OLD CLASSIFIER)
-# ============================================================
-
-MODEL_PATH = "models/qwen.gguf"  # adjust if needed
-
-llm = Llama(
-    model_path=str(MODEL_PATH),
-    n_ctx=4096,
-    n_threads=8,
-    n_gpu_layers=0,
-    verbose=False
-)
-
-LABELS = [
-    "Remembering",
-    "Understanding",
-    "Applying",
-    "Analyzing",
-    "Evaluating",
-    "Creating"
-]
-
-
-def build_prompt(question: str) -> str:
-    return f"""
-<|im_start|>system
-You are an expert educational evaluator specialized in Bloom's Taxonomy.
-
-You MUST classify academic questions into EXACTLY ONE Bloom level.
-
-Allowed labels only:
-Remembering
-Understanding
-Applying
-Analyzing
-Evaluating
-Creating
-
-Output format MUST be:
-Bloom Level: <label>
-Reason: <1-2 sentences>
-Higher-Level Rewrite: <improved version>
-
-<|im_end|>
-
-<|im_start|>user
-Question:
-{question}
-<|im_end|>
-
-<|im_start|>assistant
-Bloom Level:
-""".strip()
-
-
-def analyze_bloom(question: str) -> str:
-    prompt = build_prompt(question)
-
-    out = llm(
-        prompt,
-        temperature=0.1,
-        top_p=0.9,
-        top_k=40,
-        repeat_penalty=1.1,
-        max_tokens=120,
-        stop=["<|im_end|>", "<|im_start|>"]
-    )
-
-    return out["choices"][0]["text"].strip()
-
-
-def extract_bloom_label(text: str) -> str:
-    text = text.lower()
-    for label in LABELS:
-        if label.lower() in text:
-            return label
-    return "Understanding"
-
-
-def calibrated_predict(question: str, k: int = 3) -> Dict[str, Any]:
-    preds = []
-
-    for _ in range(k):
-        raw = analyze_bloom(question)
-        label = extract_bloom_label(raw)
-        preds.append(label)
-
-    counts = Counter(preds)
-    final_label, freq = counts.most_common(1)[0]
-
-    confidence = freq / k
-
-    if confidence < 0.5:
-        return {
-            "level": "Understanding",
-            "confidence": confidence,
-            "raw_votes": preds
-        }
-
-    return {
-        "level": final_label,
-        "confidence": confidence,
-        "raw_votes": preds
-    }
-
-
 def _predict_bloom(runtime: Dict[str, Any], text: str) -> Dict[str, Any]:
-    """
-    🔥 REPLACEMENT OF OLD LDL + FIGSHARE PIPELINE
-    NOW USES QWEN + CALIBRATED VOTING (bloom_prompt.py logic)
-    """
-
-    result = calibrated_predict(text, k=3)
-
-    level = result["level"]
-    confidence = result["confidence"]
-
-    # Fake distribution for UI compatibility (keeps rest unchanged)
-    distribution = np.zeros(len(BLOOM_LEVELS), dtype=np.float32)
-    if level in BLOOM_LEVELS:
-        distribution[BLOOM_LEVELS.index(level)] = 1.0
-
+    """Bloom level + distribution from trained Qwen LoRA (predict_bloom.py)."""
+    predictor: QwenBloomPredictor | None = runtime.get("bloom_predictor")
+    if predictor is None:
+        raise RuntimeError(
+            runtime.get("bloom_predictor_error")
+            or "Bloom LoRA predictor is not loaded. Train with train_qwen_bloom.py."
+        )
+    out = predictor.predict(text)
     return {
-        "level": level,
-        "distribution": distribution,
-        "confidence": confidence,
-        "entropy": 0.0,
-        "source": "Qwen2.5 Bloom Prompt + Calibration Voting",
-        "raw_votes": result["raw_votes"],
+        "level": out["prediction"],
+        "rag_key": out["rag_key"],
+        "distribution": out["distribution"],
+        "confidence": float(out["confidence"]),
+        "probabilities": out["probabilities"],
+        "source": "Qwen2.5-1.5B LoRA (train_qwen_bloom.py)",
     }
 
 
@@ -201,9 +90,15 @@ def _init_page() -> None:
     )
     st.title(APP_TITLE)
     st.caption(
-        "Upload PDF/image/text sources, build a local retrieval corpus, classify exam "
-        "questions into Bloom and OBE-aligned labels, and test bounded local QA or summarization."
+        "Role-separated local stack: students use public RAG + PrivacyGuard; teachers use "
+        "Qwen LoRA Bloom moderation (six levels + rewrite) and optional protected corpora. "
+        "Federated LoRA/privacy updates: federated/run_simulation.py."
     )
+
+
+@st.cache_resource(show_spinner="Loading Qwen Bloom LoRA...")
+def _load_bloom_predictor() -> QwenBloomPredictor:
+    return QwenBloomPredictor()
 
 
 def _runtime() -> Dict[str, Any]:
@@ -212,7 +107,7 @@ def _runtime() -> Dict[str, Any]:
         retriever = PrivacyRetriever(lambda_privacy=0.5)
         protected_retriever = PrivacyRetriever(lambda_privacy=0.5, model=retriever.model)
 
-        obe_classifier = LocalOBEClassifier(encoder=retriever.model)
+        bloom_predictor = QwenBloomPredictor()
 
         generator = None
         generator_error = ""
@@ -241,7 +136,8 @@ def _runtime() -> Dict[str, Any]:
             "ingestor": ingestor,
             "retriever": retriever,
             "protected_retriever": protected_retriever,
-            "obe_classifier": obe_classifier,
+            "bloom_predictor": bloom_predictor,
+            "bloom_predictor_error": bloom_predictor_error,
             "generator": generator,
             "generator_error": generator_error,
             "summarizer": summarizer,
@@ -443,24 +339,6 @@ def _show_retrieval_trace(chunks: Sequence[RetrievalResult], protected_mode: boo
     st.dataframe(rows, use_container_width=True, hide_index=True)
 
 
-def _show_obe_result(out: OBEClassifierOutput) -> None:
-    cols = st.columns(5)
-    cols[0].metric("Bloom Level", out.bloom_level)
-    cols[1].metric("Cognitive Skill", out.cognitive_skill)
-    cols[2].metric("Subject", out.subject)
-    cols[3].metric("Topic", out.topic)
-    cols[4].metric("Confidence", f"{out.confidence:.2f}")
-
-    cols2 = st.columns(4)
-    cols2[0].metric("Subtopic", out.subtopic)
-    cols2[1].metric("Difficulty", out.difficulty)
-    cols2[2].metric("Source Type", out.source_type)
-    cols2[3].metric("Language", out.language)
-
-    with st.expander("Nearest Local OBE Examples", expanded=False):
-        st.dataframe(out.nearest_examples, use_container_width=True, hide_index=True)
-
-
 def main() -> None:
     _init_page()
 
@@ -469,6 +347,8 @@ def main() -> None:
     except Exception as exc:
         st.error(f"Failed to initialize the local demo stack: {exc}")
         st.stop()
+    if runtime.get("bloom_predictor_error"):
+        st.warning(f"Bloom LoRA unavailable: {runtime['bloom_predictor_error']}")
 
     with st.sidebar:
         st.header("Demo Controls")
@@ -476,20 +356,39 @@ def main() -> None:
         top_k = st.slider("Top-k retrieved chunks", min_value=1, max_value=8, value=4, step=1)
         max_tokens = st.slider("Max generation tokens", min_value=48, max_value=256, value=160, step=16)
         requester_role = st.radio("Requester role", options=["Student", "Teacher / Moderator"], index=0)
-        upload_scope = st.radio("Upload target", options=["Public Learning Corpus", "Protected Exam Corpus"], index=0)
+        role = normalize_role(requester_role)
+        upload_options = (
+            ["Public Learning Corpus", "Protected Exam Corpus"]
+            if role == Role.TEACHER
+            else ["Public Learning Corpus"]
+        )
+        upload_scope = st.radio("Upload target", options=upload_options, index=0)
         content_type = st.selectbox(
             "Uploaded content type",
             options=["study_material", "lecture_notes", "exam_paper", "moderation_material"],
             index=0,
         )
-        mode = st.radio(
-            "Task",
-            options=["Question Answering", "Summarization", "Exam Question Classification"],
-            index=0,
+        task_options = (
+            ["Question Answering", "Summarization", "Exam Question Classification"]
+            if role == Role.TEACHER
+            else ["Question Answering", "Summarization"]
         )
+        mode = st.radio("Task", options=task_options, index=0)
         protected_mode = st.toggle("Protected exam mode", value=True)
         governor_preset = "strong" if protected_mode else "mild"
-        search_scope = "protected" if requester_role == "Teacher / Moderator" and upload_scope == "Protected Exam Corpus" else "public"
+        search_scope = resolve_search_scope(role, upload_scope)
+        st.caption(
+            "Students: public corpus + Output Privacy Guard only. Teachers: LoRA Bloom module "
+            "(6 cognitive levels) + GGUF reason/rewrite; protected index when upload target is protected."
+        )
+        with st.expander("Architecture compliance (live)", expanded=False):
+            report = architecture_compliance_report()
+            st.write(f"Checks passed: {report['passed']}/{report['total']}")
+            for row in report["checks"]:
+                icon = "✅" if row["ok"] else "⚠️"
+                st.markdown(f"{icon} **{row['pillar']}** — {row['check']}: {row['detail']}")
+            for note in report.get("notes", []):
+                st.caption(note)
         st.caption(
             "Images rely on local OCR support. If OCR dependencies are unavailable, use PDF or pasted text."
         )
@@ -519,6 +418,10 @@ def main() -> None:
 
     if build_clicked:
         try:
+            upload_decision = check_upload_target(role, upload_scope)
+            if not upload_decision.allowed:
+                st.error(upload_decision.reason)
+                st.stop()
             chunks = _ingest_uploaded_files(runtime["ingestor"], uploads or [], pasted_text)
             _set_active_corpus(
                 runtime,
@@ -532,12 +435,12 @@ def main() -> None:
             st.error(f"Corpus build failed: {exc}")
 
     if st.session_state.get("corpus_ready") and mode != "Exam Question Classification":
-        visible_chunks = allowed_chunks_for_role(
-            "teacher" if requester_role == "Teacher / Moderator" else "student",
-            st.session_state.get("public_chunks", []),
-            st.session_state.get("protected_chunks", []),
-            search_scope,
-        )
+        public_chunks = list(st.session_state.get("public_chunks", []))
+        protected_chunks = list(st.session_state.get("protected_chunks", []))
+        if role == Role.STUDENT:
+            visible_chunks = student_visible_chunks(public_chunks, protected_chunks)
+        else:
+            visible_chunks = teacher_visible_chunks(public_chunks, protected_chunks, search_scope)
         chunks: List[DocumentChunk] = visible_chunks
         modalities = Counter(c.modality for c in chunks)
         stat_cols = st.columns(4)
@@ -570,10 +473,22 @@ def main() -> None:
     )
 
     if st.button("Run Inference", type="primary", use_container_width=True):
+        task_decision = check_task(role, mode)
+        if not task_decision.allowed:
+            st.error(task_decision.reason)
+            st.stop()
         public_chunks = list(st.session_state.get("public_chunks", []))
         protected_chunks = list(st.session_state.get("protected_chunks", []))
-        role_key = "teacher" if requester_role == "Teacher / Moderator" else "student"
-        visible_chunks = allowed_chunks_for_role(role_key, public_chunks, protected_chunks, search_scope)
+        role_key = "teacher" if role == Role.TEACHER else "student"
+        if role == Role.STUDENT:
+            visible_chunks = student_visible_chunks(public_chunks, protected_chunks)
+        else:
+            visible_chunks = teacher_visible_chunks(public_chunks, protected_chunks, search_scope)
+        use_protected_retriever = role == Role.TEACHER and search_scope == "protected"
+        bind_decision = check_retriever_binding(role, search_scope, use_protected_retriever)
+        if not bind_decision.allowed:
+            st.error(bind_decision.reason)
+            st.stop()
         if mode != "Exam Question Classification" and not visible_chunks:
             st.error("Build the appropriate corpus first.")
             st.stop()
@@ -583,8 +498,6 @@ def main() -> None:
 
         runtime["retriever"].lambda_privacy = float(lambda_privacy)
         runtime["protected_retriever"].lambda_privacy = float(lambda_privacy)
-        classifier: BloomLDLClassifier = runtime["classifier"]
-        obe_classifier: LocalOBEClassifier = runtime["obe_classifier"]
         uncertainty: UncertaintyEngine = runtime["uncertainty"]
 
         try:
@@ -597,29 +510,42 @@ def main() -> None:
             bloom_summary = uncertainty.aggregate_summary(bloom_p=bloom_pred["distribution"])
             bloom_gate = uncertainty.gate(bloom_pred["distribution"], threshold=0.35)
             bloom_uncertainty = bloom_summary.bloom_uncertainty
-            bloom_level = bloom_pred["level"].lower() if bloom_gate["accepted"] else "understand"
+            bloom_level = (
+                bloom_pred["rag_key"] if bloom_gate["accepted"] else "understand"
+            )
             gate_instruction = ""
             if not bloom_gate["accepted"]:
                 gate_instruction = (
-                    "Bloom classifier uncertainty is high; use a generalized academic "
+                    "Bloom LoRA confidence is low; use a generalized academic "
                     "response and avoid over-specializing to a single Bloom level."
                 )
 
             if mode == "Exam Question Classification":
-                st.subheader("Exam Classification")
-                _show_obe_result(obe_classifier.predict(query))
-                st.caption(f"Primary Bloom label source: {bloom_pred['source']}.")
+                st.subheader("Teacher Bloom Moderation")
+                cols = st.columns(2)
+                cols[0].metric("Bloom Level (LoRA)", bloom_pred["level"])
+                cols[1].metric("Confidence", f"{bloom_pred['confidence']:.3f}")
+                st.caption(f"Label source: {bloom_pred['source']}.")
+                with st.expander("Class probabilities (LoRA)", expanded=True):
+                    st.dataframe(
+                        [
+                            {"level": label, "probability": bloom_pred["probabilities"][label]}
+                            for label in BLOOM_LABELS
+                        ],
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+                with st.spinner("Generating reason and higher-level rewrite (local GGUF)..."):
+                    moderation = analyze_bloom(
+                        query,
+                        predicted_level=bloom_pred["level"],
+                    )
+                st.subheader("Moderation Output")
+                st.text(moderation)
                 if not bloom_gate["accepted"]:
                     st.warning(
-                        "Bloom prediction routed to human-in-the-loop/generalized fallback "
-                        f"({bloom_gate['action']})."
+                        "Low-confidence LoRA prediction; review moderation output before approval."
                     )
-                with st.expander("Bloom Distribution", expanded=False):
-                    rows = [
-                        {"level": level, "probability": round(float(prob), 4)}
-                        for level, prob in zip(BLOOM_LEVELS, bloom_pred["distribution"].tolist())
-                    ]
-                    st.dataframe(rows, use_container_width=True, hide_index=True)
                 st.stop()
 
             if mode == "Question Answering":
@@ -629,7 +555,7 @@ def main() -> None:
                     bloom_level=bloom_level,
                     top_k=top_k,
                     governor_preset=governor_preset,
-                    retriever=runtime["protected_retriever"] if role_key == "teacher" and search_scope == "protected" else runtime["retriever"],
+                    retriever=runtime["protected_retriever"] if use_protected_retriever else runtime["retriever"],
                     safety_instruction="\n".join(
                         part for part in [policy_instruction(role_key, search_scope), gate_instruction] if part
                     ),
@@ -641,7 +567,7 @@ def main() -> None:
                     top_k=top_k,
                     max_tokens=max_tokens,
                     governor_preset=governor_preset,
-                    retriever=runtime["protected_retriever"] if role_key == "teacher" and search_scope == "protected" else runtime["retriever"],
+                    retriever=runtime["protected_retriever"] if use_protected_retriever else runtime["retriever"],
                     safety_instruction="\n".join(
                         part for part in [policy_instruction(role_key, search_scope), gate_instruction] if part
                     ),
@@ -694,10 +620,10 @@ def main() -> None:
                 ref_cols[2].metric("ROUGE-L", f"{metrics['rouge_l']:.3f}")
                 ref_cols[3].metric("METEOR-lite", f"{metrics['meteor_lite']:.3f}")
 
-            with st.expander("Bloom Distribution", expanded=False):
+            with st.expander("Bloom probabilities (LoRA)", expanded=False):
                 rows = [
-                    {"level": level, "probability": round(float(prob), 4)}
-                    for level, prob in zip(BLOOM_LEVELS, bloom_pred["distribution"].tolist())
+                    {"level": label, "probability": round(float(prob), 4)}
+                    for label, prob in bloom_pred["probabilities"].items()
                 ]
                 st.dataframe(rows, use_container_width=True, hide_index=True)
 

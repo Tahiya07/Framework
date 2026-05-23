@@ -257,11 +257,18 @@ def allowed_chunks_for_role(
     protected_chunks: Sequence[DocumentChunk],
     access_scope: str,
 ) -> List[DocumentChunk]:
-    role = requester_role.lower().strip()
-    scope = access_scope.lower().strip()
-    if role in {"teacher", "moderator", "admin"} and scope == "protected":
-        return list(protected_chunks)
-    return list(public_chunks)
+    from role_access import (
+        Role,
+        normalize_role,
+        student_visible_chunks,
+        teacher_visible_chunks,
+    )
+
+    role = normalize_role(requester_role)
+    scope = (access_scope or "public").lower().strip()
+    if role == Role.STUDENT:
+        return student_visible_chunks(public_chunks, protected_chunks)
+    return teacher_visible_chunks(public_chunks, protected_chunks, scope)
 
 
 def protected_text_union(chunks: Sequence[DocumentChunk], max_chars: int = 40_000) -> str:
