@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from federated.config import BLOOM_LABELS, FederatedLoraConfig, TEACHER_ROLE  # noqa: E402
+from federated.config import BLOOM_LABELS, FederatedLoraConfig, LORA_TARGET_MODULES, TEACHER_ROLE  # noqa: E402
 from federated.lora_state import extract_trainable_state  # noqa: E402
 from federated.secure_bundle import pack_update, save_bundle  # noqa: E402
 
@@ -69,7 +69,7 @@ def _load_model_stack(config: FederatedLoraConfig, global_dir: Path | None):
             r=16,
             lora_alpha=32,
             lora_dropout=0.1,
-            target_modules=["q_proj", "v_proj"],
+            target_modules=LORA_TARGET_MODULES,
         )
         model = get_peft_model(base, lora_cfg)
     return tokenizer, model

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from federated.config import BLOOM_LABELS, FederatedLoraConfig  # noqa: E402
+from federated.config import BLOOM_LABELS, FederatedLoraConfig, LORA_TARGET_MODULES  # noqa: E402
 from federated.lora_state import (  # noqa: E402
     add_dp_noise,
     apply_delta,
@@ -58,7 +58,7 @@ def _load_global_state(config: FederatedLoraConfig, global_dir: Path) -> Dict[st
         r=16,
         lora_alpha=32,
         lora_dropout=0.1,
-        target_modules=["q_proj", "v_proj"],
+        target_modules=LORA_TARGET_MODULES,
     )
     model = get_peft_model(base, lora_cfg)
     return extract_trainable_state(model)
@@ -83,7 +83,7 @@ def _save_global_adapter(config: FederatedLoraConfig, state: Dict[str, torch.Ten
         r=16,
         lora_alpha=32,
         lora_dropout=0.1,
-        target_modules=["q_proj", "v_proj"],
+        target_modules=LORA_TARGET_MODULES,
     )
     model = get_peft_model(base, lora_cfg)
     load_trainable_state(model, state)

@@ -87,8 +87,11 @@ def augment(text):
 # ============================================================
 
 def build_prompt(q):
+    # Must stay identical to predict_bloom.build_prompt / federated client_train
+    # to avoid train/inference skew.
     return (
         "Classify Bloom's Taxonomy level.\n"
+        "Focus on reasoning depth, not verbs.\n\n"
         f"Question: {q}\n"
         "Answer:"
     )
@@ -141,7 +144,11 @@ class BloomTrainer(Trainer):
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--csv", type=str, default="data/figshare_bloom_v1.csv")
+    # Dedicated, pre-made split (held-out test stays untouched for evaluate_bloom.py).
+    parser.add_argument("--train_csv", type=str, default="data/figshare_bloom_v1_train.csv")
+    parser.add_argument("--val_csv", type=str, default="data/figshare_bloom_v1_val.csv")
+    # Deprecated single-file mode: if set, it overrides train_csv and is split 80/20.
+    parser.add_argument("--csv", type=str, default=None)
     parser.add_argument("--text_col", type=str, default="question")
     parser.add_argument("--label_col", type=str, default="bloom_level")
 
@@ -153,10 +160,14 @@ def main():
     parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--grad_accum", type=int, default=8)
 
-    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--epochs", type=int, default=12)
+    parser.add_argument("--lr", type=float, default=1e-4)
 
-    # ✅ CHANGED: 3000 SAMPLE LIMIT
-    parser.add_argument("--sample_size", type=int, default=3000)
+    # Bloom level is highly verb-sensitive; augmentation is OFF unless requested.
+    parser.add_argument("--augment", action="store_true")
+
+    # 0 = use all available training rows (no cap).
+    parser.add_argument("--sample_size", type=int, default=0)
 
     args = parser.parse_args()
 
@@ -164,41 +175,48 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     # ========================================================
-    # LOAD DATA
+    # LOAD DATA (dedicated train / val files; the held-out
+    # test split is never touched here so evaluate_bloom.py
+    # reports leakage-free numbers)
     # ========================================================
 
-    df = pd.read_csv(args.csv).dropna()
+    def _read(csv_path):
+        d = pd.read_csv(csv_path).dropna(subset=[args.text_col, args.label_col])
+        d["label"] = d[args.label_col].map(LABELS)
+        d = d.dropna(subset=["label"])
+        d["label"] = d["label"].astype(int)
+        return d
 
-    # ✔ enforce 3000 cap safely
-    if len(df) > args.sample_size:
-        df = df.sample(args.sample_size, random_state=42)
-
-    df["label"] = df[args.label_col].map(LABELS)
-
-    df = df.dropna(subset=["label"])  # safety fix
-
-    texts = [build_prompt(augment(t)) for t in df[args.text_col]]
-    labels = df["label"].astype(int).tolist()
-
-    # ========================================================
-    # SAFE SPLIT (avoids stratify crash)
-    # ========================================================
-
-    try:
-        train_texts, val_texts, train_labels, val_labels = train_test_split(
-            texts,
-            labels,
+    def _split(d):
+        return train_test_split(
+            d,
             test_size=0.2,
             random_state=42,
-            stratify=labels
+            stratify=d["label"],
         )
-    except:
-        train_texts, val_texts, train_labels, val_labels = train_test_split(
-            texts,
-            labels,
-            test_size=0.2,
-            random_state=42
-        )
+
+    if args.csv:
+        train_df, val_df = _split(_read(args.csv))
+    else:
+        train_df = _read(args.train_csv)
+        if args.val_csv and os.path.isfile(args.val_csv):
+            val_df = _read(args.val_csv)
+        else:
+            train_df, val_df = _split(train_df)
+
+    if args.sample_size and len(train_df) > args.sample_size:
+        train_df = train_df.sample(args.sample_size, random_state=42)
+
+    def _prep(text):
+        return build_prompt(augment(text) if args.augment else text)
+
+    train_texts = [_prep(t) for t in train_df[args.text_col]]
+    train_labels = train_df["label"].tolist()
+
+    val_texts = [build_prompt(t) for t in val_df[args.text_col]]
+    val_labels = val_df["label"].tolist()
+
+    print(f"[train] train={len(train_texts)}  val={len(val_texts)}")
 
     # ========================================================
     # TOKENIZER
@@ -231,10 +249,15 @@ def main():
 
     peft_config = LoraConfig(
         task_type=TaskType.SEQ_CLS,
-        r=16,                 # ↑ capacity for 3000 samples
+        r=16,
         lora_alpha=32,
         lora_dropout=0.1,
-        target_modules=["q_proj", "v_proj"],
+        # Adapt all attention + MLP projections (not just q/v): biggest
+        # accuracy lever for a 1.5B classifier on a few-thousand-row set.
+        target_modules=[
+            "q_proj", "k_proj", "v_proj", "o_proj",
+            "gate_proj", "up_proj", "down_proj",
+        ],
     )
 
     model = get_peft_model(model, peft_config)
@@ -267,7 +290,10 @@ def main():
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
-        learning_rate=2e-5,
+        learning_rate=args.lr,
+        weight_decay=0.01,
+        warmup_ratio=0.06,
+        lr_scheduler_type="cosine",
 
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
@@ -287,6 +313,7 @@ def main():
         fp16=torch.cuda.is_available(),
         save_total_limit=2,
         report_to="none",
+        seed=42,
     )
 
     # ========================================================
@@ -301,7 +328,7 @@ def main():
         data_collator=DataCollatorWithPadding(tokenizer),
         compute_metrics=compute_metrics,
         class_weights=cw,
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=4)],
     )
 
     trainer.train()
@@ -313,5 +340,5 @@ def main():
 
 
 if __name__ == "__main__":
-    \
+
     main()

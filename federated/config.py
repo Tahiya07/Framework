@@ -24,6 +24,13 @@ BLOOM_LABELS = {
     "Create": 5,
 }
 
+# Shared LoRA target modules. MUST be identical on every client and on the
+# server aggregator, otherwise adapter shapes diverge and FedAvg breaks.
+LORA_TARGET_MODULES = [
+    "q_proj", "k_proj", "v_proj", "o_proj",
+    "gate_proj", "up_proj", "down_proj",
+]
+
 
 @dataclass
 class FederatedLoraConfig:
