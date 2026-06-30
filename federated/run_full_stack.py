@@ -28,7 +28,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--clients", type=int, default=4)
     parser.add_argument("--rounds", type=int, default=2)
-    parser.add_argument("--local-epochs", type=float, default=1.0)
+    parser.add_argument("--local-epochs", type=float, default=2.0)
     parser.add_argument("--max-samples-per-client", type=int, default=250)
     parser.add_argument("--skip-fl-simulation", action="store_true")
     parser.add_argument("--skip-eval", action="store_true")

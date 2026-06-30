@@ -27,7 +27,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Simulate federated teacher Bloom LoRA rounds.")
     parser.add_argument("--clients", type=int, default=4)
     parser.add_argument("--rounds", type=int, default=3)
-    parser.add_argument("--local-epochs", type=float, default=1.0)
+    parser.add_argument("--local-epochs", type=float, default=2.0)
     parser.add_argument("--max-samples-per-client", type=int, default=300)
     parser.add_argument("--clip-norm", type=float, default=1.0)
     parser.add_argument("--dp-noise", type=float, default=0.0)

@@ -38,8 +38,15 @@ class FederatedLoraConfig:
     global_adapter_dir: str = str(DEFAULT_GLOBAL_LORA)
     num_clients: int = 4
     rounds: int = 3
-    local_epochs: float = 1.0
-    learning_rate: float = 2e-5
+    # Local training recipe is aligned with the centralized trainer
+    # (train_qwen_bloom.py) so federated vs centralized is a fair comparison.
+    local_epochs: float = 2.0
+    learning_rate: float = 1e-4
+    weight_decay: float = 0.01
+    warmup_ratio: float = 0.06
+    lr_scheduler_type: str = "cosine"
+    label_smoothing: float = 0.05
+    use_class_weights: bool = True
     max_length: int = 256
     batch_size: int = 2
     grad_accum: int = 4
