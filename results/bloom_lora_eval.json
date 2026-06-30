@@ -1,0 +1,72 @@
+{
+  "benchmark": "bloom_lora_figshare_v1",
+  "model_dir": "models\\qwen_bloom_merged",
+  "lora_dir": "models/qwen_bloom_3000",
+  "merged_dir": "models/qwen_bloom_merged",
+  "base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+  "checkpoint_type": "merged",
+  "test_csv": "data\\figshare_bloom_v1_test.csv",
+  "n_test": 350,
+  "qwen_lora": {
+    "accuracy": 0.84,
+    "macro_f1": 0.830758972658483,
+    "weighted_f1": 0.8393829004816284,
+    "mean_ordinal_distance": 0.28,
+    "within_one_level_accuracy": 0.92,
+    "severe_error_rate": 0.0343
+  },
+  "confusion_matrix": [
+    [
+      45,
+      3,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      9,
+      116,
+      3,
+      7,
+      3,
+      0
+    ],
+    [
+      0,
+      6,
+      31,
+      0,
+      1,
+      5
+    ],
+    [
+      0,
+      5,
+      3,
+      33,
+      0,
+      0
+    ],
+    [
+      1,
+      1,
+      1,
+      0,
+      38,
+      2
+    ],
+    [
+      0,
+      1,
+      1,
+      2,
+      2,
+      31
+    ]
+  ],
+  "limitations": [
+    "Bloom labels come from the trained Qwen2.5-1.5B LoRA classifier (train_qwen_bloom.py).",
+    "Teacher moderation text (reason/rewrite) is evaluated separately via bloom_prompt.py."
+  ]
+}

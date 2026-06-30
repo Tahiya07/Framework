@@ -35,3 +35,18 @@ Thumbs.db
 evaluation_outputs/
 evaluation_results/
 paper_bundle/
+# ===========================
+# ML Models
+# ===========================
+
+models/
+!models.py
+
+*.gguf
+*.safetensors
+*.pt
+*.pth
+*.bin
+*.onnx
+
+checkpoint-*/

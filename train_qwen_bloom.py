@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-
 from dataclasses import dataclass
 from typing import Dict, List
 
@@ -22,6 +21,7 @@ from transformers import (
     TrainingArguments,
     DataCollatorWithPadding,
     EarlyStoppingCallback,
+    trainer,
 )
 
 from peft import LoraConfig, TaskType, get_peft_model
@@ -153,7 +153,7 @@ def main():
     parser.add_argument("--label_col", type=str, default="bloom_level")
 
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen2.5-1.5B-Instruct")
-    parser.add_argument("--output_dir", type=str, default="models/qwen_bloom_3000")
+    parser.add_argument("--output_dir", type=str, default="models/qwen_bloom_trained")
 
     parser.add_argument("--max_length", type=int, default=256)
 
@@ -332,7 +332,15 @@ def main():
     )
 
     trainer.train()
-
+    metrics = trainer.evaluate()
+ 
+    print("\n" + "=" * 40)
+    print("Final Validation Results")
+    print("=" * 40)
+    print(f"Accuracy : {metrics['eval_accuracy']:.2%}")
+    print(f"Macro F1 : {metrics['eval_f1_macro']:.2%}")
+    print(f"Loss      : {metrics['eval_loss']:.4f}")
+    print("=" * 40)
     model.save_pretrained(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)
 

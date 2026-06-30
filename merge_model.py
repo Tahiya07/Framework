@@ -12,7 +12,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 
 DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
-DEFAULT_LORA_DIR = "models/qwen_bloom_3000"
+DEFAULT_LORA_DIR = "models/qwen_bloom_trained"
 DEFAULT_FEDERATED_LORA_DIR = "models/qwen_bloom_federated"
 DEFAULT_MERGED_DIR = "models/qwen_bloom_merged"
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Publication Bloom evaluation: Qwen LoRA vs optional TF-IDF baseline."""
+
 
 from __future__ import annotations
 

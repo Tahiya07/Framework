@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-"""Single-machine simulation of federated teacher Bloom LoRA (architecture prototype)."""
 
 from __future__ import annotations
 
