@@ -38,18 +38,26 @@ class FederatedLoraConfig:
     global_adapter_dir: str = str(DEFAULT_GLOBAL_LORA)
     num_clients: int = 4
     rounds: int = 3
-    # Local training recipe is aligned with the centralized trainer
+    # Local training recipe aligned with the centralized trainer
     # (train_qwen_bloom.py) so federated vs centralized is a fair comparison.
-    local_epochs: float = 2.0
-    learning_rate: float = 1e-4
+    # NOTE on stability: the SEQ_CLS head is randomly initialized, so each
+    # client's *first* round trains a fresh head on a small shard. A 1e-4 peak
+    # over a short 2-epoch cosine cycle overshoots (grad explosion -> loss spike
+    # -> poisoned FedAvg). A 5e-5 peak + longer warmup + larger effective batch
+    # converges stably; rounds 2+ warm-start from the aggregate and refine.
+    local_epochs: float = 3.0
+    learning_rate: float = 5e-5
     weight_decay: float = 0.01
-    warmup_ratio: float = 0.06
+    warmup_ratio: float = 0.1
     lr_scheduler_type: str = "cosine"
     label_smoothing: float = 0.05
     use_class_weights: bool = True
+    max_grad_norm: float = 1.0
     max_length: int = 256
     batch_size: int = 2
-    grad_accum: int = 4
+    # Effective batch = batch_size * grad_accum = 16 (matches centralized);
+    # larger batch denoises the gradient direction on size-2 micro-batches.
+    grad_accum: int = 8
     max_samples_per_client: int = 400
     client_fraction: float = 1.0
     clip_norm: float = 1.0

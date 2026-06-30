@@ -133,6 +133,7 @@ def train_local_adapter(
         weight_decay=config.weight_decay,
         warmup_ratio=config.warmup_ratio,
         lr_scheduler_type=config.lr_scheduler_type,
+        max_grad_norm=config.max_grad_norm,
         per_device_train_batch_size=config.batch_size,
         gradient_accumulation_steps=config.grad_accum,
         num_train_epochs=config.local_epochs,
