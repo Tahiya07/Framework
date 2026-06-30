@@ -12,7 +12,7 @@ from models import RAGGenerator
 from retriever import PrivacyRetriever, RetrievalResult
 
 
-DEFAULT_N_CTX = 1024
+DEFAULT_N_CTX = 2048
 DEFAULT_N_THREADS = max(1, (os.cpu_count() or 4) // 2)
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
@@ -90,6 +90,7 @@ def meteor_lite(pred: str, ref: str, alpha: float = 0.9) -> float:
 
 GOVERNOR_PRESETS: Dict[str, Dict[str, Any]] = {
     "off": {"max_chunk_chars": 20_000, "max_total_chars": 100_000, "diversify": False},
+    "qa": {"max_chunk_chars": 700, "max_total_chars": 2800, "diversify": False},
     "mild": {"max_chunk_chars": 900, "max_total_chars": 3600, "diversify": False},
     "strong": {"max_chunk_chars": 420, "max_total_chars": 1680, "diversify": True},
 }

@@ -281,6 +281,8 @@ class PrivacyRetriever:
         query: Union[str, Sequence[str]],
         top_k: int = 5,
         candidate_pool: Optional[int] = None,
+        *,
+        rank_by: str = "privacy",
     ) -> List[RetrievalResult]:
         if self._index is None or self._embeddings is None:
             raise RuntimeError("index not built")
@@ -326,6 +328,8 @@ class PrivacyRetriever:
                 )
             )
         rows.sort(key=lambda item: (-item[0], -item[1], item[2]))
+        if str(rank_by).lower() in {"relevance", "cosine", "qa"}:
+            rows.sort(key=lambda item: (-item[1], item[2]))
 
         out: List[RetrievalResult] = []
         for rank, (privacy_score, cos, doc_idx, risk, dist) in enumerate(rows[:top_k], start=1):

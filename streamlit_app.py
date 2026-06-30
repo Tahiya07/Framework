@@ -98,16 +98,22 @@ def _init_page() -> None:
 
 @st.cache_resource(show_spinner="Loading Qwen Bloom LoRA...")
 def _load_bloom_predictor() -> QwenBloomPredictor:
-    return QwenBloomPredictor()
+    use_quantized = os.environ.get("BLOOM_USE_QUANTIZED", "0") == "1"
+    return QwenBloomPredictor(prefer_quantized=use_quantized, quantized=use_quantized)
 
 
 def _runtime() -> Dict[str, Any]:
     if "demo_runtime" not in st.session_state:
         ingestor = DocumentIngestor(chunk_size=220, chunk_overlap=32)
-        retriever = PrivacyRetriever(lambda_privacy=0.5)
+        retriever = PrivacyRetriever(lambda_privacy=0.1)
         protected_retriever = PrivacyRetriever(lambda_privacy=0.5, model=retriever.model)
 
-        bloom_predictor = QwenBloomPredictor()
+        bloom_predictor = None
+        bloom_predictor_error = ""
+        try:
+            bloom_predictor = _load_bloom_predictor()
+        except Exception as exc:
+            bloom_predictor_error = str(exc)
 
         generator = None
         generator_error = ""
@@ -118,13 +124,13 @@ def _runtime() -> Dict[str, Any]:
                 retriever=retriever,
                 n_ctx=DEFAULT_N_CTX,
                 n_threads=DEFAULT_N_THREADS,
-                max_tokens=160,
+                max_tokens=200,
             )
             summarizer = CognitiveSummarizer(
                 retriever=retriever,
                 generator=generator,
-                classifier=None,
-                hierarchical=True,
+                bloom_predictor=bloom_predictor,
+                hierarchical=False,
                 per_chunk_max_tokens=64,
             )
         except Exception as exc:
@@ -241,9 +247,16 @@ def _governed_chunks(
     query: str,
     top_k: int,
     governor_preset: str,
+    *,
+    student_mode: bool = False,
 ) -> List[RetrievalResult]:
     pool_n = max(DEFAULT_FAISS_POOL, int(top_k))
-    pool = retriever.retrieve(query, top_k=pool_n, candidate_pool=pool_n)
+    pool = retriever.retrieve(
+        query,
+        top_k=pool_n,
+        candidate_pool=pool_n,
+        rank_by="relevance" if student_mode else "privacy",
+    )
     chunks, _ = _apply_retrieval_governor(
         pool,
         governor_preset,
@@ -262,13 +275,28 @@ def _run_qa(
     governor_preset: str,
     retriever: PrivacyRetriever,
     safety_instruction: str,
+    max_tokens: int,
+    *,
+    student_mode: bool = False,
 ) -> Dict[str, Any]:
     generator: RAGGenerator = runtime["generator"]
     if generator is None:
         raise RuntimeError(f"Generation backend is unavailable: {runtime.get('generator_error') or 'unknown error'}")
     t0 = time.perf_counter()
-    chunks = _governed_chunks(retriever, query, top_k=top_k, governor_preset=governor_preset)
-    output = generator.generate_from_chunks(query, chunks, bloom_level=bloom_level, safety_instruction=safety_instruction)
+    chunks = _governed_chunks(
+        retriever,
+        query,
+        top_k=top_k,
+        governor_preset=governor_preset,
+        student_mode=student_mode,
+    )
+    output = generator.generate_from_chunks(
+        query,
+        chunks,
+        bloom_level=bloom_level,
+        max_tokens=max_tokens,
+        safety_instruction=safety_instruction,
+    )
     elapsed = time.perf_counter() - t0
     return {
         "text": output.answer,
@@ -287,12 +315,20 @@ def _run_summary(
     governor_preset: str,
     retriever: PrivacyRetriever,
     safety_instruction: str,
+    *,
+    student_mode: bool = False,
 ) -> Dict[str, Any]:
     summarizer: CognitiveSummarizer = runtime["summarizer"]
     if summarizer is None:
         raise RuntimeError(f"Summarization backend is unavailable: {runtime.get('generator_error') or 'unknown error'}")
     t0 = time.perf_counter()
-    chunks = _governed_chunks(retriever, query, top_k=top_k, governor_preset=governor_preset)
+    chunks = _governed_chunks(
+        retriever,
+        query,
+        top_k=top_k,
+        governor_preset=governor_preset,
+        student_mode=student_mode,
+    )
     output = summarizer.summarize(
         query=query,
         k=top_k,
@@ -349,10 +385,16 @@ def main() -> None:
         st.stop()
     if runtime.get("bloom_predictor_error"):
         st.warning(f"Bloom LoRA unavailable: {runtime['bloom_predictor_error']}")
+    if runtime.get("generator_error"):
+        st.error(
+            "Qwen GGUF generator unavailable — student Q&A will not work until you place "
+            "`models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf` on disk. "
+            f"Detail: {runtime['generator_error']}"
+        )
 
     with st.sidebar:
         st.header("Demo Controls")
-        lambda_privacy = st.slider("Privacy lambda", min_value=0.0, max_value=1.0, value=0.5, step=0.05)
+        lambda_privacy = st.slider("Privacy lambda (retrieval)", min_value=0.0, max_value=1.0, value=0.1, step=0.05)
         top_k = st.slider("Top-k retrieved chunks", min_value=1, max_value=8, value=4, step=1)
         max_tokens = st.slider("Max generation tokens", min_value=48, max_value=256, value=160, step=16)
         requester_role = st.radio("Requester role", options=["Student", "Teacher / Moderator"], index=0)
@@ -374,8 +416,11 @@ def main() -> None:
             else ["Question Answering", "Summarization"]
         )
         mode = st.radio("Task", options=task_options, index=0)
-        protected_mode = st.toggle("Protected exam mode", value=True)
-        governor_preset = "strong" if protected_mode else "mild"
+        protected_mode = st.toggle("Protected exam mode", value=False)
+        if role == Role.STUDENT:
+            governor_preset = "qa"
+        else:
+            governor_preset = "strong" if protected_mode else "qa"
         search_scope = resolve_search_scope(role, upload_scope)
         st.caption(
             "Students: public corpus + Output Privacy Guard only. Teachers: LoRA Bloom module "
@@ -559,6 +604,8 @@ def main() -> None:
                     safety_instruction="\n".join(
                         part for part in [policy_instruction(role_key, search_scope), gate_instruction] if part
                     ),
+                    max_tokens=max_tokens,
+                    student_mode=(role_key == "student"),
                 )
             else:
                 result = _run_summary(
@@ -571,6 +618,7 @@ def main() -> None:
                     safety_instruction="\n".join(
                         part for part in [policy_instruction(role_key, search_scope), gate_instruction] if part
                     ),
+                    student_mode=(role_key == "student"),
                 )
 
             output_policy = screen_generation_output(role_key, query, result["text"], protected_chunks)

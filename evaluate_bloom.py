@@ -20,9 +20,11 @@ from predict_bloom import (
     DEFAULT_BASE_MODEL,
     DEFAULT_LORA_DIR,
     DEFAULT_MERGED_DIR,
+    DEFAULT_QUANTIZED_DIR,
     QwenBloomPredictor,
     ordinal_metrics,
     is_lora_adapter,
+    is_quantized_checkpoint,
     resolve_model_dir,
 )
 
@@ -139,6 +141,9 @@ def main() -> int:
     parser.add_argument("--merged-dir", default=DEFAULT_MERGED_DIR)
     parser.add_argument("--base-model", default=DEFAULT_BASE_MODEL)
     parser.add_argument("--svm-baseline", action="store_true")
+    parser.add_argument("--quantized", action="store_true", help="Evaluate INT8 quantized merged model.")
+    parser.add_argument("--quantized-dir", default=DEFAULT_QUANTIZED_DIR)
+    parser.add_argument("--results-json", type=Path, default=None, help="Override output JSON path.")
     parser.add_argument("--max-test", type=int, default=0, help="Cap test rows (0 = all).")
     args = parser.parse_args()
 
@@ -147,8 +152,16 @@ def main() -> int:
         test_df = test_df.head(args.max_test)
     print(f"Test rows: {len(test_df)}")
 
-    model_dir = resolve_model_dir(args.model_dir)
-    predictor = QwenBloomPredictor(model_dir=model_dir, base_model=args.base_model)
+    if args.quantized:
+        model_dir = str(args.quantized_dir)
+        if not is_quantized_checkpoint(model_dir):
+            raise FileNotFoundError(f"Quantized model missing at {model_dir}. Run: python quantize_bloom.py")
+        predictor = QwenBloomPredictor(model_dir=model_dir, quantized=True)
+        checkpoint_type = "quantized_int8"
+    else:
+        model_dir = resolve_model_dir(args.model_dir)
+        predictor = QwenBloomPredictor(model_dir=model_dir, base_model=args.base_model)
+        checkpoint_type = "lora_adapter" if is_lora_adapter(model_dir) else "merged"
     lora = _run_lora(test_df, args.text_col, args.label_col, predictor)
 
     payload: dict = {
@@ -157,7 +170,7 @@ def main() -> int:
         "lora_dir": str(args.lora_dir),
         "merged_dir": str(args.merged_dir),
         "base_model": args.base_model,
-        "checkpoint_type": "lora_adapter" if is_lora_adapter(model_dir) else "merged",
+        "checkpoint_type": checkpoint_type,
         "test_csv": str(args.test_csv),
         "n_test": len(test_df),
         "qwen_lora": lora["metrics"],
@@ -165,8 +178,13 @@ def main() -> int:
         "limitations": [
             "Bloom labels come from the trained Qwen2.5-1.5B LoRA classifier (train_qwen_bloom.py).",
             "Teacher moderation text (reason/rewrite) is evaluated separately via bloom_prompt.py.",
+            "Federated LoRA evaluation is optional (skipped when GPU/time unavailable).",
         ],
     }
+
+    quant_meta = Path(model_dir) / "quantization.json"
+    if quant_meta.is_file():
+        payload["quantization"] = json.loads(quant_meta.read_text(encoding="utf-8"))
 
     if args.svm_baseline:
         train_df = _load_split(args.train_csv, args.text_col, args.label_col)
@@ -177,16 +195,18 @@ def main() -> int:
         )
         payload["lora_svm_agreement"] = agree
 
-    RESULTS_JSON.parent.mkdir(parents=True, exist_ok=True)
-    RESULTS_JSON.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    pd.DataFrame(lora["rows"]).to_csv(RESULTS_ROWS, index=False)
+    out_json = args.results_json or (Path("results/bloom_quantized_eval.json") if args.quantized else RESULTS_JSON)
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    out_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    if not args.quantized:
+        pd.DataFrame(lora["rows"]).to_csv(RESULTS_ROWS, index=False)
     _save_confusion(
         lora["confusion_matrix"],
-        "Qwen LoRA Bloom Confusion Matrix",
-        FIG_DIR / "bloom_lora_confusion_matrix.png",
+        "Qwen LoRA Bloom Confusion Matrix" + (" (INT8)" if args.quantized else ""),
+        FIG_DIR / ("bloom_quantized_confusion_matrix.png" if args.quantized else "bloom_lora_confusion_matrix.png"),
     )
     print(json.dumps({"qwen_lora": payload["qwen_lora"]}, indent=2))
-    print(f"Wrote {RESULTS_JSON}")
+    print(f"Wrote {out_json}")
     return 0
 
 

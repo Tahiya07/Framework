@@ -47,11 +47,15 @@ class FederatedLoraConfig:
     # converges stably; rounds 2+ warm-start from the aggregate and refine.
     local_epochs: float = 3.0
     learning_rate: float = 5e-5
+    finetune_learning_rate: float = 2e-5
     weight_decay: float = 0.01
     warmup_ratio: float = 0.1
     lr_scheduler_type: str = "cosine"
     label_smoothing: float = 0.05
+    # Use global corpus weights — NOT per-client balanced (explodes on 300-row shards).
     use_class_weights: bool = True
+    class_weight_source: str = "global"  # global | local | none
+    class_weight_max: float = 3.0
     max_grad_norm: float = 1.0
     max_length: int = 256
     batch_size: int = 2

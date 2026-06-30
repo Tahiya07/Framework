@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from federated.config import BUNDLES_DIR, FederatedLoraConfig, UPDATES_DIR  # noqa: E402
+from federated.config import BUNDLES_DIR, DEFAULT_LORA_FALLBACK, FederatedLoraConfig, UPDATES_DIR  # noqa: E402
 from federated.partition import partition_csv  # noqa: E402
 
 
@@ -65,6 +65,17 @@ def main() -> int:
         help="Evaluate the global adapter after each round to record a convergence curve.",
     )
     parser.add_argument("--eval-csv", default=str(ROOT / "data" / "figshare_bloom_v1_val.csv"))
+    parser.add_argument(
+        "--init-adapter",
+        default=None,
+        help="Seed round-1 global adapter from a trained LoRA (e.g. models/qwen_bloom_3000). "
+        "Recommended on CPU for stable convergence near centralized accuracy.",
+    )
+    parser.add_argument(
+        "--from-scratch",
+        action="store_true",
+        help="Do not auto-seed from models/qwen_bloom_3000 even if present.",
+    )
     args = parser.parse_args()
 
     cfg = FederatedLoraConfig(
@@ -85,6 +96,18 @@ def main() -> int:
         print(f"[sim] fresh start: clearing existing global adapter at {global_dir}")
         shutil.rmtree(global_dir)
     global_dir.mkdir(parents=True, exist_ok=True)
+
+    init_path = args.init_adapter
+    if init_path is None and not args.from_scratch and (DEFAULT_LORA_FALLBACK / "adapter_config.json").is_file():
+        init_path = str(DEFAULT_LORA_FALLBACK)
+    if init_path and not args.skip_train:
+        src = Path(init_path)
+        if not (src / "adapter_config.json").is_file():
+            raise FileNotFoundError(f"--init-adapter not found: {src}")
+        for item in src.iterdir():
+            if item.is_file():
+                shutil.copy2(item, global_dir / item.name)
+        print(f"[sim] seeded global adapter from {src} (federated fine-tuning, not from-scratch)")
 
     if UPDATES_DIR.exists():
         shutil.rmtree(UPDATES_DIR)

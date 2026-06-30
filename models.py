@@ -76,6 +76,7 @@ except Exception:  # pragma: no cover
 # Phase-1 module (unchanged; imported as-is)
 from retriever import PrivacyRetriever, RetrievalResult
 from multi_slm import get_task_profile, resolve_slm_model_path
+from rag_utils import filter_relevant_chunks, sanitize_rag_answer, trim_chunks_for_context
 
 # ----------------------------------------------------------------------------
 # Logging
@@ -103,17 +104,19 @@ def _ok(msg: str) -> None:
 # ----------------------------------------------------------------------------
 # Defaults
 # ----------------------------------------------------------------------------
-DEFAULT_N_CTX = 1024              # small context window -> tight RAM budget
+DEFAULT_N_CTX = 2048              # room for several trimmed context chunks
 DEFAULT_MAX_TOKENS = 256
 DEFAULT_N_THREADS = max(1, (os.cpu_count() or 4) // 2)
 DEFAULT_SEED = 42
 
 SYSTEM_PROMPT = (
-    "You are a careful academic assistant. "
-    "Answer using ONLY the provided context. "
-    "If the context is insufficient, reply exactly: "
-    "\"I don't know based on the provided context.\" "
-    "Be concise, factual, and never invent details."
+    "You are a careful academic assistant for university students. "
+    "Answer the question using ONLY facts supported by the numbered context snippets. "
+    "Write a short direct answer in your own words (2-5 sentences). "
+    "Do NOT copy, quote, or paste long spans from the context. "
+    "Do NOT list context labels like [1] or [2]. "
+    "If the context does not contain enough information, reply exactly: "
+    "\"I don't know based on the provided context.\""
 )
 
 # Bloom's revised taxonomy -> generation instruction
@@ -301,7 +304,8 @@ class RAGGenerator:
             "[COGNITIVE LEVEL]\n"
             f"Bloom level = {bl}. {BLOOM_INSTRUCTIONS[bl]}\n\n"
             "[INSTRUCTION]\n"
-            "Answer strictly using provided context. Do not hallucinate."
+            "Answer the question directly in your own words using only the context above. "
+            "Do not copy long passages verbatim. Do not repeat the [n] labels."
             + (f"\n{str(safety_instruction).strip()}" if safety_instruction and str(safety_instruction).strip() else "")
         )
 
@@ -355,25 +359,52 @@ class RAGGenerator:
         bloom_level: str = "understand",
         max_tokens: Optional[int] = None,
         safety_instruction: Optional[str] = None,
+        min_cosine: float = 0.22,
     ) -> GenerationOutput:
         """Run generation from caller-supplied context chunks."""
         if not isinstance(query, str) or not query.strip():
             raise ValueError("query must be a non-empty string")
         bl = self._norm_bloom(bloom_level)
         chunk_list = list(chunks)
-        prompt = self.build_prompt(query, chunk_list, bl, safety_instruction=safety_instruction)
+
+        # Normalize to RetrievalResult for filtering/trimming.
+        norm: List[RetrievalResult] = []
+        for i, c in enumerate(chunk_list):
+            if isinstance(c, RetrievalResult):
+                norm.append(c)
+            else:
+                norm.append(
+                    RetrievalResult(
+                        rank=i + 1,
+                        doc_id=i,
+                        text=str(c),
+                        cosine=1.0,
+                    )
+                )
+        norm = filter_relevant_chunks(norm, min_cosine=min_cosine)
+        norm = trim_chunks_for_context(norm)
+        if not norm:
+            return GenerationOutput(
+                answer="I don't know based on the provided context.",
+                chunks=[],
+                prompt="",
+                metadata={"empty_context": True},
+            )
+
+        prompt = self.build_prompt(query, norm, bl, safety_instruction=safety_instruction)
         text, elapsed = self._run_chatml(
             self._to_chatml(prompt),
             max_tokens=max_tokens,
         )
+        text = sanitize_rag_answer(text, [c.text for c in norm])
         return GenerationOutput(
             answer=text,
-            chunks=chunk_list,
+            chunks=norm,
             prompt=prompt,
             metadata={
                 "model_path": self.model_path,
                 "bloom_level": bl,
-                "k": len(chunk_list),
+                "k": len(norm),
                 "n_ctx": self.n_ctx,
                 "n_threads": self.n_threads,
                 "max_tokens": int(max_tokens or self.max_tokens),
@@ -397,7 +428,7 @@ class RAGGenerator:
             raise ValueError("k must be a positive integer")
         bl = self._norm_bloom(bloom_level)
 
-        chunks = self.retriever.retrieve(query, top_k=k)
+        chunks = self.retriever.retrieve(query, top_k=k, rank_by="relevance")
         return self.generate_from_chunks(
             query,
             chunks,

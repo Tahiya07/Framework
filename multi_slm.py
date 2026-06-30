@@ -37,12 +37,12 @@ TASK_PROFILES: Dict[str, SLMTaskProfile] = {
         model_filename="slm_academic_qa.gguf",
         system_prompt=(
             "You are a compact academic QA specialist. Answer using only the supplied context. "
-            "If the answer is not in the context, say: I don't know based on the provided context. "
-            "Keep the answer concise."
+            "Write a direct answer in your own words. Do not copy long passages verbatim. "
+            "If the answer is not in the context, say: I don't know based on the provided context."
         ),
-        user_instruction="Answer with the shortest correct answer.",
-        ctx_size=512,
-        max_tokens=48,
+        user_instruction="Answer the question directly in 2-4 sentences using only the context.",
+        ctx_size=2048,
+        max_tokens=120,
     ),
     "pdf_rag": SLMTaskProfile(
         task_id="pdf_rag",

@@ -62,6 +62,7 @@ def main() -> int:
     parser.add_argument("--merged-dir", default="models/qwen_bloom_federated_merged")
     parser.add_argument("--test-csv", default="data/figshare_bloom_v1_test.csv")
     parser.add_argument("--resume", action="store_true", help="Keep existing global adapter.")
+    parser.add_argument("--from-scratch", action="store_true", help="Train FL from scratch (no centralized seed).")
     parser.add_argument("--skip-zip", action="store_true")
     args = parser.parse_args()
 
@@ -92,6 +93,8 @@ def main() -> int:
         sim_cmd.append("--eval-each-round")
     if args.resume:
         sim_cmd.append("--resume")
+    if args.from_scratch:
+        sim_cmd.append("--from-scratch")
     _run(sim_cmd)
 
     _run(

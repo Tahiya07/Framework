@@ -13,7 +13,6 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from peft import LoraConfig, PeftModel, TaskType, get_peft_model
-from sklearn.utils.class_weight import compute_class_weight
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, DataCollatorWithPadding, Trainer, TrainingArguments
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,6 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from federated.config import BLOOM_LABELS, FederatedLoraConfig, LORA_TARGET_MODULES, TEACHER_ROLE  # noqa: E402
+from federated.class_weights import resolve_class_weights  # noqa: E402
 from federated.lora_state import extract_trainable_state  # noqa: E402
 from federated.secure_bundle import pack_update, save_bundle  # noqa: E402
 
@@ -117,19 +117,21 @@ def train_local_adapter(
     enc = tokenizer(texts, truncation=True, padding=True, max_length=config.max_length)
     ds = _BloomDS(enc, labels)
 
-    class_weights = None
-    if config.use_class_weights:
-        present = np.unique(labels)
-        weights = compute_class_weight(class_weight="balanced", classes=present, y=labels)
-        # Map back onto the full 6-class vector (unseen local classes -> weight 1.0)
-        full = np.ones(len(BLOOM_LABELS), dtype=np.float32)
-        for cls, w in zip(present, weights):
-            full[int(cls)] = float(w)
-        class_weights = torch.tensor(full, dtype=torch.float)
+    warm_started = bool(global_dir and (global_dir / "adapter_config.json").is_file())
+    lr = config.finetune_learning_rate if warm_started else config.learning_rate
+    if warm_started:
+        print(f"[client] warm-start finetune lr={lr}")
+
+    class_weights = resolve_class_weights(config, labels)
+    if class_weights is not None:
+        print(
+            f"[client] class weights ({config.class_weight_source}):",
+            [round(float(w), 3) for w in class_weights.tolist()],
+        )
 
     args = TrainingArguments(
         output_dir=str(ROOT / "federated" / "_client_cache"),
-        learning_rate=config.learning_rate,
+        learning_rate=lr,
         weight_decay=config.weight_decay,
         warmup_ratio=config.warmup_ratio,
         lr_scheduler_type=config.lr_scheduler_type,
@@ -141,6 +143,7 @@ def train_local_adapter(
         save_strategy="no",
         report_to="none",
         fp16=torch.cuda.is_available(),
+        dataloader_pin_memory=torch.cuda.is_available(),
         remove_unused_columns=False,
         seed=config.seed,
     )

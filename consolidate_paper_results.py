@@ -60,11 +60,12 @@ def _baseline_comparison_rows(data: dict) -> List[Dict[str, Any]]:
         ("SVM", "TF-IDF + LinearSVC"),
         ("zero_shot_gguf", "Qwen2.5 zero-shot (GGUF)"),
         ("lora_trained", "Qwen2.5 LoRA (trained)"),
+        ("lora_quantized_int8", "Qwen2.5 LoRA (INT8 CPU)"),
     ):
         metrics = data.get(key)
         if not metrics:
             continue
-        n_test = data.get("n_test_holdout") if key != "lora_trained" else data.get("n_test_lora")
+        n_test = data.get("n_test_holdout") if key not in {"lora_trained", "lora_quantized_int8"} else data.get("n_test_lora")
         rows.append(
             _row(
                 evidence_area="cognitive robustness",

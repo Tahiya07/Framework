@@ -61,6 +61,7 @@ RAG_KEY_TO_LABEL: dict[str, str] = {v: k for k, v in LABEL_TO_RAG_KEY.items()}
 DEFAULT_LORA_DIR = "models/qwen_bloom_3000"
 DEFAULT_FEDERATED_LORA_DIR = "models/qwen_bloom_federated"
 DEFAULT_MERGED_DIR = "models/qwen_bloom_merged"
+DEFAULT_QUANTIZED_DIR = "models/qwen_bloom_quantized"
 DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 # Back-compat alias
 DEFAULT_MODEL_DIR = DEFAULT_MERGED_DIR
@@ -87,9 +88,22 @@ def is_lora_adapter(model_dir: str | os.PathLike) -> bool:
     return (Path(model_dir) / "adapter_config.json").is_file()
 
 
-def resolve_model_dir(model_dir: str | None = None, *, prefer_merged: bool = True) -> str:
+def is_quantized_checkpoint(model_dir: str | os.PathLike) -> bool:
+    return (Path(model_dir) / "model_int8.pt").is_file()
+
+
+def resolve_model_dir(
+    model_dir: str | None = None,
+    *,
+    prefer_merged: bool = True,
+    prefer_quantized: bool = False,
+) -> str:
     if model_dir:
         return str(model_dir)
+    if prefer_quantized:
+        quant = Path(DEFAULT_QUANTIZED_DIR)
+        if is_quantized_checkpoint(quant):
+            return str(quant)
     merged = Path(DEFAULT_MERGED_DIR)
     lora = Path(DEFAULT_LORA_DIR)
     if prefer_merged and merged.is_dir() and (merged / "config.json").is_file():
@@ -99,12 +113,30 @@ def resolve_model_dir(model_dir: str | None = None, *, prefer_merged: bool = Tru
         return str(fed)
     if lora.is_dir() and (lora / "adapter_config.json").is_file():
         return str(lora)
+    if prefer_quantized and is_quantized_checkpoint(quant):
+        return str(quant)
     if merged.is_dir() and (merged / "config.json").is_file():
         return str(merged)
     return str(lora)
 
 
-def load_model(model_dir: str, base_model: str | None = None):
+def load_quantized_model(model_dir: str):
+    path = Path(model_dir)
+    if not is_quantized_checkpoint(path):
+        raise FileNotFoundError(
+            f"No INT8 model at {path}. Run: python quantize_bloom.py"
+        )
+    print(f"\nLoading quantized Bloom classifier from {path}...")
+    tokenizer = AutoTokenizer.from_pretrained(str(path), trust_remote_code=True)
+    model = torch.load(path / "model_int8.pt", map_location="cpu", weights_only=False)
+    model.eval()
+    return tokenizer, model
+
+
+def load_model(model_dir: str, base_model: str | None = None, *, quantized: bool = False):
+    if quantized or is_quantized_checkpoint(model_dir):
+        return load_quantized_model(model_dir)
+
     path = Path(model_dir)
     dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
@@ -203,14 +235,24 @@ class QwenBloomPredictor:
         base_model: str = DEFAULT_BASE_MODEL,
         *,
         prefer_merged: bool = True,
+        prefer_quantized: bool = False,
+        quantized: bool = False,
     ) -> None:
-        self.model_dir = resolve_model_dir(model_dir, prefer_merged=prefer_merged)
+        self.quantized = quantized or prefer_quantized
+        self.model_dir = resolve_model_dir(
+            model_dir,
+            prefer_merged=prefer_merged,
+            prefer_quantized=self.quantized,
+        )
         self.base_model = base_model
         self._tokenizer = None
         self._model = None
 
     def _ensure_loaded(self) -> None:
         if self._model is not None:
+            return
+        if self.quantized or is_quantized_checkpoint(self.model_dir):
+            self._tokenizer, self._model = load_quantized_model(self.model_dir)
             return
         base = self.base_model if is_lora_adapter(self.model_dir) else None
         self._tokenizer, self._model = load_model(self.model_dir, base)

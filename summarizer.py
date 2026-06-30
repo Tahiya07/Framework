@@ -69,6 +69,7 @@ from retriever import PrivacyRetriever, RetrievalResult
 from models import RAGGenerator, GenerationOutput, BLOOM_INSTRUCTIONS
 from predict_bloom import BLOOM_LEVELS, QwenBloomPredictor
 from uncertainty import UncertaintyEngine
+from rag_utils import sanitize_rag_answer
 
 # ----------------------------------------------------------------------------
 # Logging
@@ -256,7 +257,7 @@ class CognitiveSummarizer:
                     txt = out["choices"][0]["text"].strip()
                 except (KeyError, IndexError, TypeError):
                     txt = ""
-                condensed.append(txt or c.text)
+                condensed.append(txt if txt else "(see indexed passage)")
         finally:
             self.generator.max_tokens = prev_ctx_max
         return condensed
@@ -320,7 +321,11 @@ class CognitiveSummarizer:
         style = self._style_for(bloom_lc)
 
         # 2. Retrieve context (Phase 1)
-        chunks = list(retrieved_chunks) if retrieved_chunks is not None else self.retriever.retrieve(query, top_k=k)
+        chunks = (
+            list(retrieved_chunks)
+            if retrieved_chunks is not None
+            else self.retriever.retrieve(query, top_k=k, rank_by="relevance")
+        )
 
         # 3. Optional hierarchical pre-summarisation for high cognitive levels
         hier_summaries: Optional[List[str]] = None
@@ -357,7 +362,7 @@ class CognitiveSummarizer:
             max_tokens=int(max_tokens),
             safety_instruction=safety_instruction,
         )
-        summary = gen.answer
+        summary = sanitize_rag_answer(gen.answer, [c.text for c in chunks])
 
         return SummaryOutput(
             summary=summary,
