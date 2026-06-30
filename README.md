@@ -63,3 +63,5 @@ Bloom **labels** use the trained LoRA (`predict_bloom.py`). Teacher **reason / r
 
 - Offline: `HF_HUB_OFFLINE=1`, `HF_DATASETS_OFFLINE=1`
 - Cap Bloom test size for smoke runs: `EVAL_BLOOM_MAX_TEST=50 python run_evaluation_pipeline.py`
+
+git clone https://github.com/ggml-org/llama.cpp.git
