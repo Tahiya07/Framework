@@ -100,6 +100,8 @@ def resolve_checkpoint_dir(
         return str(model_dir)
     quant_path = Path(profile.quantized_dir)
     if quantized or prefer_quantized:
+        if (quant_path / "quantization.json").is_file() and (quant_path / "config.json").is_file():
+            return str(quant_path)
         if (quant_path / "model_int8.pt").is_file():
             return str(quant_path)
         if quantized:

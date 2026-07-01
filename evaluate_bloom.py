@@ -29,8 +29,10 @@ from bloom_model_profiles import (
 from predict_bloom import (
     BLOOM_LABELS,
     QwenBloomPredictor,
+    is_deploy_checkpoint,
     is_lora_adapter,
     is_quantized_checkpoint,
+    ordinal_metrics,
 )
 
 FIG_DIR = Path("figures")
@@ -256,7 +258,7 @@ def _build_comparison_rows(
         profile = BLOOM_MODEL_PROFILES[key]
         if quantized and key == current_profile.key:
             payload = current_payload
-            label = f"{profile.display_name} LoRA (INT8)"
+            label = f"{profile.display_name} LoRA (lightweight)"
         else:
             payload = _load_eval_json(Path(profile.results_json))
             if payload is None:
@@ -372,7 +374,7 @@ def main() -> int:
     parser.add_argument("--merged-dir", default=None, help="Override profile merged checkpoint dir.")
     parser.add_argument("--base-model", default=None, help="Override Hugging Face base model id.")
     parser.add_argument("--svm-baseline", action="store_true")
-    parser.add_argument("--quantized", action="store_true", help="Evaluate INT8 quantized merged model.")
+    parser.add_argument("--quantized", action="store_true", help="Evaluate lightweight deploy model (FP16).")
     parser.add_argument("--quantized-dir", default=None, help="Override profile quantized dir.")
     parser.add_argument("--results-json", type=Path, default=None, help="Override output JSON path.")
     parser.add_argument("--max-test", type=int, default=0, help="Cap test rows (0 = all).")
@@ -397,13 +399,18 @@ def main() -> int:
 
     if args.quantized:
         model_dir = resolve_checkpoint_dir(profile, model_dir=args.quantized_dir, quantized=True)
-        if not is_quantized_checkpoint(model_dir):
+        if not is_deploy_checkpoint(model_dir):
             raise FileNotFoundError(
-                f"Quantized model missing at {model_dir}. "
-                f"Run: python quantize_bloom.py --model-size {profile.key}"
+                f"Lightweight deploy model missing at {model_dir}. "
+                f"Run: python quantize_bloom.py --model-size {profile.key} --force"
             )
         predictor = QwenBloomPredictor(model_dir=model_dir, quantized=True)
-        checkpoint_type = "quantized_int8"
+        meta_path = Path(model_dir) / "quantization.json"
+        checkpoint_type = "fp16_merged"
+        if meta_path.is_file():
+            checkpoint_type = json.loads(meta_path.read_text(encoding="utf-8")).get(
+                "format", checkpoint_type
+            )
     else:
         model_dir = resolve_checkpoint_dir(profile, model_dir=args.model_dir, quantized=False)
         predictor = QwenBloomPredictor(model_dir=model_dir, base_model=base_model)
@@ -476,7 +483,7 @@ def main() -> int:
 
     title = f"Qwen LoRA Bloom Confusion Matrix ({profile.display_name})"
     if args.quantized:
-        title += " (INT8)"
+        title += " (FP16 deploy)"
     _save_confusion(lora["confusion_matrix"], title, confusion_fig)
     _save_per_class_table(
         lora["metrics"].get("per_class", {}),

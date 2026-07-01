@@ -105,7 +105,60 @@ def is_lora_adapter(model_dir: str | os.PathLike) -> bool:
 
 
 def is_quantized_checkpoint(model_dir: str | os.PathLike) -> bool:
-    return (Path(model_dir) / "model_int8.pt").is_file()
+    """Back-compat alias for lightweight deploy checkpoints."""
+    return is_deploy_checkpoint(model_dir)
+
+
+def is_deploy_checkpoint(model_dir: str | os.PathLike) -> bool:
+    path = Path(model_dir)
+    meta = path / "quantization.json"
+    if meta.is_file():
+        try:
+            payload = json.loads(meta.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return False
+        if payload.get("format") == "fp16_merged" and (path / "config.json").is_file():
+            return True
+        if payload.get("format") == "torch_dynamic_int8" and (path / "model_int8.pt").is_file():
+            return True
+    return (path / "model_int8.pt").is_file()
+
+
+def load_deploy_model(model_dir: str):
+    path = Path(model_dir)
+    if not is_deploy_checkpoint(path):
+        raise FileNotFoundError(
+            f"No lightweight deploy model at {path}. Run: python quantize_bloom.py --model-size 0.5b --force"
+        )
+
+    meta_path = path / "quantization.json"
+    fmt = ""
+    if meta_path.is_file():
+        fmt = json.loads(meta_path.read_text(encoding="utf-8")).get("format", "")
+
+    print(f"\nLoading lightweight Bloom classifier from {path} ({fmt or 'legacy'})...")
+    tokenizer = _load_tokenizer(str(path))
+
+    if fmt == "fp16_merged":
+        model = AutoModelForSequenceClassification.from_pretrained(
+            str(path),
+            dtype=torch.float16,
+            trust_remote_code=True,
+        )
+        model.eval().cpu()
+        return tokenizer, model
+
+    if (path / "model_int8.pt").is_file():
+        model = torch.load(path / "model_int8.pt", map_location="cpu", weights_only=False)
+        model.eval().cpu()
+        return tokenizer, model
+
+    raise FileNotFoundError(f"Unsupported deploy format at {path}")
+
+
+def load_quantized_model(model_dir: str):
+    """Back-compat alias."""
+    return load_deploy_model(model_dir)
 
 
 def resolve_model_dir(
@@ -123,22 +176,9 @@ def resolve_model_dir(
     )
 
 
-def load_quantized_model(model_dir: str):
-    path = Path(model_dir)
-    if not is_quantized_checkpoint(path):
-        raise FileNotFoundError(
-            f"No INT8 model at {path}. Run: python quantize_bloom.py"
-        )
-    print(f"\nLoading quantized Bloom classifier from {path}...")
-    tokenizer = _load_tokenizer(str(path))
-    model = torch.load(path / "model_int8.pt", map_location="cpu", weights_only=False)
-    model.eval()
-    return tokenizer, model
-
-
 def load_model(model_dir: str, base_model: str | None = None, *, quantized: bool = False):
-    if quantized or is_quantized_checkpoint(model_dir):
-        return load_quantized_model(model_dir)
+    if quantized or is_deploy_checkpoint(model_dir):
+        return load_deploy_model(model_dir)
 
     path = Path(model_dir)
     dtype = torch.float16 if torch.cuda.is_available() else torch.float32
@@ -189,11 +229,13 @@ def predict(question, tokenizer, model, max_length=256):
         return_tensors="pt",
     )
 
-    if torch.cuda.is_available():
-        inputs = {k: v.cuda() for k, v in inputs.items()}
+    try:
+        device = next(model.parameters()).device
+    except StopIteration:
+        device = torch.device("cpu")
+    inputs = {k: v.to(device) for k, v in inputs.items()}
 
     with torch.no_grad():
-
         outputs = model(**inputs)
 
         logits = outputs.logits
@@ -257,8 +299,8 @@ class QwenBloomPredictor:
     def _ensure_loaded(self) -> None:
         if self._model is not None:
             return
-        if self.quantized or is_quantized_checkpoint(self.model_dir):
-            self._tokenizer, self._model = load_quantized_model(self.model_dir)
+        if self.quantized or is_deploy_checkpoint(self.model_dir):
+            self._tokenizer, self._model = load_deploy_model(self.model_dir)
             return
         base = self.base_model if is_lora_adapter(self.model_dir) else None
         self._tokenizer, self._model = load_model(self.model_dir, base)
