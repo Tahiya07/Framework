@@ -1,56 +1,124 @@
 {
   "sources": {
+    "trained_lora": "results\\bloom_lora_eval.json",
+    "lora_split": "Official test split (data\\figshare_bloom_v1_test.csv, n=350)",
     "holdout_baselines": "evaluation_outputs\\evaluation_report.json",
-    "trained_lora": "evaluation_results\\metrics.json",
     "holdout_split": "15% stratified hold-out (figshare_combined_dataset.csv, random_state=42)",
-    "lora_split": "Official Figshare test split (evaluation_results from predict_bloom / training eval)"
+    "lora_eval_by_size": {
+      "1.5b": "results\\bloom_lora_eval.json",
+      "0.5b": "results\\bloom_lora_eval_0.5B.json"
+    },
+    "quantized_eval_by_size": {}
   },
+  "n_test_lora": 350,
   "n_test_holdout": 379,
-  "n_test_lora": 2330,
+  "lora_trained": {
+    "accuracy": 0.84,
+    "macro_f1": 0.8308,
+    "weighted_f1": 0.8394,
+    "cohen_kappa": 0.7936,
+    "quadratic_weighted_kappa": 0.8803,
+    "ece": 0.0495,
+    "mean_ordinal_distance": 0.28,
+    "within_one_level_accuracy": 0.92,
+    "severe_error_rate": 0.0343
+  },
+  "trained_model_reference": {
+    "accuracy": 0.84,
+    "macro_f1": 0.8308,
+    "weighted_f1": 0.8394,
+    "cohen_kappa": 0.7936,
+    "quadratic_weighted_kappa": 0.8803,
+    "ece": 0.0495,
+    "mean_ordinal_distance": 0.28,
+    "within_one_level_accuracy": 0.92,
+    "severe_error_rate": 0.0343
+  },
+  "checkpoint_type": "merged",
+  "lora_by_model_size": {
+    "1.5b": {
+      "accuracy": 0.84,
+      "macro_f1": 0.8308,
+      "weighted_f1": 0.8394,
+      "cohen_kappa": 0.7936,
+      "quadratic_weighted_kappa": 0.8803,
+      "ece": 0.0495,
+      "mean_ordinal_distance": 0.28,
+      "within_one_level_accuracy": 0.92,
+      "severe_error_rate": 0.0343
+    },
+    "0.5b": {
+      "accuracy": 0.8314,
+      "macro_f1": 0.8252,
+      "weighted_f1": 0.8324,
+      "cohen_kappa": 0.7835,
+      "quadratic_weighted_kappa": 0.8794,
+      "ece": 0.0488,
+      "mean_ordinal_distance": 0.2886,
+      "within_one_level_accuracy": 0.92,
+      "severe_error_rate": 0.0371
+    }
+  },
+  "lora_meta_by_model_size": {
+    "1.5b": {
+      "source": "results\\bloom_lora_eval.json",
+      "model_size": "1.5b",
+      "split": "data\\figshare_bloom_v1_test.csv",
+      "n_test": 350,
+      "checkpoint_type": "merged",
+      "base_model": "Qwen/Qwen2.5-1.5B-Instruct"
+    },
+    "0.5b": {
+      "source": "results\\bloom_lora_eval_0.5B.json",
+      "model_size": "0.5b",
+      "split": "data\\figshare_bloom_v1_test.csv",
+      "n_test": 350,
+      "checkpoint_type": "merged",
+      "base_model": "Qwen/Qwen2.5-0.5B-Instruct"
+    }
+  },
   "SVM": {
-    "accuracy": 0.8391,
-    "macro_f1": 0.8256,
-    "weighted_f1": 0.8377,
-    "mean_ordinal_distance": 0.3219,
-    "within_one_level_accuracy": 0.9156,
-    "severe_error_rate": 0.0844,
-    "kappa": 0.7896
+    "accuracy": 0.7514,
+    "macro_f1": 0.7253,
+    "weighted_f1": 0.753,
+    "cohen_kappa": 0.6802,
+    "quadratic_weighted_kappa": 0.7471,
+    "ece": null,
+    "mean_ordinal_distance": 0.4743,
+    "within_one_level_accuracy": 0.8829,
+    "severe_error_rate": 0.0657
+  },
+  "tfidf_svm_baseline": {
+    "accuracy": 0.7514,
+    "macro_f1": 0.7253,
+    "weighted_f1": 0.753,
+    "cohen_kappa": 0.6802,
+    "quadratic_weighted_kappa": 0.7471,
+    "ece": null,
+    "mean_ordinal_distance": 0.4743,
+    "within_one_level_accuracy": 0.8829,
+    "severe_error_rate": 0.0657
   },
   "zero_shot_gguf": {
     "accuracy": 0.4406,
     "macro_f1": 0.3691,
     "weighted_f1": 0.4239,
+    "cohen_kappa": 0.0,
+    "quadratic_weighted_kappa": 0.2444,
+    "ece": null,
     "mean_ordinal_distance": 1.0739,
     "within_one_level_accuracy": 0.686,
-    "severe_error_rate": 0.314,
-    "kappa": 0.2444
+    "severe_error_rate": 0.314
   },
   "QWEN": {
     "accuracy": 0.4406,
     "macro_f1": 0.3691,
     "weighted_f1": 0.4239,
+    "cohen_kappa": 0.0,
+    "quadratic_weighted_kappa": 0.2444,
+    "ece": null,
     "mean_ordinal_distance": 1.0739,
     "within_one_level_accuracy": 0.686,
-    "severe_error_rate": 0.314,
-    "kappa": 0.2444
-  },
-  "lora_trained": {
-    "accuracy": 0.7476,
-    "macro_f1": 0.7208,
-    "weighted_f1": 0.7415,
-    "mean_ordinal_distance": 0.4519,
-    "within_one_level_accuracy": 0.8798,
-    "severe_error_rate": 0.0639
-  },
-  "trained_model_reference": {
-    "accuracy": 0.7476394849785408,
-    "macro_f1": 0.7207957545994641,
-    "weighted_f1": 0.7414651573827361,
-    "mean_ordinal_distance": 0.4519,
-    "within_one_level_accuracy": 0.8798,
-    "severe_error_rate": 0.0639
-  },
-  "agreement_rate": 0.47493403693931396,
-  "svm_zero_shot_agreement": 0.47493403693931396,
-  "num_disagreements": 199
+    "severe_error_rate": 0.314
+  }
 }
