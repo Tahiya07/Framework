@@ -12,12 +12,20 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from bloom_model_profiles import BLOOM_MODEL_PROFILES, get_profile
+from bloom_model_profiles import BLOOM_MODEL_PROFILES, DEFAULT_MODEL_SIZE, get_profile
 from predict_bloom import build_prompt, predict
+
 BENCHMARK_QUESTION = (
     "Compare and contrast the advantages of array-based and linked-list implementations "
     "of a stack. Justify which you would choose for a memory-constrained embedded system."
 )
+
+
+def _load_tokenizer(model_path: str):
+    try:
+        return AutoTokenizer.from_pretrained(model_path, trust_remote_code=True, fix_mistral_regex=True)
+    except TypeError:
+        return AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 
 
 def _dir_size_bytes(path: Path) -> int:
@@ -28,6 +36,8 @@ def quantize_merged(
     merged_dir: str | Path,
     output_dir: str | Path,
     *,
+    profile_key: str,
+    base_model: str,
     force: bool = False,
 ) -> Path:
     merged_path = Path(merged_dir)
@@ -42,10 +52,10 @@ def quantize_merged(
         return out_path
 
     print(f"[quantize] Loading merged model from {merged_path}...")
-    tokenizer = AutoTokenizer.from_pretrained(str(merged_path), trust_remote_code=True)
+    tokenizer = _load_tokenizer(str(merged_path))
     model = AutoModelForSequenceClassification.from_pretrained(
         str(merged_path),
-        torch_dtype=torch.float32,
+        dtype=torch.float32,
         trust_remote_code=True,
     )
     model.eval()
@@ -64,10 +74,13 @@ def quantize_merged(
     quant_size = _dir_size_bytes(out_path)
     meta = {
         "format": "torch_dynamic_int8",
+        "model_size": profile_key,
+        "base_model": base_model,
         "source_merged_dir": str(merged_path),
         "merged_size_mb": round(merged_size / (1024**2), 2),
         "quantized_size_mb": round(quant_size / (1024**2), 2),
         "compression_ratio": round(merged_size / max(quant_size, 1), 2),
+        "notes": "Dynamic INT8 on torch.nn.Linear only; embeddings remain fp32.",
     }
     (out_path / "quantization.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"[quantize] Saved -> {out_path} ({meta['quantized_size_mb']} MiB, was {meta['merged_size_mb']} MiB)")
@@ -75,7 +88,7 @@ def quantize_merged(
 
 
 def benchmark_latency(model_dir: Path, *, runs: int = 5) -> dict:
-    from predict_bloom import load_model, load_quantized_model, is_quantized_checkpoint
+    from predict_bloom import is_quantized_checkpoint, load_model, load_quantized_model
 
     if is_quantized_checkpoint(model_dir):
         tokenizer, model = load_quantized_model(str(model_dir))
@@ -84,7 +97,6 @@ def benchmark_latency(model_dir: Path, *, runs: int = 5) -> dict:
         tokenizer, model = load_model(str(model_dir))
         label = "fp32"
 
-    # Warm-up
     predict(BENCHMARK_QUESTION, tokenizer, model)
 
     times = []
@@ -106,7 +118,7 @@ def main() -> int:
     parser.add_argument(
         "--model-size",
         choices=sorted(BLOOM_MODEL_PROFILES),
-        default="1.5b",
+        default=DEFAULT_MODEL_SIZE,
         help="Model variant: 0.5b or 1.5b (sets default merged / quantized paths).",
     )
     parser.add_argument("--merged-dir", default=None)
@@ -118,14 +130,26 @@ def main() -> int:
     merged_dir = args.merged_dir or profile.merged_dir
     output_dir = args.output_dir or profile.quantized_dir
 
-    out = quantize_merged(merged_dir, output_dir, force=args.force)
+    out = quantize_merged(
+        merged_dir,
+        output_dir,
+        profile_key=profile.key,
+        base_model=profile.base_model,
+        force=args.force,
+    )
 
     if args.benchmark:
         merged = Path(merged_dir)
         fp32 = benchmark_latency(merged)
         int8 = benchmark_latency(out)
-        bench = {"fp32_merged": fp32, "int8_quantized": int8}
-        bench_path = Path("results/bloom_quantization_benchmark.json")
+        bench = {
+            "model_size": profile.key,
+            "base_model": profile.base_model,
+            "fp32_merged": fp32,
+            "int8_quantized": int8,
+            "speedup": round(fp32["mean_latency_s"] / max(int8["mean_latency_s"], 1e-6), 3),
+        }
+        bench_path = Path(profile.quant_benchmark_json)
         bench_path.parent.mkdir(parents=True, exist_ok=True)
         bench_path.write_text(json.dumps(bench, indent=2), encoding="utf-8")
         print(json.dumps(bench, indent=2))

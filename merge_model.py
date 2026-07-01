@@ -10,7 +10,7 @@ import torch
 from peft import PeftModel
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from bloom_model_profiles import BLOOM_MODEL_PROFILES, get_profile
+from bloom_model_profiles import BLOOM_MODEL_PROFILES, DEFAULT_MODEL_SIZE, get_profile
 
 
 DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
@@ -85,7 +85,7 @@ def main() -> int:
     parser.add_argument(
         "--model-size",
         choices=sorted(BLOOM_MODEL_PROFILES),
-        default="1.5b",
+        default=DEFAULT_MODEL_SIZE,
         help="Model variant: 0.5b or 1.5b (sets default LoRA / merged paths).",
     )
     parser.add_argument(

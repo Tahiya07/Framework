@@ -20,6 +20,7 @@ class BloomModelProfile:
     confusion_fig: str
     quant_confusion_fig: str
     comparison_table_fig: str
+    quant_benchmark_json: str
     federated_lora_dir: str = "models/qwen_bloom_federated"
 
 
@@ -40,6 +41,7 @@ BLOOM_MODEL_PROFILES: dict[str, BloomModelProfile] = {
         confusion_fig="figures/bloom_lora_confusion_matrix.png",
         quant_confusion_fig="figures/bloom_quantized_confusion_matrix.png",
         comparison_table_fig="figures/bloom_eval_comparison_table_1.5B.png",
+        quant_benchmark_json="results/bloom_quantization_benchmark_1.5B.json",
     ),
     "0.5b": BloomModelProfile(
         key="0.5b",
@@ -54,10 +56,12 @@ BLOOM_MODEL_PROFILES: dict[str, BloomModelProfile] = {
         confusion_fig="figures/bloom_lora_confusion_matrix_0.5B.png",
         quant_confusion_fig="figures/bloom_quantized_confusion_matrix_0.5B.png",
         comparison_table_fig="figures/bloom_eval_comparison_table_0.5B.png",
+        quant_benchmark_json="results/bloom_quantization_benchmark_0.5B.json",
     ),
 }
 
-DEFAULT_MODEL_SIZE = "1.5b"
+# Lightweight deploy default (0.5B matches 1.5B accuracy on held-out test).
+DEFAULT_MODEL_SIZE = "0.5b"
 
 
 def normalize_model_size(model_size: str | None) -> str:
@@ -90,11 +94,16 @@ def resolve_checkpoint_dir(
     *,
     model_dir: str | Path | None = None,
     quantized: bool = False,
+    prefer_quantized: bool = False,
 ) -> str:
     if model_dir:
         return str(model_dir)
-    if quantized:
-        return profile.quantized_dir
+    quant_path = Path(profile.quantized_dir)
+    if quantized or prefer_quantized:
+        if (quant_path / "model_int8.pt").is_file():
+            return str(quant_path)
+        if quantized:
+            return str(quant_path)
     merged = Path(profile.merged_dir)
     if merged.is_dir() and (merged / "config.json").is_file():
         return str(merged)

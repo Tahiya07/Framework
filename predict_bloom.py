@@ -28,10 +28,23 @@ from transformers import (
 
 from peft import PeftModel
 
+from bloom_model_profiles import (
+    DEFAULT_MODEL_SIZE,
+    get_profile,
+    resolve_checkpoint_dir as resolve_profile_checkpoint_dir,
+)
 
-# ============================================================
-# LABELS
-# ============================================================
+
+def _active_model_size(model_size: str | None = None) -> str:
+    return model_size or os.environ.get("BLOOM_MODEL_SIZE") or DEFAULT_MODEL_SIZE
+
+
+_DEFAULT_PROFILE = get_profile(DEFAULT_MODEL_SIZE)
+DEFAULT_LORA_DIR = _DEFAULT_PROFILE.lora_dir
+DEFAULT_FEDERATED_LORA_DIR = _DEFAULT_PROFILE.federated_lora_dir
+DEFAULT_MERGED_DIR = _DEFAULT_PROFILE.merged_dir
+DEFAULT_QUANTIZED_DIR = _DEFAULT_PROFILE.quantized_dir
+DEFAULT_BASE_MODEL = _DEFAULT_PROFILE.base_model
 
 LABELS = {
     0: "Remember",
@@ -58,13 +71,16 @@ BLOOM_LEVELS: list[str] = [
 LABEL_TO_RAG_KEY: dict[str, str] = dict(zip(BLOOM_LABELS, BLOOM_LEVELS))
 RAG_KEY_TO_LABEL: dict[str, str] = {v: k for k, v in LABEL_TO_RAG_KEY.items()}
 
-DEFAULT_LORA_DIR = "models/qwen_bloom_3000"
-DEFAULT_FEDERATED_LORA_DIR = "models/qwen_bloom_federated"
-DEFAULT_MERGED_DIR = "models/qwen_bloom_merged"
-DEFAULT_QUANTIZED_DIR = "models/qwen_bloom_quantized"
-DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 # Back-compat alias
 DEFAULT_MODEL_DIR = DEFAULT_MERGED_DIR
+
+
+def _load_tokenizer(model_path: str):
+    kwargs = {"trust_remote_code": True}
+    try:
+        return AutoTokenizer.from_pretrained(model_path, fix_mistral_regex=True, **kwargs)
+    except TypeError:
+        return AutoTokenizer.from_pretrained(model_path, **kwargs)
 
 
 # ============================================================
@@ -97,27 +113,14 @@ def resolve_model_dir(
     *,
     prefer_merged: bool = True,
     prefer_quantized: bool = False,
+    model_size: str | None = None,
 ) -> str:
-    if model_dir:
-        return str(model_dir)
-    if prefer_quantized:
-        quant = Path(DEFAULT_QUANTIZED_DIR)
-        if is_quantized_checkpoint(quant):
-            return str(quant)
-    merged = Path(DEFAULT_MERGED_DIR)
-    lora = Path(DEFAULT_LORA_DIR)
-    if prefer_merged and merged.is_dir() and (merged / "config.json").is_file():
-        return str(merged)
-    fed = Path(DEFAULT_FEDERATED_LORA_DIR)
-    if fed.is_dir() and (fed / "adapter_config.json").is_file():
-        return str(fed)
-    if lora.is_dir() and (lora / "adapter_config.json").is_file():
-        return str(lora)
-    if prefer_quantized and is_quantized_checkpoint(quant):
-        return str(quant)
-    if merged.is_dir() and (merged / "config.json").is_file():
-        return str(merged)
-    return str(lora)
+    profile = get_profile(_active_model_size(model_size))
+    return resolve_profile_checkpoint_dir(
+        profile,
+        model_dir=model_dir,
+        prefer_quantized=prefer_quantized,
+    )
 
 
 def load_quantized_model(model_dir: str):
@@ -127,7 +130,7 @@ def load_quantized_model(model_dir: str):
             f"No INT8 model at {path}. Run: python quantize_bloom.py"
         )
     print(f"\nLoading quantized Bloom classifier from {path}...")
-    tokenizer = AutoTokenizer.from_pretrained(str(path), trust_remote_code=True)
+    tokenizer = _load_tokenizer(str(path))
     model = torch.load(path / "model_int8.pt", map_location="cpu", weights_only=False)
     model.eval()
     return tokenizer, model
@@ -144,11 +147,11 @@ def load_model(model_dir: str, base_model: str | None = None, *, quantized: bool
         if not base_model:
             base_model = DEFAULT_BASE_MODEL
         print(f"\nLoading LoRA adapter from {path} (base={base_model})...")
-        tokenizer = AutoTokenizer.from_pretrained(base_model, trust_remote_code=True)
+        tokenizer = _load_tokenizer(base_model)
         model = AutoModelForSequenceClassification.from_pretrained(
             base_model,
             num_labels=6,
-            torch_dtype=dtype,
+            dtype=dtype,
             trust_remote_code=True,
         )
         model = PeftModel.from_pretrained(model, str(path))
@@ -158,10 +161,10 @@ def load_model(model_dir: str, base_model: str | None = None, *, quantized: bool
                 f"No merged model at {path}. Run: python merge_model.py"
             )
         print(f"\nLoading merged Bloom classifier from {path}...")
-        tokenizer = AutoTokenizer.from_pretrained(str(path), trust_remote_code=True)
+        tokenizer = _load_tokenizer(str(path))
         model = AutoModelForSequenceClassification.from_pretrained(
             str(path),
-            torch_dtype=dtype,
+            dtype=dtype,
             trust_remote_code=True,
         )
 
@@ -227,24 +230,27 @@ def label_to_rag_key(label: str) -> str:
 
 
 class QwenBloomPredictor:
-    """Lazy-loaded Qwen2.5-1.5B Bloom classifier (merged or LoRA; see ``merge_model.py``)."""
+    """Lazy-loaded Qwen2.5 Bloom classifier (merged, LoRA, or INT8 quantized)."""
 
     def __init__(
         self,
         model_dir: str | None = None,
-        base_model: str = DEFAULT_BASE_MODEL,
+        base_model: str | None = None,
         *,
+        model_size: str | None = None,
         prefer_merged: bool = True,
         prefer_quantized: bool = False,
         quantized: bool = False,
     ) -> None:
+        self.profile = get_profile(_active_model_size(model_size))
         self.quantized = quantized or prefer_quantized
         self.model_dir = resolve_model_dir(
             model_dir,
             prefer_merged=prefer_merged,
             prefer_quantized=self.quantized,
+            model_size=self.profile.key,
         )
-        self.base_model = base_model
+        self.base_model = base_model or self.profile.base_model
         self._tokenizer = None
         self._model = None
 

@@ -67,13 +67,14 @@ def _predict_bloom(runtime: Dict[str, Any], text: str) -> Dict[str, Any]:
             or "Bloom LoRA predictor is not loaded. Train with train_qwen_bloom.py."
         )
     out = predictor.predict(text)
+    profile_name = getattr(getattr(predictor, "profile", None), "display_name", "Qwen2.5 Bloom")
     return {
         "level": out["prediction"],
         "rag_key": out["rag_key"],
         "distribution": out["distribution"],
         "confidence": float(out["confidence"]),
         "probabilities": out["probabilities"],
-        "source": "Qwen2.5-1.5B LoRA (train_qwen_bloom.py)",
+        "source": f"{profile_name} LoRA (train_qwen_bloom.py)",
     }
 
 
@@ -98,8 +99,13 @@ def _init_page() -> None:
 
 @st.cache_resource(show_spinner="Loading Qwen Bloom LoRA...")
 def _load_bloom_predictor() -> QwenBloomPredictor:
+    model_size = os.environ.get("BLOOM_MODEL_SIZE", "0.5b")
     use_quantized = os.environ.get("BLOOM_USE_QUANTIZED", "0") == "1"
-    return QwenBloomPredictor(prefer_quantized=use_quantized, quantized=use_quantized)
+    return QwenBloomPredictor(
+        model_size=model_size,
+        prefer_quantized=use_quantized,
+        quantized=use_quantized,
+    )
 
 
 def _runtime() -> Dict[str, Any]:

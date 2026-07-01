@@ -22,6 +22,7 @@ from bloom_eval_metrics import (
 from bloom_model_profiles import (
     BLOOM_MODEL_PROFILES,
     COMBINED_COMPARISON_TABLE_FIG,
+    DEFAULT_MODEL_SIZE,
     get_profile,
     resolve_checkpoint_dir,
 )
@@ -355,7 +356,7 @@ def main() -> int:
     parser.add_argument(
         "--model-size",
         choices=sorted(BLOOM_MODEL_PROFILES),
-        default="1.5b",
+        default=DEFAULT_MODEL_SIZE,
         help="Model variant: 0.5b or 1.5b (sets default paths and output files).",
     )
     parser.add_argument("--test-csv", type=Path, default=Path("data/figshare_bloom_v1_test.csv"))

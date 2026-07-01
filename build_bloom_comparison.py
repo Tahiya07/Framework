@@ -154,6 +154,9 @@ def build_comparison() -> dict:
         if "1.5b" in quantized_by_size:
             comparison["lora_quantized_int8"] = quantized_by_size["1.5b"]
             comparison["quantization"] = quant_meta_by_size.get("1.5b")
+        if "0.5b" in quantized_by_size and "lora_quantized_int8" not in comparison:
+            comparison["lora_quantized_int8"] = quantized_by_size["0.5b"]
+            comparison["quantization"] = quant_meta_by_size.get("0.5b")
     return comparison
 
 
