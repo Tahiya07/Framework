@@ -48,6 +48,58 @@ logger = logging.getLogger("ingestion")
 if not logger.handlers:
     logging.basicConfig(level=logging.INFO)
 
+_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
+_TEXT_SUFFIXES = {".txt", ".md", ".csv"}
+
+
+def resolve_tesseract_cmd() -> Optional[str]:
+    cmd = os.environ.get("TESSERACT_CMD") or shutil.which("tesseract")
+    if cmd:
+        return cmd
+    for candidate in (
+        Path("C:/Program Files/Tesseract-OCR/tesseract.exe"),
+        Path("C:/Program Files (x86)/Tesseract-OCR/tesseract.exe"),
+    ):
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def ocr_backend_status() -> dict[str, object]:
+    """Report whether image OCR can run (Tesseract or easyocr)."""
+    try:
+        import PIL  # noqa: F401
+    except Exception as exc:
+        return {"available": False, "engine": "none", "reason": f"pillow_unavailable: {exc}"}
+
+    tesseract_reason = "not_configured"
+    cmd = resolve_tesseract_cmd()
+    if cmd:
+        try:
+            import pytesseract
+
+            pytesseract.pytesseract.tesseract_cmd = cmd
+            pytesseract.get_tesseract_version()
+            return {"available": True, "engine": "pytesseract", "reason": "ok", "command": cmd}
+        except Exception as exc:
+            tesseract_reason = str(exc)
+
+    try:
+        import easyocr  # noqa: F401
+
+        return {"available": True, "engine": "easyocr", "reason": "ok", "command": None}
+    except Exception as exc:
+        return {
+            "available": False,
+            "engine": "none",
+            "reason": f"tesseract={tesseract_reason}; easyocr={exc}",
+            "install_hint": (
+                "Install Tesseract OCR and add it to PATH, or set TESSERACT_CMD to tesseract.exe. "
+                "Windows: winget install UB-Mannheim.TesseractOCR. "
+                "Alternatively pip install easyocr, or upload PDF/TXT and paste text instead of images."
+            ),
+        }
+
 
 @dataclass
 class DocumentChunk:
@@ -163,32 +215,44 @@ class DocumentIngestor:
             doc.close()
         return chunks
 
-    def _load_image_text(self, path: Path) -> str:
-        try:
-            from PIL import Image  # type: ignore
-            import pytesseract  # type: ignore
-        except Exception as exc:  # pragma: no cover
-            try:
-                import easyocr  # type: ignore
-            except Exception as easy_exc:  # pragma: no cover
-                raise RuntimeError(
-                    "Image OCR requires pillow plus pytesseract or easyocr. "
-                    "Install an OCR backend or upload extracted text."
-                ) from easy_exc
-            reader = easyocr.Reader(["en"], gpu=False, verbose=False)
-            return " ".join(str(piece) for piece in reader.readtext(str(path), detail=0))
-        tesseract_cmd = os.environ.get("TESSERACT_CMD") or shutil.which("tesseract")
-        if not tesseract_cmd:
-            for candidate in [
-                Path("C:/Program Files/Tesseract-OCR/tesseract.exe"),
-                Path("C:/Program Files (x86)/Tesseract-OCR/tesseract.exe"),
-            ]:
-                if candidate.is_file():
-                    tesseract_cmd = str(candidate)
-                    break
-        if tesseract_cmd:
-            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+    def _load_image_text_easyocr(self, path: Path) -> str:
+        import easyocr  # type: ignore
+
+        reader = easyocr.Reader(["en"], gpu=False, verbose=False)
+        pieces = reader.readtext(str(path), detail=0)
+        return " ".join(str(piece) for piece in pieces)
+
+    def _load_image_text_tesseract(self, path: Path) -> str:
+        from PIL import Image  # type: ignore
+        import pytesseract  # type: ignore
+
+        cmd = resolve_tesseract_cmd()
+        if not cmd:
+            raise RuntimeError("tesseract executable not found")
+        pytesseract.pytesseract.tesseract_cmd = cmd
+        pytesseract.get_tesseract_version()
         return str(pytesseract.image_to_string(Image.open(path)) or "")
+
+    def _load_image_text(self, path: Path) -> str:
+        status = ocr_backend_status()
+        if not status.get("available"):
+            hint = status.get("install_hint") or status.get("reason")
+            raise RuntimeError(f"Image OCR is unavailable. {hint}")
+
+        engine = str(status.get("engine") or "")
+        if engine == "pytesseract":
+            try:
+                return self._load_image_text_tesseract(path)
+            except Exception as exc:
+                logger.warning("Tesseract OCR failed for %s (%s); trying easyocr", path.name, exc)
+
+        try:
+            return self._load_image_text_easyocr(path)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Image OCR failed for {path.name}. Install Tesseract and add it to PATH "
+                f"(or set TESSERACT_CMD), or pip install easyocr. Details: {exc}"
+            ) from exc
 
     def process(
         self,
@@ -222,8 +286,14 @@ class DocumentIngestor:
                 content_type=content_type,
             )
         if suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}:
+            text = self._load_image_text(path)
+            if not self._normalize(text):
+                raise RuntimeError(
+                    f"No readable text was extracted from image '{path.name}'. "
+                    "Try a clearer scan, paste the text directly, or upload a PDF/TXT file."
+                )
             return self.chunk_text(
-                self._load_image_text(path),
+                text,
                 source=str(path),
                 modality="image",
                 access_level=access_level,

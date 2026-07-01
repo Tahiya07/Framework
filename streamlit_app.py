@@ -26,7 +26,7 @@ from runtime_utils import (
     rouge_l,
     token_f1,
 )
-from ingestion import DocumentChunk, DocumentIngestor
+from ingestion import DocumentChunk, DocumentIngestor, ocr_backend_status
 from models import RAGGenerator
 from privacy.privacy_guard import (
     STUDENT_REFUSAL,
@@ -318,21 +318,25 @@ def _ingest_uploaded_files(
     ingestor: DocumentIngestor,
     uploads: Sequence[Any],
     pasted_text: str,
-) -> List[DocumentChunk]:
+) -> tuple[List[DocumentChunk], List[str]]:
     chunks: List[DocumentChunk] = []
+    warnings: List[str] = []
     temp_paths: List[Path] = []
     try:
-        for upload in uploads:
+        for upload in uploads or []:
             suffix = Path(upload.name).suffix or ".bin"
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                 tmp.write(upload.getbuffer())
                 tmp_path = Path(tmp.name)
             temp_paths.append(tmp_path)
-            prev_len = len(chunks)
-            chunks.extend(ingestor.process(tmp_path))
-            for c in chunks[prev_len:]:
-                if c.source == str(tmp_path):
-                    c.source = upload.name
+            try:
+                prev_len = len(chunks)
+                chunks.extend(ingestor.process(tmp_path))
+                for c in chunks[prev_len:]:
+                    if c.source == str(tmp_path):
+                        c.source = upload.name
+            except Exception as exc:
+                warnings.append(f"Skipped `{upload.name}`: {exc}")
         if pasted_text.strip():
             chunks.extend(
                 ingestor.chunk_text(
@@ -341,7 +345,7 @@ def _ingest_uploaded_files(
                     modality="text",
                 )
             )
-        return chunks
+        return chunks, warnings
     finally:
         for p in temp_paths:
             try:
@@ -611,6 +615,13 @@ def main() -> None:
             st.markdown("**Vector stores**")
             st.write(f"Public chunks restored: {public_n}")
             st.write(f"Protected chunks restored: {protected_n}")
+            ocr = ocr_backend_status()
+            st.markdown("**Image OCR**")
+            if ocr.get("available"):
+                st.write(f"Available: yes ({ocr.get('engine')})")
+            else:
+                st.write("Available: no — PDF/TXT/paste still work")
+                st.caption(str(ocr.get("install_hint") or ocr.get("reason")))
         with st.expander("Architecture compliance (live)", expanded=False):
             report = architecture_compliance_report()
             st.write(f"Checks passed: {report['passed']}/{report['total']}")
@@ -620,7 +631,8 @@ def main() -> None:
             for note in report.get("notes", []):
                 st.caption(note)
         st.caption(
-            "Images rely on local OCR support. If OCR dependencies are unavailable, use PDF or pasted text."
+            "PDF and pasted text work without Tesseract. Images need Tesseract on PATH "
+            "(or easyocr). Install: winget install UB-Mannheim.TesseractOCR"
         )
 
     uploads = st.file_uploader(
@@ -652,7 +664,24 @@ def main() -> None:
             if not upload_decision.allowed:
                 st.error(upload_decision.reason)
                 st.stop()
-            chunks = _ingest_uploaded_files(runtime["ingestor"], uploads or [], pasted_text)
+            if not uploads and not pasted_text.strip():
+                st.error("Upload at least one PDF/TXT file or paste text before building the corpus.")
+                st.stop()
+            chunks, ingest_warnings = _ingest_uploaded_files(
+                runtime["ingestor"],
+                uploads or [],
+                pasted_text,
+            )
+            if not chunks:
+                st.error(
+                    "No chunks were indexed. "
+                    + (ingest_warnings[0] if ingest_warnings else "Upload PDF/TXT or paste text.")
+                )
+                if len(ingest_warnings) > 1:
+                    with st.expander("Ingestion details"):
+                        for note in ingest_warnings:
+                            st.write(note)
+                st.stop()
             _set_active_corpus(
                 runtime,
                 chunks,
@@ -661,6 +690,8 @@ def main() -> None:
                 content_type=content_type,
             )
             st.success(f"Indexed {len(chunks)} chunks into the {upload_scope.lower()}.")
+            for note in ingest_warnings:
+                st.warning(note)
         except Exception as exc:
             st.error(f"Corpus build failed: {exc}")
 
