@@ -10,6 +10,8 @@ import torch
 from peft import PeftModel
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
+from bloom_model_profiles import BLOOM_MODEL_PROFILES, get_profile
+
 
 DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 DEFAULT_LORA_DIR = "models/qwen_bloom_trained"
@@ -81,19 +83,26 @@ def merge_lora(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Merge Bloom LoRA into a full model folder.")
     parser.add_argument(
+        "--model-size",
+        choices=sorted(BLOOM_MODEL_PROFILES),
+        default="1.5b",
+        help="Model variant: 0.5b or 1.5b (sets default LoRA / merged paths).",
+    )
+    parser.add_argument(
         "--lora-dir",
         default=None,
-        help="LoRA adapter (default: federated if present, else qwen_bloom_3000).",
+        help="LoRA adapter (default: federated if present, else profile lora dir).",
     )
-    parser.add_argument("--base-model", default=DEFAULT_BASE_MODEL)
-    parser.add_argument("--output-dir", default=DEFAULT_MERGED_DIR)
+    parser.add_argument("--base-model", default=None)
+    parser.add_argument("--output-dir", default=None)
     parser.add_argument("--force", action="store_true", help="Re-merge even if output exists.")
     args = parser.parse_args()
-    lora_dir = resolve_lora_dir(args.lora_dir)
+    profile = get_profile(args.model_size)
+    lora_dir = resolve_lora_dir(args.lora_dir or profile.lora_dir)
     merge_lora(
         lora_dir=lora_dir,
-        base_model=args.base_model,
-        output_dir=args.output_dir,
+        base_model=args.base_model or profile.base_model,
+        output_dir=args.output_dir or profile.merged_dir,
         force=args.force,
     )
     return 0

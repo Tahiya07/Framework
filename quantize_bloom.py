@@ -12,10 +12,8 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from predict_bloom import DEFAULT_MERGED_DIR, build_prompt, predict
-
-
-DEFAULT_QUANTIZED_DIR = "models/qwen_bloom_quantized"
+from bloom_model_profiles import BLOOM_MODEL_PROFILES, get_profile
+from predict_bloom import build_prompt, predict
 BENCHMARK_QUESTION = (
     "Compare and contrast the advantages of array-based and linked-list implementations "
     "of a stack. Justify which you would choose for a memory-constrained embedded system."
@@ -105,16 +103,25 @@ def benchmark_latency(model_dir: Path, *, runs: int = 5) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Quantize merged Bloom classifier for CPU deploy.")
-    parser.add_argument("--merged-dir", default=DEFAULT_MERGED_DIR)
-    parser.add_argument("--output-dir", default=DEFAULT_QUANTIZED_DIR)
+    parser.add_argument(
+        "--model-size",
+        choices=sorted(BLOOM_MODEL_PROFILES),
+        default="1.5b",
+        help="Model variant: 0.5b or 1.5b (sets default merged / quantized paths).",
+    )
+    parser.add_argument("--merged-dir", default=None)
+    parser.add_argument("--output-dir", default=None)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--benchmark", action="store_true", help="Compare fp32 vs INT8 latency.")
     args = parser.parse_args()
+    profile = get_profile(args.model_size)
+    merged_dir = args.merged_dir or profile.merged_dir
+    output_dir = args.output_dir or profile.quantized_dir
 
-    out = quantize_merged(args.merged_dir, args.output_dir, force=args.force)
+    out = quantize_merged(merged_dir, output_dir, force=args.force)
 
     if args.benchmark:
-        merged = Path(args.merged_dir)
+        merged = Path(merged_dir)
         fp32 = benchmark_latency(merged)
         int8 = benchmark_latency(out)
         bench = {"fp32_merged": fp32, "int8_quantized": int8}
