@@ -29,10 +29,12 @@ import faiss  # type: ignore
 import numpy as np
 
 from encoder_backends import StableTextEncoder
+from retrieval_config import get_retrieval_encoder_profile
 
 
-DEFAULT_MODEL_NAME = "all-MiniLM-L6-v2"
-EMBED_DIM = 384
+_DEFAULT_PROFILE = get_retrieval_encoder_profile()
+DEFAULT_MODEL_NAME = _DEFAULT_PROFILE.model_name
+EMBED_DIM = _DEFAULT_PROFILE.embed_dim
 
 logger = logging.getLogger("retriever")
 if not logger.handlers:
@@ -71,7 +73,7 @@ class PrivacyRetriever:
 
     def __init__(
         self,
-        model_name: str = DEFAULT_MODEL_NAME,
+        model_name: str | None = None,
         *,
         normalize: bool = True,
         temperature: float = 0.07,
@@ -79,6 +81,7 @@ class PrivacyRetriever:
         model: Optional[StableTextEncoder] = None,
         query_perturb_sigma: float = 0.0,
         query_perturb_seed_base: int = 42,
+        encoder_profile: str | None = None,
     ) -> None:
         if temperature <= 0:
             raise ValueError("temperature must be > 0")
@@ -87,7 +90,8 @@ class PrivacyRetriever:
         if query_perturb_sigma < 0:
             raise ValueError("query_perturb_sigma must be >= 0")
 
-        self.model_name = model_name
+        self.encoder_profile = get_retrieval_encoder_profile(encoder_profile)
+        self.model_name = model_name or self.encoder_profile.model_name
         self.normalize = bool(normalize)
         self.temperature = float(temperature)
         self.lambda_privacy = float(lambda_privacy)
@@ -110,14 +114,29 @@ class PrivacyRetriever:
                 self.model_name,
                 device="cpu",
                 local_files_only=True,
-                n_features=EMBED_DIM,
+                n_features=self.encoder_profile.embed_dim,
+                query_prefix=self.encoder_profile.query_prefix,
+                passage_prefix=self.encoder_profile.passage_prefix,
+                max_length=self.encoder_profile.max_length,
+                encode_batch_size=self.encoder_profile.encode_batch_size,
             )
         return self._model
 
-    def _encode(self, texts: Sequence[str]) -> np.ndarray:
-        emb = self.model.encode(
+    def _encode_passages(self, texts: Sequence[str]) -> np.ndarray:
+        emb = self.model.encode_passages(
             list(texts),
-            convert_to_numpy=True,
+            normalize_embeddings=self.normalize,
+        ).astype(np.float32, copy=False)
+        if emb.ndim == 1:
+            emb = emb[None, :]
+        if self.normalize and emb.size:
+            norm = np.linalg.norm(emb, axis=1, keepdims=True)
+            emb = emb / np.clip(norm, 1e-12, None)
+        return np.ascontiguousarray(emb, dtype=np.float32)
+
+    def _encode_queries(self, texts: Sequence[str]) -> np.ndarray:
+        emb = self.model.encode_queries(
+            list(texts),
             normalize_embeddings=self.normalize,
         ).astype(np.float32, copy=False)
         if emb.ndim == 1:
@@ -168,7 +187,7 @@ class PrivacyRetriever:
         self._index_texts = [p[0] for p in pairs]
         self._return_texts = [p[1] for p in pairs]
 
-        emb = self._encode(self._index_texts)
+        emb = self._encode_passages(self._index_texts)
         self._embeddings = emb
         self._dim = int(emb.shape[1])
 
@@ -241,6 +260,12 @@ class PrivacyRetriever:
         if not index_path.is_file() or not meta_path.is_file():
             raise FileNotFoundError(f"Missing vector store files under {path}")
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        saved_model = str(meta.get("model_name", "") or "")
+        if saved_model and saved_model != self.model_name:
+            raise RuntimeError(
+                f"Vector store encoder mismatch: saved {saved_model!r}, "
+                f"current {self.model_name!r}. Click Build / Refresh Corpus to re-index."
+            )
         self._index = faiss.read_index(str(index_path))
         self._docs = [self._deserialize_doc(doc) for doc in meta.get("docs", [])]
         self._index_texts = list(meta.get("index_texts", []))
@@ -297,7 +322,7 @@ class PrivacyRetriever:
             query_text = str(query[0])
 
         pool_n = min(len(self._docs), max(int(candidate_pool or top_k), int(top_k)))
-        q_emb = self._perturb_query(query_text, self._encode([query_text]))
+        q_emb = self._perturb_query(query_text, self._encode_queries([query_text]))
         distances, indices = self._index.search(q_emb, pool_n)
 
         cand_idx = [int(i) for i in indices[0] if int(i) >= 0]

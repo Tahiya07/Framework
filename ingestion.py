@@ -213,6 +213,11 @@ class DocumentIngestor:
                     cid += 1
         finally:
             doc.close()
+        if not chunks:
+            raise RuntimeError(
+                f"No extractable text in {path.name}. Scanned/image-only PDFs need OCR — "
+                "paste the text, or re-export the PDF with a text layer."
+            )
         return chunks
 
     def _load_image_text_easyocr(self, path: Path) -> str:

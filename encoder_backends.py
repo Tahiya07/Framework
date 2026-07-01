@@ -53,15 +53,24 @@ class StableTextEncoder:
 
     def __init__(
         self,
-        model_name: str = "all-MiniLM-L6-v2",
+        model_name: str = "BAAI/bge-small-en-v1.5",
         device: str = "cpu",
         local_files_only: bool = True,
         n_features: int = 384,
+        *,
+        query_prefix: str = "",
+        passage_prefix: str = "",
+        max_length: int = 384,
+        encode_batch_size: int = 12,
     ) -> None:
         self.model_name = model_name
         self.device = device
         self.local_files_only = bool(local_files_only)
         self.n_features = int(n_features)
+        self.query_prefix = str(query_prefix or "")
+        self.passage_prefix = str(passage_prefix or "")
+        self.max_length = int(max_length)
+        self.encode_batch_size = max(1, int(encode_batch_size))
         self.backend = "hashing"
         self._tokenizer = None
         self._model = None
@@ -101,21 +110,36 @@ class StableTextEncoder:
                 exc,
             )
 
+    def _apply_prefix(
+        self,
+        texts: Sequence[str],
+        *,
+        mode: str,
+    ) -> list[str]:
+        if mode == "query" and self.query_prefix:
+            return [f"{self.query_prefix}{t}" for t in texts]
+        if mode == "passage" and self.passage_prefix:
+            return [f"{self.passage_prefix}{t}" for t in texts]
+        return list(texts)
+
     def _encode_transformers(
         self,
         texts: Sequence[str],
         batch_size: int,
         normalize_embeddings: bool,
+        *,
+        mode: str = "passage",
     ) -> np.ndarray:
         assert self._tokenizer is not None and self._model is not None and torch is not None
+        prepared = self._apply_prefix(texts, mode=mode)
         rows = []
-        for start in range(0, len(texts), batch_size):
-            batch = list(texts[start : start + batch_size])
+        for start in range(0, len(prepared), batch_size):
+            batch = prepared[start : start + batch_size]
             toks = self._tokenizer(
                 batch,
                 padding=True,
                 truncation=True,
-                max_length=256,
+                max_length=self.max_length,
                 return_tensors="pt",
             )
             toks = {k: v.to(self.device) for k, v in toks.items()}
@@ -151,10 +175,44 @@ class StableTextEncoder:
         convert_to_numpy: bool = True,
         show_progress_bar: bool = False,
         normalize_embeddings: bool = True,
+        *,
+        mode: str = "passage",
     ) -> np.ndarray:
         del convert_to_numpy, show_progress_bar
         if len(texts) == 0:
             return np.zeros((0, self.n_features), dtype=np.float32)
+        bs = batch_size if batch_size > 0 else self.encode_batch_size
         if self.backend == "transformers" and torch is not None:
-            return self._encode_transformers(texts, batch_size, normalize_embeddings)
+            return self._encode_transformers(
+                texts,
+                bs,
+                normalize_embeddings,
+                mode=mode,
+            )
         return self._encode_hashing(texts, normalize_embeddings)
+
+    def encode_queries(
+        self,
+        texts: Sequence[str],
+        *,
+        normalize_embeddings: bool = True,
+    ) -> np.ndarray:
+        return self.encode(
+            texts,
+            batch_size=self.encode_batch_size,
+            normalize_embeddings=normalize_embeddings,
+            mode="query",
+        )
+
+    def encode_passages(
+        self,
+        texts: Sequence[str],
+        *,
+        normalize_embeddings: bool = True,
+    ) -> np.ndarray:
+        return self.encode(
+            texts,
+            batch_size=self.encode_batch_size,
+            normalize_embeddings=normalize_embeddings,
+            mode="passage",
+        )

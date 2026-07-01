@@ -167,7 +167,7 @@ def _rag_rows(data: dict) -> List[Dict[str, Any]]:
             _row(
                 evidence_area="student learning (RAG)",
                 protocol="retrieval hit@3",
-                setting="FAISS + MiniLM",
+                setting="FAISS + BGE-small",
                 model="PrivacyRetriever",
                 primary_metric="hit_at_3_mean",
                 primary_value=(qa.get("retrieval_hit_at_3") or {}).get("mean"),

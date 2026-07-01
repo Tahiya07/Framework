@@ -2,8 +2,8 @@
 # Teacher-side Bloom moderation (generative)
 # Qwen2.5-1.5B-Instruct GGUF via llama.cpp
 #
-# Bloom *labels* come from the trained LoRA classifier in predict_bloom.py.
-# This module generates Reason + Higher-Level Rewrite for teachers.
+# Bloom *labels* come from the trained LoRA classifier (predict_bloom.py).
+# GGUF generates only the higher-level rewrite; rationale is LoRA-aligned.
 # ============================================================
 
 from __future__ import annotations
@@ -13,20 +13,39 @@ from dataclasses import dataclass
 from typing import Optional
 
 from multi_slm import resolve_slm_model_path
+from predict_bloom import BLOOM_LABELS, build_prompt as build_classifier_prompt
 
 IM_START = "<|im_start|>"
 IM_END = "<|" + "im_end" + "|>"
 
 BLOOM_ORDER = ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"]
 
-LONG_LABELS = [
-    "Remembering",
-    "Understanding",
-    "Applying",
-    "Analyzing",
-    "Evaluating",
-    "Creating",
-]
+_LEVEL_GUIDANCE: dict[str, dict[str, str]] = {
+    "Remember": {
+        "depth": "recall of facts, terms, or procedures without explaining relationships",
+        "rewrite": "Require explanation, comparison, or use of the recalled knowledge",
+    },
+    "Understand": {
+        "depth": "comprehension, interpretation, or summarization of ideas",
+        "rewrite": "Require application to a scenario, prediction, or worked example",
+    },
+    "Apply": {
+        "depth": "using knowledge or procedures in a concrete situation",
+        "rewrite": "Require analysis of trade-offs, breakdown of components, or diagnosis",
+    },
+    "Analyze": {
+        "depth": "breaking a problem into parts and examining relationships or causes",
+        "rewrite": "Require evaluation with criteria, justification, or critique",
+    },
+    "Evaluate": {
+        "depth": "judging quality, validity, or trade-offs using explicit criteria",
+        "rewrite": "Require designing, proposing, or synthesizing a novel solution",
+    },
+    "Create": {
+        "depth": "designing or producing a new artifact, plan, or argument",
+        "rewrite": "Extend the task with constraints, audience, or integration across topics",
+    },
+}
 
 _LLM = None
 
@@ -84,8 +103,6 @@ class BloomModerationResult:
 
 
 def _canonical_bloom_label(raw: str, *, fallback: str = "Understand") -> str:
-    from predict_bloom import BLOOM_LABELS
-
     token = (raw or "").strip().split("\n")[0].strip().rstrip(".")
     if ":" in token:
         token = token.split(":", 1)[-1].strip()
@@ -106,63 +123,77 @@ def _next_bloom_level(level: str) -> str:
     return BLOOM_ORDER[min(idx + 1, len(BLOOM_ORDER) - 1)]
 
 
-def _parse_moderation_text(raw: str, *, fallback_level: str) -> tuple[str, str, str]:
-    text = (raw or "").strip()
-    bloom_level = _canonical_bloom_label(fallback_level, fallback=fallback_level)
-    reason = ""
-    rewrite = ""
-
-    patterns = {
-        "bloom": re.compile(r"(?im)^\s*bloom\s*level\s*:\s*(.+)$"),
-        "reason": re.compile(r"(?im)^\s*reason\s*:\s*(.+)$"),
-        "rewrite": re.compile(
-            r"(?is)^\s*(?:higher[- ]level\s*rewrite|higher[- ]order\s*rewrite|rewrite)\s*:\s*(.+)$"
-        ),
-    }
-    bloom_match = patterns["bloom"].search(text)
-    if bloom_match:
-        bloom_level = _canonical_bloom_label(bloom_match.group(1), fallback=bloom_level)
-
-    reason_match = patterns["reason"].search(text)
-    if reason_match:
-        reason = reason_match.group(1).strip()
-
-    rewrite_match = patterns["rewrite"].search(text)
-    if rewrite_match:
-        rewrite = rewrite_match.group(1).strip()
-        rewrite = re.split(r"\n\s*(?:bloom|reason)\s*:", rewrite, maxsplit=1)[0].strip()
-
-    if not reason and not rewrite:
-        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-        if len(lines) >= 1 and not reason:
-            reason = lines[0]
-        if len(lines) >= 2 and not rewrite:
-            rewrite = lines[-1]
-
-    return bloom_level, reason, rewrite
+def next_bloom_level(level: str) -> str:
+    return _next_bloom_level(level)
 
 
-def build_prompt(question: str, *, predicted_level: Optional[str] = None) -> str:
-    lora_level = _canonical_bloom_label(predicted_level or "Understand")
-    target_level = _next_bloom_level(lora_level)
+def build_classifier_aligned_reason(
+    lora_level: str,
+    *,
+    confidence: float,
+    probabilities: dict[str, float] | None = None,
+) -> str:
+    """Deterministic rationale aligned with train_qwen_bloom / predict_bloom.py."""
+    level = _canonical_bloom_label(lora_level)
+    guide = _LEVEL_GUIDANCE.get(level, _LEVEL_GUIDANCE["Understand"])
+    runner_up = ""
+    if probabilities:
+        ordered = sorted(
+            ((label, float(probabilities.get(label, 0.0))) for label in BLOOM_LABELS),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+        if len(ordered) >= 2 and ordered[1][1] >= 0.12:
+            runner_up = (
+                f" The next most likely level was {ordered[1][0]} "
+                f"({ordered[1][1]:.0%}), but depth of reasoning favors {level}."
+            )
+    return (
+        f"The LoRA classifier ({confidence:.0%} confidence) placed this item at **{level}** "
+        f"because it primarily requires {guide['depth']}. "
+        f"Focus on reasoning depth, not surface verbs.{runner_up}"
+    )
+
+
+def build_rewrite_prompt(
+    question: str,
+    *,
+    lora_level: str,
+    target_level: str,
+) -> str:
+    """GGUF prompt for higher-order rewrite only (label is fixed by LoRA)."""
+    level = _canonical_bloom_label(lora_level)
+    guide = _LEVEL_GUIDANCE.get(level, _LEVEL_GUIDANCE["Understand"])
+    classifier_block = build_classifier_prompt(question)
     return f"""{IM_START}system
-You are an expert educational evaluator specialized in Bloom's Taxonomy.
-The trained LoRA classifier assigned this question to: {lora_level}.
-Your job is to (1) briefly justify that level and (2) rewrite the question so it
-requires {target_level}-level thinking (one Bloom stage higher when possible).
+You are an expert exam-question editor using Bloom's Taxonomy.
+The Bloom level is already decided by a trained classifier: {level}.
+Do NOT re-classify. Do NOT change the topic.
 
-Output EXACTLY these three labeled lines and nothing else:
+Task: rewrite the question so it requires **{target_level}**-level thinking
+(one stage higher than {level}). {guide['rewrite']}.
+Focus on reasoning depth, not verb swapping (avoid only changing "define" to "explain").
 
-Bloom Level: <{lora_level} or corrected label from Remember/Understand/Apply/Analyze/Evaluate/Create>
-Reason: <1-2 sentences on cognitive demand; focus on reasoning depth not verbs>
-Higher-Level Rewrite: <rewritten exam question requiring {target_level}-level cognition; keep the same topic>
+Output ONLY the rewritten question as a single exam-style sentence or short paragraph.
+No labels, no preamble, no bullet list.
 {IM_END}
 {IM_START}user
-Question:
+Classifier context (for alignment only):
+{classifier_block}
+
+Rewrite this question for {target_level}-level cognition:
 {question.strip()}
 {IM_END}
 {IM_START}assistant
-Bloom Level:""".strip()
+""".strip()
+
+
+def _clean_rewrite(text: str) -> str:
+    cleaned = (text or "").strip()
+    cleaned = re.sub(r"(?im)^(bloom level|reason|higher[- ]level rewrite|rewrite)\s*:\s*", "", cleaned)
+    cleaned = cleaned.strip().strip('"').strip("'")
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    return cleaned
 
 
 def _get_llm():
@@ -183,31 +214,31 @@ def _get_llm():
     return _LLM
 
 
-def _generate_raw(prompt: str) -> tuple[str, str, float]:
+def _generate_rewrite(prompt: str) -> tuple[str, str, float]:
     try:
         from qwen_gguf_cli import QwenGgufCliGenerator
 
         gen = QwenGgufCliGenerator.for_task(
             "bloom_moderation",
-            max_tokens=220,
+            max_tokens=180,
             ctx_size=2048,
             threads=4,
         )
         out = gen.generate_prompt(prompt)
-        return out.answer, out.backend, float(out.elapsed_s)
+        return _clean_rewrite(out.answer), out.backend, float(out.elapsed_s)
     except Exception:
         llm = _get_llm()
         output = llm(
             prompt,
-            temperature=0.1,
+            temperature=0.2,
             top_p=0.9,
             top_k=40,
             repeat_penalty=1.1,
-            max_tokens=220,
+            max_tokens=180,
             stop=[IM_END, IM_START],
         )
         text = output["choices"][0]["text"].strip()
-        return text, "llama-cpp-python", 0.0
+        return _clean_rewrite(text), "llama-cpp-python", 0.0
 
 
 def moderate_bloom_question(
@@ -215,50 +246,59 @@ def moderate_bloom_question(
     *,
     lora_level: str,
     lora_confidence: float = 0.0,
+    probabilities: dict[str, float] | None = None,
 ) -> BloomModerationResult:
-    """LoRA label + GGUF reason + higher-order rewrite (teacher architecture)."""
+    """LoRA label + aligned rationale + GGUF higher-order rewrite."""
     short_level = _canonical_bloom_label(lora_level)
     target_level = _next_bloom_level(short_level)
-    prompt = build_prompt(question, predicted_level=short_level)
+    reason = build_classifier_aligned_reason(
+        short_level,
+        confidence=lora_confidence,
+        probabilities=probabilities,
+    )
+    rewrite = ""
+    raw = ""
+    backend = ""
+    latency_s: Optional[float] = None
+    error = ""
+
     try:
-        raw, backend, latency_s = _generate_raw(prompt)
-        full_raw = f"Bloom Level: {raw}" if not raw.lower().startswith("bloom") else raw
-        bloom_level, reason, rewrite = _parse_moderation_text(full_raw, fallback_level=short_level)
-        if not rewrite:
-            rewrite = (
-                f"[Rewrite unavailable — elevate the question to require {target_level}-level thinking "
-                f"while keeping the same topic.]"
-            )
-        return BloomModerationResult(
-            question=question,
+        prompt = build_rewrite_prompt(
+            question,
             lora_level=short_level,
-            lora_confidence=float(lora_confidence),
-            target_higher_level=target_level,
-            bloom_level=bloom_level,
-            reason=reason or "Classifier-assigned level based on required cognitive depth.",
-            higher_level_rewrite=rewrite,
-            raw=full_raw,
-            backend=backend,
-            latency_s=latency_s,
+            target_level=target_level,
         )
+        rewrite, backend, latency_s = _generate_rewrite(prompt)
+        raw = rewrite
+        if not rewrite or len(rewrite.split()) < 6:
+            raise RuntimeError("rewrite_too_short")
     except Exception as exc:
-        return BloomModerationResult(
-            question=question,
-            lora_level=short_level,
-            lora_confidence=float(lora_confidence),
-            target_higher_level=target_level,
-            bloom_level=short_level,
-            reason="",
-            higher_level_rewrite="",
-            error=str(exc),
+        error = str(exc)
+        guide = _LEVEL_GUIDANCE.get(short_level, _LEVEL_GUIDANCE["Understand"])
+        rewrite = (
+            f"[Auto-rewrite unavailable] Elevate to {target_level}: {guide['rewrite']}. "
+            f"Original: {question.strip()}"
         )
+
+    return BloomModerationResult(
+        question=question,
+        lora_level=short_level,
+        lora_confidence=float(lora_confidence),
+        target_higher_level=target_level,
+        bloom_level=short_level,
+        reason=reason,
+        higher_level_rewrite=rewrite,
+        raw=raw,
+        backend=backend,
+        latency_s=latency_s,
+        error=error,
+    )
 
 
 def analyze_bloom(question: str, *, predicted_level: Optional[str] = None) -> str:
-    """Backward-compatible text output for teacher moderation."""
     level = _canonical_bloom_label(predicted_level or "Understand")
     result = moderate_bloom_question(question, lora_level=level)
-    if result.error:
+    if result.error and result.higher_level_rewrite.startswith("[Auto-rewrite"):
         raise RuntimeError(result.error)
     return (
         f"Bloom Level: {result.bloom_level}\n"
@@ -273,15 +313,18 @@ def predict_bloom_label(question: str) -> str:
     return QwenBloomPredictor().predict(question)["prediction"]
 
 
-def zero_shot_bloom_label(question: str) -> str:
-    """Bloom label from base Qwen GGUF (no LoRA fine-tuning)."""
-    prompt = build_prompt(question, predicted_level=None)
-    raw, _, _ = _generate_raw(prompt)
-    return _canonical_bloom_label(raw)
+def build_prompt(question: str, *, predicted_level: Optional[str] = None) -> str:
+    """Backward-compat alias — prefer build_rewrite_prompt for moderation."""
+    level = _canonical_bloom_label(predicted_level or "Understand")
+    return build_rewrite_prompt(
+        question,
+        lora_level=level,
+        target_level=_next_bloom_level(level),
+    )
 
 
 if __name__ == "__main__":
-    print("Teacher Bloom moderation (GGUF). Labels: predict_bloom.py / train_qwen_bloom.py")
+    print("Teacher Bloom moderation — label: predict_bloom.py; rewrite: GGUF")
     while True:
         q = input("\nEnter academic question (or 'exit'): ")
         if q.lower() == "exit":
@@ -293,10 +336,10 @@ if __name__ == "__main__":
             q,
             lora_level=pred["prediction"],
             lora_confidence=pred["confidence"],
+            probabilities=pred.get("probabilities"),
         )
         print("\nLoRA:", pred["prediction"], f"(conf={pred['confidence']})")
-        print("Target higher level:", mod.target_higher_level)
         print("Reason:", mod.reason)
         print("Rewrite:", mod.higher_level_rewrite)
         if mod.error:
-            print("Error:", mod.error)
+            print("Rewrite warning:", mod.error)

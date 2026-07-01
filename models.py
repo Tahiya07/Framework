@@ -360,6 +360,8 @@ class RAGGenerator:
         max_tokens: Optional[int] = None,
         safety_instruction: Optional[str] = None,
         min_cosine: float = 0.22,
+        max_chars_per_chunk: int = 700,
+        max_total_chars: int = 2800,
     ) -> GenerationOutput:
         """Run generation from caller-supplied context chunks."""
         if not isinstance(query, str) or not query.strip():
@@ -382,7 +384,11 @@ class RAGGenerator:
                     )
                 )
         norm = filter_relevant_chunks(norm, min_cosine=min_cosine)
-        norm = trim_chunks_for_context(norm)
+        norm = trim_chunks_for_context(
+            norm,
+            max_chars_per_chunk=max_chars_per_chunk,
+            max_total_chars=max_total_chars,
+        )
         if not norm:
             return GenerationOutput(
                 answer="I don't know based on the provided context.",

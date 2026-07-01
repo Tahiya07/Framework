@@ -12,7 +12,7 @@ import streamlit as st
 
 from predict_bloom import BLOOM_LABELS, BLOOM_LEVELS, QwenBloomPredictor, is_deploy_checkpoint
 from bloom_model_profiles import DEFAULT_MODEL_SIZE, get_profile
-from bloom_prompt import moderate_bloom_question, BloomModerationResult
+from bloom_prompt import moderate_bloom_question, BloomModerationResult, next_bloom_level
 
 from runtime_utils import (
     DEFAULT_N_CTX,
@@ -45,6 +45,8 @@ from role_access import (
     teacher_visible_chunks,
 )
 from architecture_compliance import check_all as architecture_compliance_report
+from rag_utils import boost_summary_retrieval_query, is_document_summary_query
+from retrieval_config import get_retrieval_encoder_profile
 from retriever import PrivacyRetriever, RetrievalResult
 from summarizer import CognitiveSummarizer
 from uncertainty import UncertaintyEngine
@@ -110,21 +112,73 @@ def _predict_bloom(runtime: Dict[str, Any], text: str) -> Dict[str, Any]:
         "confidence": float(out["confidence"]),
         "probabilities": out["probabilities"],
         "source": f"{profile_name} LoRA (train_qwen_bloom.py)",
+        "from_lora": True,
     }
+
+
+def _student_bloom_profile() -> Dict[str, Any]:
+    """Fast student path: RAG uses a neutral cognitive level without loading LoRA."""
+    k = len(BLOOM_LABELS)
+    uniform = 1.0 / k
+    dist = np.full(k, uniform, dtype=np.float64)
+    return {
+        "level": "Understand",
+        "rag_key": "understand",
+        "distribution": dist,
+        "confidence": float(uniform),
+        "probabilities": {label: uniform for label in BLOOM_LABELS},
+        "source": "default (student — LoRA not loaded)",
+        "from_lora": False,
+    }
+
+
+def _ensure_bloom_predictor(runtime: Dict[str, Any]) -> QwenBloomPredictor:
+    predictor: QwenBloomPredictor | None = runtime.get("bloom_predictor")
+    if predictor is not None:
+        return predictor
+    deploy = runtime.get("bloom_deploy", _bloom_deploy_settings())
+    if not _bloom_checkpoint_ready(deploy):
+        raise RuntimeError(
+            runtime.get("bloom_predictor_error")
+            or f"Bloom deploy checkpoint missing at {deploy['deploy_path']}."
+        )
+    with st.spinner("Loading Bloom LoRA classifier (first teacher use, ~1–3 min on CPU)..."):
+        predictor = _load_bloom_predictor(deploy["model_size"], deploy["use_lightweight"])
+    runtime["bloom_predictor"] = predictor
+    runtime["bloom_predictor_error"] = ""
+    summarizer = runtime.get("summarizer")
+    if summarizer is not None:
+        summarizer.bloom_predictor = predictor
+    return predictor
+
+
+def _resolve_bloom_for_role(
+    runtime: Dict[str, Any],
+    text: str,
+    role: Role,
+) -> Dict[str, Any]:
+    if role == Role.STUDENT:
+        return _student_bloom_profile()
+    _ensure_bloom_predictor(runtime)
+    return _predict_bloom(runtime, text)
 
 
 # ============================================================
 # EVERYTHING BELOW THIS IS UNCHANGED (YOUR ORIGINAL APP)
 # ============================================================
 
-def _show_teacher_bloom_moderation(query: str, bloom_pred: Dict[str, Any]) -> BloomModerationResult | None:
-    """Teacher architecture: LoRA Bloom level + GGUF reason + higher-order rewrite."""
-    st.subheader("Teacher Bloom Moderation")
-    cols = st.columns(3)
-    cols[0].metric("Bloom Level (LoRA)", bloom_pred["level"])
+def _show_teacher_bloom_moderation(query: str, bloom_pred: Dict[str, Any]) -> BloomModerationResult:
+    """Teacher flow: LoRA label + classifier-aligned reason + GGUF higher-order rewrite."""
+    st.subheader("Bloom labeling & moderation")
+    cols = st.columns(4)
+    cols[0].metric("Bloom level (LoRA)", bloom_pred["level"])
     cols[1].metric("Confidence", f"{bloom_pred['confidence']:.3f}")
-    cols[2].metric("Label source", "0.5B classifier")
-    st.caption(bloom_pred.get("source", ""))
+    cols[2].metric("Rewrite target", next_bloom_level(bloom_pred["level"]))
+    cols[3].metric("Classifier", "0.5B LoRA")
+    st.caption(
+        f"{bloom_pred.get('source', '')} · Same prompt framing as predict_bloom.py "
+        "(reasoning depth, not verbs). Label is fixed; GGUF only rewrites."
+    )
 
     with st.expander("Class probabilities (LoRA)", expanded=False):
         st.dataframe(
@@ -136,33 +190,28 @@ def _show_teacher_bloom_moderation(query: str, bloom_pred: Dict[str, Any]) -> Bl
             hide_index=True,
         )
 
-    with st.spinner("Generating pedagogical reason and higher-level rewrite (local 1.5B GGUF)..."):
+    with st.spinner("Generating higher-level rewrite (local 1.5B GGUF)..."):
         moderation = moderate_bloom_question(
             query,
             lora_level=bloom_pred["level"],
             lora_confidence=bloom_pred["confidence"],
+            probabilities=bloom_pred.get("probabilities"),
         )
 
+    st.markdown("**Pedagogical rationale (LoRA-aligned)**")
+    st.markdown(moderation.reason)
+
+    st.markdown("**Higher-level rewrite**")
     if moderation.error:
-        st.error(
-            "Could not generate reason/rewrite. Ensure "
+        st.warning(
+            "Rewrite used a template fallback. For full GGUF rewrites, ensure "
             "`models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf` and llama-cli are available. "
             f"Detail: {moderation.error}"
         )
-        return moderation
-
-    info_cols = st.columns(2)
-    info_cols[0].metric("Confirmed / adjusted level", moderation.bloom_level)
-    info_cols[1].metric("Target for rewrite", moderation.target_higher_level)
-
-    st.markdown("**Reason**")
-    st.write(moderation.reason)
-
-    st.markdown("**Higher-level rewrite**")
     st.info(moderation.higher_level_rewrite)
 
-    if moderation.latency_s:
-        st.caption(f"Moderation backend: {moderation.backend} · {moderation.latency_s:.1f}s")
+    if moderation.backend and moderation.latency_s:
+        st.caption(f"Rewrite backend: {moderation.backend} · {moderation.latency_s:.1f}s")
     return moderation
 
 
@@ -258,15 +307,7 @@ def _runtime() -> Dict[str, Any]:
 
         bloom_predictor = None
         bloom_predictor_error = ""
-        if _bloom_checkpoint_ready(deploy):
-            try:
-                bloom_predictor = _load_bloom_predictor(
-                    deploy["model_size"],
-                    deploy["use_lightweight"],
-                )
-            except Exception as exc:
-                bloom_predictor_error = str(exc)
-        else:
+        if not _bloom_checkpoint_ready(deploy):
             bloom_predictor_error = (
                 f"Bloom deploy checkpoint missing at {deploy['deploy_path']}. "
                 f"Run: python merge_model.py --model-size {deploy['model_size']}"
@@ -286,7 +327,7 @@ def _runtime() -> Dict[str, Any]:
             summarizer = CognitiveSummarizer(
                 retriever=retriever,
                 generator=generator,
-                bloom_predictor=bloom_predictor,
+                bloom_predictor=None,
                 hierarchical=False,
                 per_chunk_max_tokens=64,
             )
@@ -294,6 +335,13 @@ def _runtime() -> Dict[str, Any]:
             generator_error = str(exc)
 
         uncertainty = UncertaintyEngine(K=len(BLOOM_LEVELS), n_bins=10)
+
+        retr_profile = get_retrieval_encoder_profile()
+        retrieval_encoder_backend = "unknown"
+        try:
+            retrieval_encoder_backend = retriever.model.backend
+        except Exception:
+            pass
 
         runtime_payload = {
             "ingestor": ingestor,
@@ -306,6 +354,8 @@ def _runtime() -> Dict[str, Any]:
             "generator_error": generator_error,
             "summarizer": summarizer,
             "uncertainty": uncertainty,
+            "retrieval_encoder_profile": retr_profile,
+            "retrieval_encoder_backend": retrieval_encoder_backend,
         }
         st.session_state.demo_runtime = runtime_payload
         _restore_vector_stores(runtime_payload)
@@ -413,10 +463,13 @@ def _governed_chunks(
     governor_preset: str,
     *,
     student_mode: bool = False,
+    retrieval_query: str | None = None,
+    pool_multiplier: float = 1.0,
 ) -> List[RetrievalResult]:
-    pool_n = max(DEFAULT_FAISS_POOL, int(top_k))
+    pool_n = max(DEFAULT_FAISS_POOL, int(top_k * pool_multiplier))
+    rq = (retrieval_query or query).strip() or query
     pool = retriever.retrieve(
-        query,
+        rq,
         top_k=pool_n,
         candidate_pool=pool_n,
         rank_by="relevance" if student_mode else "privacy",
@@ -480,21 +533,36 @@ def _run_summary(
     retriever: PrivacyRetriever,
     safety_instruction: str,
     *,
+    bloom_level: str = "understand",
     student_mode: bool = False,
+    visible_chunks: Sequence[DocumentChunk] | None = None,
 ) -> Dict[str, Any]:
     summarizer: CognitiveSummarizer = runtime["summarizer"]
     if summarizer is None:
         raise RuntimeError(f"Summarization backend is unavailable: {runtime.get('generator_error') or 'unknown error'}")
     t0 = time.perf_counter()
+    retrieval_query = query
+    pool_multiplier = 1.0
+    doc_summary = bool(visible_chunks) and is_document_summary_query(query)
+    if doc_summary:
+        retrieval_query = boost_summary_retrieval_query(
+            query,
+            [c.text for c in visible_chunks],
+        )
+        pool_multiplier = 3.0
+        top_k = max(top_k, 6)
     chunks = _governed_chunks(
         retriever,
         query,
         top_k=top_k,
         governor_preset=governor_preset,
         student_mode=student_mode,
+        retrieval_query=retrieval_query,
+        pool_multiplier=pool_multiplier,
     )
     output = summarizer.summarize(
         query=query,
+        bloom_level=bloom_level,
         k=top_k,
         max_tokens=max_tokens,
         retrieved_chunks=chunks,
@@ -506,7 +574,11 @@ def _run_summary(
         "chunks": output.chunks,
         "prompt": output.prompt,
         "latency_s": elapsed,
-        "metadata": output.metadata,
+        "metadata": {
+            **output.metadata,
+            "document_summary_mode": doc_summary,
+            "retrieval_query": retrieval_query,
+        },
     }
 
 
@@ -549,23 +621,59 @@ def main() -> None:
         st.stop()
     if runtime.get("bloom_predictor_error"):
         st.warning(f"Bloom classifier unavailable: {runtime['bloom_predictor_error']}")
-    elif runtime.get("bloom_predictor") is not None:
+    else:
         deploy = runtime.get("bloom_deploy", _bloom_deploy_settings())
-        mode_label = "FP32 merged (recommended)" if deploy["mode"] == BLOOM_DEPLOY_MODE_FP32 else "FP16 deploy (smaller, slower on CPU)"
-        st.caption(
-            f"Bloom deploy: **{deploy['profile'].display_name}** · {mode_label} · "
-            f"`{deploy['deploy_path']}` · {_dir_size_mb(deploy['deploy_path']):.0f} MB"
-        )
+        if runtime.get("bloom_predictor") is not None or _bloom_checkpoint_ready(deploy):
+            mode_label = (
+                "FP32 merged (recommended)"
+                if deploy["mode"] == BLOOM_DEPLOY_MODE_FP32
+                else "FP16 deploy (smaller, slower on CPU)"
+            )
+            load_note = (
+                "loaded"
+                if runtime.get("bloom_predictor")
+                else "lazy-loads on first teacher inference"
+            )
+            st.caption(
+                f"Bloom deploy: **{deploy['profile'].display_name}** · {mode_label} · "
+                f"`{deploy['deploy_path']}` · {_dir_size_mb(deploy['deploy_path']):.0f} MB · {load_note}"
+            )
     if runtime.get("generator_error"):
         st.error(
             "Qwen GGUF generator unavailable — student Q&A will not work until you place "
-            "`models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf` on disk. "
+            "`models/qwen.gguf` (or `models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf`) on disk. "
             f"Detail: {runtime['generator_error']}"
         )
+    retr_profile = runtime.get("retrieval_encoder_profile") or get_retrieval_encoder_profile()
+    st.caption(f"Retrieval encoder: **{retr_profile.label}** (CPU, 384-dim FAISS)")
+    if runtime.get("retrieval_encoder_backend") == "hashing":
+        st.error(
+            "Retrieval encoder is using a **hashing fallback** (poor search quality). "
+            "Download the BGE model once while online, then rebuild the corpus:\n\n"
+            "`python bootstrap_retrieval_encoder.py`"
+        )
+    for scope in ("public", "protected"):
+        err = st.session_state.get(f"{scope}_vector_store_error")
+        if err:
+            st.warning(
+                f"Could not restore {scope} vector store ({err}). "
+                "Re-upload your PDF and click **Build / Refresh Corpus**."
+            )
 
     with st.sidebar:
         st.header("Demo Controls")
-        lambda_privacy = st.slider("Privacy lambda (retrieval)", min_value=0.0, max_value=1.0, value=0.1, step=0.05)
+        lambda_privacy = st.slider(
+            "Privacy lambda (retrieval)",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.1,
+            step=0.05,
+            help=(
+                "RAG chunk ranking: score = cosine_similarity − λ × InfoNCE_risk. "
+                "Higher λ down-ranks generic, easy-to-memorize chunks and favors distinctive matches. "
+                "0 = pure relevance; ~0.1 for student Q&A; raise for protected exam corpora."
+            ),
+        )
         top_k = st.slider("Top-k retrieved chunks", min_value=1, max_value=8, value=4, step=1)
         max_tokens = st.slider("Max generation tokens", min_value=48, max_value=256, value=160, step=16)
         requester_role = st.radio("Requester role", options=["Student", "Teacher / Moderator"], index=0)
@@ -594,8 +702,8 @@ def main() -> None:
             governor_preset = "strong" if protected_mode else "qa"
         search_scope = resolve_search_scope(role, upload_scope)
         st.caption(
-            "Students: public corpus + Output Privacy Guard only. Teachers: 0.5B LoRA Bloom classifier "
-            "(6 cognitive levels) + 1.5B GGUF reason/rewrite; protected index when upload target is protected."
+            "Students: public RAG + PrivacyGuard (no LoRA load). Teachers: 0.5B LoRA Bloom classifier "
+            "(six levels + rewrite) on first use; protected index when upload target is protected."
         )
         deploy = runtime.get("bloom_deploy", _bloom_deploy_settings())
         with st.expander("Deployment status", expanded=False):
@@ -604,11 +712,15 @@ def main() -> None:
             st.write(f"Checkpoint: `{deploy['deploy_path']}`")
             st.write(f"Mode: {deploy['mode']}")
             st.write(f"On disk: {_dir_size_mb(deploy['deploy_path']):.1f} MB")
-            st.write(f"Loaded: {'yes' if runtime.get('bloom_predictor') else 'no'}")
+            st.write(f"Loaded: {'yes (lazy)' if runtime.get('bloom_predictor') else 'on first teacher use'}")
             if deploy["use_lightweight"]:
                 st.caption("FP16 is smaller but slower on CPU. Unset BLOOM_USE_QUANTIZED for FP32 merged.")
-            st.markdown("**Student / teacher text (RAG + moderation)**")
-            st.write("Generator: `models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf`")
+            st.markdown("**Retrieval (RAG)**")
+            st.write(f"Encoder: {retr_profile.label}")
+            st.write(f"Model id: `{retr_profile.model_name}`")
+            st.write("Switch legacy MiniLM: `$env:RETRIEVAL_ENCODER='minilm'`")
+            st.markdown("**Student / teacher text (GGUF)**")
+            st.write("Generator: `models/qwen.gguf` or `models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf`")
             st.write(f"Loaded: {'yes' if runtime.get('generator') else 'no'}")
             public_n = len(st.session_state.get("public_chunks", []))
             protected_n = len(st.session_state.get("protected_chunks", []))
@@ -721,7 +833,9 @@ def main() -> None:
         query_placeholder = "Example: Explain the main idea and give one application."
     elif mode == "Summarization":
         query_label = "Request a summary"
-        query_placeholder = "Example: Summarize this topic for an undergraduate learner."
+        query_placeholder = (
+            "Example: Summarize the uploaded stakeholder interview PDF and list the main themes."
+        )
     else:
         query_label = "Enter an exam question"
         query_placeholder = "Example: Compare TCP and UDP for reliability and latency trade-offs."
@@ -756,6 +870,12 @@ def main() -> None:
         if not query.strip():
             st.error("Enter a question or summary request first.")
             st.stop()
+        if role == Role.STUDENT and runtime.get("generator") is None:
+            st.error(
+                "Student Q&A requires the local Qwen GGUF generator. "
+                f"{runtime.get('generator_error') or 'Place models/qwen.gguf on disk.'}"
+            )
+            st.stop()
 
         runtime["retriever"].lambda_privacy = float(lambda_privacy)
         runtime["protected_retriever"].lambda_privacy = float(lambda_privacy)
@@ -767,7 +887,7 @@ def main() -> None:
                 st.error(STUDENT_REFUSAL)
                 st.stop()
 
-            bloom_pred = _predict_bloom(runtime, query)
+            bloom_pred = _resolve_bloom_for_role(runtime, query, role)
             bloom_summary = uncertainty.aggregate_summary(bloom_p=bloom_pred["distribution"])
             bloom_gate = uncertainty.gate(bloom_pred["distribution"], threshold=0.35)
             bloom_uncertainty = bloom_summary.bloom_uncertainty
@@ -775,7 +895,7 @@ def main() -> None:
                 bloom_pred["rag_key"] if bloom_gate["accepted"] else "understand"
             )
             gate_instruction = ""
-            if not bloom_gate["accepted"]:
+            if bloom_pred.get("from_lora") and not bloom_gate["accepted"]:
                 gate_instruction = (
                     "Bloom LoRA confidence is low; use a generalized academic "
                     "response and avoid over-specializing to a single Bloom level."
@@ -797,33 +917,41 @@ def main() -> None:
                         "Low-confidence LoRA prediction; review moderation output before using the RAG answer."
                     )
 
-            if mode == "Question Answering":
-                result = _run_qa(
-                    runtime,
-                    query=query,
-                    bloom_level=bloom_level,
-                    top_k=top_k,
-                    governor_preset=governor_preset,
-                    retriever=runtime["protected_retriever"] if use_protected_retriever else runtime["retriever"],
-                    safety_instruction="\n".join(
-                        part for part in [policy_instruction(role_key, search_scope), gate_instruction] if part
-                    ),
-                    max_tokens=max_tokens,
-                    student_mode=(role_key == "student"),
-                )
-            else:
-                result = _run_summary(
-                    runtime,
-                    query=query,
-                    top_k=top_k,
-                    max_tokens=max_tokens,
-                    governor_preset=governor_preset,
-                    retriever=runtime["protected_retriever"] if use_protected_retriever else runtime["retriever"],
-                    safety_instruction="\n".join(
-                        part for part in [policy_instruction(role_key, search_scope), gate_instruction] if part
-                    ),
-                    student_mode=(role_key == "student"),
-                )
+            spinner_msg = (
+                "Retrieving context and generating answer (local GGUF, CPU may take 30–90s)..."
+                if mode == "Question Answering"
+                else "Retrieving context and generating summary (local GGUF, CPU may take 30–90s)..."
+            )
+            with st.spinner(spinner_msg):
+                if mode == "Question Answering":
+                    result = _run_qa(
+                        runtime,
+                        query=query,
+                        bloom_level=bloom_level,
+                        top_k=top_k,
+                        governor_preset=governor_preset,
+                        retriever=runtime["protected_retriever"] if use_protected_retriever else runtime["retriever"],
+                        safety_instruction="\n".join(
+                            part for part in [policy_instruction(role_key, search_scope), gate_instruction] if part
+                        ),
+                        max_tokens=max_tokens,
+                        student_mode=(role_key == "student"),
+                    )
+                else:
+                    result = _run_summary(
+                        runtime,
+                        query=query,
+                        top_k=top_k,
+                        max_tokens=max_tokens,
+                        governor_preset=governor_preset,
+                        retriever=runtime["protected_retriever"] if use_protected_retriever else runtime["retriever"],
+                        safety_instruction="\n".join(
+                            part for part in [policy_instruction(role_key, search_scope), gate_instruction] if part
+                        ),
+                        bloom_level=bloom_level,
+                        student_mode=(role_key == "student"),
+                        visible_chunks=visible_chunks,
+                    )
 
             output_policy = screen_generation_output(role_key, query, result["text"], protected_chunks)
             if not output_policy.allowed:
@@ -842,13 +970,23 @@ def main() -> None:
             st.write(result["text"])
 
             metric_cols = st.columns(5)
-            metric_cols[0].metric("Bloom Level", bloom_pred["level"])
-            metric_cols[1].metric("Top-1 Confidence", f"{bloom_summary.top1_confidence:.3f}")
-            metric_cols[2].metric("Bloom Uncertainty", f"{bloom_uncertainty:.3f}")
+            if bloom_pred.get("from_lora"):
+                metric_cols[0].metric("Bloom Level", bloom_pred["level"])
+                metric_cols[1].metric("Top-1 Confidence", f"{bloom_summary.top1_confidence:.3f}")
+                metric_cols[2].metric("Bloom Uncertainty", f"{bloom_uncertainty:.3f}")
+            else:
+                metric_cols[0].metric("Cognitive style", bloom_pred["level"])
+                metric_cols[1].metric("LoRA", "skipped")
+                metric_cols[2].metric("RAG depth", bloom_level)
             metric_cols[3].metric("Latency", f"{result['latency_s']:.2f} s")
             metric_cols[4].metric("Retrieved Chunks", len(result["chunks"]))
-            st.caption(f"Bloom label source: {bloom_pred['source']}.")
-            if not bloom_gate["accepted"]:
+            st.caption(f"Bloom routing: {bloom_pred['source']}.")
+            if result.get("metadata", {}).get("document_summary_mode"):
+                st.caption(
+                    "Document-summary mode: retrieved broader context from your upload "
+                    f"({len(result['chunks'])} chunks used)."
+                )
+            if bloom_pred.get("from_lora") and not bloom_gate["accepted"]:
                 st.warning(
                     "Bloom gate used generalized fallback "
                     f"'understand' because entropy confidence "

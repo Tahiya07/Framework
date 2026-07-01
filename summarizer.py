@@ -69,7 +69,7 @@ from retriever import PrivacyRetriever, RetrievalResult
 from models import RAGGenerator, GenerationOutput, BLOOM_INSTRUCTIONS
 from predict_bloom import BLOOM_LEVELS, QwenBloomPredictor
 from uncertainty import UncertaintyEngine
-from rag_utils import sanitize_rag_answer
+from rag_utils import DOCUMENT_SUMMARY_MIN_COSINE, sanitize_rag_answer
 
 # ----------------------------------------------------------------------------
 # Logging
@@ -273,6 +273,9 @@ class CognitiveSummarizer:
         max_tokens: int = 160,
         retrieved_chunks: Optional[Sequence[RetrievalResult]] = None,
         safety_instruction: Optional[str] = None,
+        min_cosine: float = DOCUMENT_SUMMARY_MIN_COSINE,
+        max_chars_per_chunk: int = 900,
+        max_total_chars: int = 4200,
     ) -> SummaryOutput:
         """Run the full Cognitive-Aware RAG pipeline.
 
@@ -361,6 +364,9 @@ class CognitiveSummarizer:
             bloom_level=bloom_lc,
             max_tokens=int(max_tokens),
             safety_instruction=safety_instruction,
+            min_cosine=float(min_cosine),
+            max_chars_per_chunk=int(max_chars_per_chunk),
+            max_total_chars=int(max_total_chars),
         )
         summary = sanitize_rag_answer(gen.answer, [c.text for c in chunks])
 

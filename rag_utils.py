@@ -9,8 +9,46 @@ from retriever import RetrievalResult
 
 # Chunks below this cosine similarity are dropped before generation.
 DEFAULT_MIN_COSINE = 0.22
+DOCUMENT_SUMMARY_MIN_COSINE = 0.05
 
 _REFUSAL = "I don't know based on the provided context."
+
+_DOCUMENT_SUMMARY_CUES = (
+    "summar",
+    "overview",
+    "main point",
+    "key point",
+    "this pdf",
+    "this document",
+    "the pdf",
+    "the document",
+    "uploaded",
+    "whole document",
+    "entire document",
+    "what is in",
+    "what does this",
+    "tell me about this",
+    "stakeholder interview",
+)
+
+
+def is_document_summary_query(query: str) -> bool:
+    q = _normalize(query)
+    if not q:
+        return False
+    return any(cue in q for cue in _DOCUMENT_SUMMARY_CUES)
+
+
+def boost_summary_retrieval_query(
+    query: str,
+    corpus_chunks: Sequence[str],
+) -> str:
+    """Anchor retrieval in document content when the user asks to summarize the upload."""
+    sample = " ".join((t or "").strip() for t in corpus_chunks[:4] if (t or "").strip())
+    sample = re.sub(r"\s+", " ", sample)[:500]
+    if sample:
+        return f"main topics themes key points interview questions {sample}"
+    return f"document content themes key points {query.strip()}"
 
 
 def filter_relevant_chunks(
