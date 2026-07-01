@@ -152,8 +152,11 @@ def main():
     parser.add_argument("--text_col", type=str, default="question")
     parser.add_argument("--label_col", type=str, default="bloom_level")
 
-    parser.add_argument("--model_name", type=str, default="Qwen/Qwen2.5-1.5B-Instruct")
-    parser.add_argument("--output_dir", type=str, default="models/qwen_bloom_trained")
+    # parser.add_argument("--model_name", type=str, default="Qwen/Qwen2.5-1.5B-Instruct")
+    # parser.add_argument("--output_dir", type=str, default="models/qwen_bloom_trained")
+
+    parser.add_argument("--model_name", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
+    parser.add_argument("--output_dir", type=str, default="models/qwen_bloom_trained0.5B")
 
     parser.add_argument("--max_length", type=int, default=256)
 
