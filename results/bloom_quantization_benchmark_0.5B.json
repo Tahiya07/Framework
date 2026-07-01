@@ -1,0 +1,17 @@
+{
+  "model_size": "0.5b",
+  "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "fp32_merged": {
+    "backend": "fp32",
+    "runs": 5,
+    "mean_latency_s": 0.2653,
+    "min_latency_s": 0.246
+  },
+  "lightweight_deploy": {
+    "backend": "fp16_merged",
+    "runs": 5,
+    "mean_latency_s": 1.8237,
+    "min_latency_s": 1.753
+  },
+  "speedup": 0.145
+}
