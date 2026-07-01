@@ -10,8 +10,9 @@ from typing import Any, Dict, List, Sequence
 import numpy as np
 import streamlit as st
 
-from predict_bloom import BLOOM_LABELS, BLOOM_LEVELS, QwenBloomPredictor
-from bloom_prompt import analyze_bloom
+from predict_bloom import BLOOM_LABELS, BLOOM_LEVELS, QwenBloomPredictor, is_deploy_checkpoint
+from bloom_model_profiles import DEFAULT_MODEL_SIZE, get_profile
+from bloom_prompt import moderate_bloom_question, BloomModerationResult
 
 from runtime_utils import (
     DEFAULT_N_CTX,
@@ -56,6 +57,40 @@ APP_TITLE = "Lightweight Multi-Modal Tiny LLM Demo"
 UPLOAD_TYPES = ["pdf", "png", "jpg", "jpeg", "tif", "tiff", "bmp", "webp", "txt", "md"]
 DEFAULT_FAISS_POOL = 20
 VECTOR_STORE_DIR = Path("data/vector_store")
+BLOOM_DEPLOY_MODE_FP32 = "fp32_merged"
+BLOOM_DEPLOY_MODE_FP16 = "fp16_deploy"
+
+
+def _dir_size_mb(path: Path) -> float:
+    if not path.exists():
+        return 0.0
+    return sum(f.stat().st_size for f in path.rglob("*") if f.is_file()) / (1024**2)
+
+
+def _bloom_deploy_settings() -> Dict[str, Any]:
+    model_size = os.environ.get("BLOOM_MODEL_SIZE", DEFAULT_MODEL_SIZE)
+    use_lightweight = os.environ.get("BLOOM_USE_QUANTIZED", "0").strip().lower() in ("1", "true", "yes")
+    profile = get_profile(model_size)
+    if use_lightweight:
+        deploy_path = Path(profile.quantized_dir)
+        mode = BLOOM_DEPLOY_MODE_FP16
+    else:
+        deploy_path = Path(profile.merged_dir)
+        mode = BLOOM_DEPLOY_MODE_FP32
+    return {
+        "model_size": model_size,
+        "profile": profile,
+        "use_lightweight": use_lightweight,
+        "deploy_path": deploy_path,
+        "mode": mode,
+    }
+
+
+def _bloom_checkpoint_ready(settings: Dict[str, Any]) -> bool:
+    path: Path = settings["deploy_path"]
+    if settings["mode"] == BLOOM_DEPLOY_MODE_FP16:
+        return is_deploy_checkpoint(path)
+    return (path / "config.json").is_file()
 
 
 def _predict_bloom(runtime: Dict[str, Any], text: str) -> Dict[str, Any]:
@@ -82,6 +117,55 @@ def _predict_bloom(runtime: Dict[str, Any], text: str) -> Dict[str, Any]:
 # EVERYTHING BELOW THIS IS UNCHANGED (YOUR ORIGINAL APP)
 # ============================================================
 
+def _show_teacher_bloom_moderation(query: str, bloom_pred: Dict[str, Any]) -> BloomModerationResult | None:
+    """Teacher architecture: LoRA Bloom level + GGUF reason + higher-order rewrite."""
+    st.subheader("Teacher Bloom Moderation")
+    cols = st.columns(3)
+    cols[0].metric("Bloom Level (LoRA)", bloom_pred["level"])
+    cols[1].metric("Confidence", f"{bloom_pred['confidence']:.3f}")
+    cols[2].metric("Label source", "0.5B classifier")
+    st.caption(bloom_pred.get("source", ""))
+
+    with st.expander("Class probabilities (LoRA)", expanded=False):
+        st.dataframe(
+            [
+                {"level": label, "probability": bloom_pred["probabilities"][label]}
+                for label in BLOOM_LABELS
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    with st.spinner("Generating pedagogical reason and higher-level rewrite (local 1.5B GGUF)..."):
+        moderation = moderate_bloom_question(
+            query,
+            lora_level=bloom_pred["level"],
+            lora_confidence=bloom_pred["confidence"],
+        )
+
+    if moderation.error:
+        st.error(
+            "Could not generate reason/rewrite. Ensure "
+            "`models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf` and llama-cli are available. "
+            f"Detail: {moderation.error}"
+        )
+        return moderation
+
+    info_cols = st.columns(2)
+    info_cols[0].metric("Confirmed / adjusted level", moderation.bloom_level)
+    info_cols[1].metric("Target for rewrite", moderation.target_higher_level)
+
+    st.markdown("**Reason**")
+    st.write(moderation.reason)
+
+    st.markdown("**Higher-level rewrite**")
+    st.info(moderation.higher_level_rewrite)
+
+    if moderation.latency_s:
+        st.caption(f"Moderation backend: {moderation.backend} · {moderation.latency_s:.1f}s")
+    return moderation
+
+
 def _init_page() -> None:
     st.set_page_config(
         page_title=APP_TITLE,
@@ -92,34 +176,101 @@ def _init_page() -> None:
     st.title(APP_TITLE)
     st.caption(
         "Role-separated local stack: students use public RAG + PrivacyGuard; teachers use "
-        "Qwen LoRA Bloom moderation (six levels + rewrite) and optional protected corpora. "
-        "Federated LoRA/privacy updates: federated/run_simulation.py."
+        "Qwen2.5-0.5B LoRA Bloom moderation (six levels + rewrite) and optional protected corpora. "
+        "Student/teacher answers use the local Qwen2.5-1.5B GGUF generator."
     )
 
 
-@st.cache_resource(show_spinner="Loading Qwen Bloom LoRA...")
-def _load_bloom_predictor() -> QwenBloomPredictor:
-    model_size = os.environ.get("BLOOM_MODEL_SIZE", "0.5b")
-    use_quantized = os.environ.get("BLOOM_USE_QUANTIZED", "0") == "1"
+@st.cache_resource(show_spinner="Loading Qwen Bloom classifier...")
+def _load_bloom_predictor(model_size: str, use_lightweight: bool) -> QwenBloomPredictor:
+    profile = get_profile(model_size)
+    if use_lightweight:
+        deploy_path = Path(profile.quantized_dir)
+        if not is_deploy_checkpoint(deploy_path):
+            raise FileNotFoundError(
+                f"Lightweight Bloom model not found at {deploy_path}. "
+                f"Run: python quantize_bloom.py --model-size {model_size} --force"
+            )
+        return QwenBloomPredictor(
+            model_dir=str(deploy_path),
+            model_size=model_size,
+            prefer_quantized=True,
+            quantized=True,
+        )
+
+    merged_path = Path(profile.merged_dir)
+    if not (merged_path / "config.json").is_file():
+        raise FileNotFoundError(
+            f"Merged Bloom classifier not found at {merged_path}. "
+            f"Run: python merge_model.py --model-size {model_size}"
+        )
     return QwenBloomPredictor(
+        model_dir=str(merged_path),
         model_size=model_size,
-        prefer_quantized=use_quantized,
-        quantized=use_quantized,
+        prefer_merged=True,
+        prefer_quantized=False,
+        quantized=False,
     )
+
+
+def _restore_vector_stores(runtime: Dict[str, Any]) -> Dict[str, int]:
+    """Reload persisted FAISS corpora saved under data/vector_store/."""
+    from ingestion import DocumentChunk
+
+    restored: Dict[str, int] = {}
+    for scope, retr_key, state_key in (
+        ("public", "retriever", "public_chunks"),
+        ("protected", "protected_retriever", "protected_chunks"),
+    ):
+        store_dir = VECTOR_STORE_DIR / scope
+        if not (store_dir / "index.faiss").is_file():
+            continue
+        try:
+            runtime[retr_key].load_vector_store(store_dir)
+            chunks = [
+                doc for doc in (runtime[retr_key]._docs or []) if isinstance(doc, DocumentChunk)
+            ]
+            if chunks:
+                st.session_state[state_key] = chunks
+                restored[scope] = len(chunks)
+        except Exception as exc:
+            st.session_state[f"{scope}_vector_store_error"] = str(exc)
+    if restored:
+        st.session_state["public_corpus_ready"] = bool(st.session_state.get("public_chunks"))
+        st.session_state["protected_corpus_ready"] = bool(st.session_state.get("protected_chunks"))
+        st.session_state["corpus_ready"] = bool(
+            st.session_state.get("public_corpus_ready") or st.session_state.get("protected_corpus_ready")
+        )
+        all_chunks = list(st.session_state.get("public_chunks", [])) + list(
+            st.session_state.get("protected_chunks", [])
+        )
+        st.session_state.active_chunks = all_chunks
+        st.session_state.active_sources = sorted({c.source for c in all_chunks})
+    return restored
 
 
 def _runtime() -> Dict[str, Any]:
     if "demo_runtime" not in st.session_state:
+        deploy = _bloom_deploy_settings()
         ingestor = DocumentIngestor(chunk_size=220, chunk_overlap=32)
         retriever = PrivacyRetriever(lambda_privacy=0.1)
         protected_retriever = PrivacyRetriever(lambda_privacy=0.5, model=retriever.model)
 
         bloom_predictor = None
         bloom_predictor_error = ""
-        try:
-            bloom_predictor = _load_bloom_predictor()
-        except Exception as exc:
-            bloom_predictor_error = str(exc)
+        if _bloom_checkpoint_ready(deploy):
+            try:
+                bloom_predictor = _load_bloom_predictor(
+                    deploy["model_size"],
+                    deploy["use_lightweight"],
+                )
+            except Exception as exc:
+                bloom_predictor_error = str(exc)
+        else:
+            bloom_predictor_error = (
+                f"Bloom deploy checkpoint missing at {deploy['deploy_path']}. "
+                f"Run: python merge_model.py --model-size {deploy['model_size']}"
+            )
 
         generator = None
         generator_error = ""
@@ -144,17 +295,20 @@ def _runtime() -> Dict[str, Any]:
 
         uncertainty = UncertaintyEngine(K=len(BLOOM_LEVELS), n_bins=10)
 
-        st.session_state.demo_runtime = {
+        runtime_payload = {
             "ingestor": ingestor,
             "retriever": retriever,
             "protected_retriever": protected_retriever,
             "bloom_predictor": bloom_predictor,
             "bloom_predictor_error": bloom_predictor_error,
+            "bloom_deploy": deploy,
             "generator": generator,
             "generator_error": generator_error,
             "summarizer": summarizer,
             "uncertainty": uncertainty,
         }
+        st.session_state.demo_runtime = runtime_payload
+        _restore_vector_stores(runtime_payload)
 
     return st.session_state.demo_runtime
 
@@ -390,7 +544,14 @@ def main() -> None:
         st.error(f"Failed to initialize the local demo stack: {exc}")
         st.stop()
     if runtime.get("bloom_predictor_error"):
-        st.warning(f"Bloom LoRA unavailable: {runtime['bloom_predictor_error']}")
+        st.warning(f"Bloom classifier unavailable: {runtime['bloom_predictor_error']}")
+    elif runtime.get("bloom_predictor") is not None:
+        deploy = runtime.get("bloom_deploy", _bloom_deploy_settings())
+        mode_label = "FP32 merged (recommended)" if deploy["mode"] == BLOOM_DEPLOY_MODE_FP32 else "FP16 deploy (smaller, slower on CPU)"
+        st.caption(
+            f"Bloom deploy: **{deploy['profile'].display_name}** · {mode_label} · "
+            f"`{deploy['deploy_path']}` · {_dir_size_mb(deploy['deploy_path']):.0f} MB"
+        )
     if runtime.get("generator_error"):
         st.error(
             "Qwen GGUF generator unavailable — student Q&A will not work until you place "
@@ -417,7 +578,7 @@ def main() -> None:
             index=0,
         )
         task_options = (
-            ["Question Answering", "Summarization", "Exam Question Classification"]
+            ["Exam Question Classification", "Question Answering", "Summarization"]
             if role == Role.TEACHER
             else ["Question Answering", "Summarization"]
         )
@@ -429,9 +590,27 @@ def main() -> None:
             governor_preset = "strong" if protected_mode else "qa"
         search_scope = resolve_search_scope(role, upload_scope)
         st.caption(
-            "Students: public corpus + Output Privacy Guard only. Teachers: LoRA Bloom module "
-            "(6 cognitive levels) + GGUF reason/rewrite; protected index when upload target is protected."
+            "Students: public corpus + Output Privacy Guard only. Teachers: 0.5B LoRA Bloom classifier "
+            "(6 cognitive levels) + 1.5B GGUF reason/rewrite; protected index when upload target is protected."
         )
+        deploy = runtime.get("bloom_deploy", _bloom_deploy_settings())
+        with st.expander("Deployment status", expanded=False):
+            st.markdown("**Bloom classifier (teacher labels)**")
+            st.write(f"Model: {deploy['profile'].display_name}")
+            st.write(f"Checkpoint: `{deploy['deploy_path']}`")
+            st.write(f"Mode: {deploy['mode']}")
+            st.write(f"On disk: {_dir_size_mb(deploy['deploy_path']):.1f} MB")
+            st.write(f"Loaded: {'yes' if runtime.get('bloom_predictor') else 'no'}")
+            if deploy["use_lightweight"]:
+                st.caption("FP16 is smaller but slower on CPU. Unset BLOOM_USE_QUANTIZED for FP32 merged.")
+            st.markdown("**Student / teacher text (RAG + moderation)**")
+            st.write("Generator: `models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf`")
+            st.write(f"Loaded: {'yes' if runtime.get('generator') else 'no'}")
+            public_n = len(st.session_state.get("public_chunks", []))
+            protected_n = len(st.session_state.get("protected_chunks", []))
+            st.markdown("**Vector stores**")
+            st.write(f"Public chunks restored: {public_n}")
+            st.write(f"Protected chunks restored: {protected_n}")
         with st.expander("Architecture compliance (live)", expanded=False):
             report = architecture_compliance_report()
             st.write(f"Checks passed: {report['passed']}/{report['total']}")
@@ -572,32 +751,20 @@ def main() -> None:
                 )
 
             if mode == "Exam Question Classification":
-                st.subheader("Teacher Bloom Moderation")
-                cols = st.columns(2)
-                cols[0].metric("Bloom Level (LoRA)", bloom_pred["level"])
-                cols[1].metric("Confidence", f"{bloom_pred['confidence']:.3f}")
-                st.caption(f"Label source: {bloom_pred['source']}.")
-                with st.expander("Class probabilities (LoRA)", expanded=True):
-                    st.dataframe(
-                        [
-                            {"level": label, "probability": bloom_pred["probabilities"][label]}
-                            for label in BLOOM_LABELS
-                        ],
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-                with st.spinner("Generating reason and higher-level rewrite (local GGUF)..."):
-                    moderation = analyze_bloom(
-                        query,
-                        predicted_level=bloom_pred["level"],
-                    )
-                st.subheader("Moderation Output")
-                st.text(moderation)
+                _show_teacher_bloom_moderation(query, bloom_pred)
                 if not bloom_gate["accepted"]:
                     st.warning(
                         "Low-confidence LoRA prediction; review moderation output before approval."
                     )
                 st.stop()
+
+            teacher_moderation = None
+            if role == Role.TEACHER and mode != "Exam Question Classification":
+                teacher_moderation = _show_teacher_bloom_moderation(query, bloom_pred)
+                if teacher_moderation and not bloom_gate["accepted"]:
+                    st.warning(
+                        "Low-confidence LoRA prediction; review moderation output before using the RAG answer."
+                    )
 
             if mode == "Question Answering":
                 result = _run_qa(

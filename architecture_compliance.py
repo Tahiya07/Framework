@@ -84,10 +84,12 @@ def check_all() -> Dict[str, Any]:
     add(
         "2. Capability-resource gap",
         "LoRA Bloom classifier",
-        _exists(ROOT / "models/qwen_bloom_3000")
-        or _exists(ROOT / "models/qwen_bloom_merged"),
-        "Qwen2.5-1.5B LoRA sequence classifier for teacher Bloom labels.",
-        "predict_bloom.py / train_qwen_bloom.py",
+        _exists(ROOT / "models/qwen_bloom_merged0.5B")
+        or _exists(ROOT / "models/qwen_bloom_merged")
+        or _exists(ROOT / "models/qwen_bloom_3000")
+        or _exists(ROOT / "models/qwen_bloom_trained0.5B"),
+        "Qwen2.5 LoRA sequence classifier for teacher Bloom labels (0.5B deploy default).",
+        "predict_bloom.py / models/qwen_bloom_merged0.5B",
     )
     add(
         "2. Capability-resource gap",

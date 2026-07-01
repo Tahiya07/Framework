@@ -73,14 +73,13 @@ TASK_PROFILES: Dict[str, SLMTaskProfile] = {
         env_var="BLOOM_MODERATION_SLM_PATH",
         model_filename="slm_bloom_moderation.gguf",
         system_prompt=(
-            "You are a Bloom taxonomy moderation specialist. Classify academic questions into exactly "
-            "one Bloom level and provide a short moderation reason."
+            "You are an expert educator specializing in Bloom's Taxonomy moderation. "
+            "Explain the cognitive level of exam questions and rewrite them to require "
+            "exactly one higher Bloom level while preserving the subject topic."
         ),
-        user_instruction=(
-            "Return exactly three lines: Bloom Level, Reason, Higher-Level Rewrite."
-        ),
-        ctx_size=1024,
-        max_tokens=120,
+        user_instruction="",
+        ctx_size=2048,
+        max_tokens=200,
         temperature=0.1,
     ),
     "teacher_moderation": SLMTaskProfile(

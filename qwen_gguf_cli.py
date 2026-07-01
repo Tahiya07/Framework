@@ -147,8 +147,8 @@ class QwenGgufCliGenerator:
             memory["cpu_repack_mib"] = float(repack.group(1))
         return memory
 
-    def generate(self, question: str, contexts: Sequence[str]) -> QwenCliGeneration:
-        prompt = self.build_prompt(question, contexts)
+    def generate_prompt(self, prompt: str) -> QwenCliGeneration:
+        """Run llama-cli with a fully built ChatML prompt."""
         cmd = [
             str(self.llama_cli_path),
             "-m",
@@ -196,3 +196,7 @@ class QwenGgufCliGenerator:
             memory=self._parse_memory(output),
             task_id=self.task_id,
         )
+
+    def generate(self, question: str, contexts: Sequence[str]) -> QwenCliGeneration:
+        prompt = self.build_prompt(question, contexts)
+        return self.generate_prompt(prompt)
