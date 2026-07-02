@@ -88,7 +88,7 @@ Watch client `train_loss` — it should fall toward **< 1.0** (not stall at ~6).
 
 | Setting | Command | Test CSV |
 |---------|---------|----------|
-| SVM baseline | `python bloom_evaluation.py` | hold-out |
+| SVM baseline | `python evaluate_bloom.py --svm-baseline` | official test |
 | Centralized LoRA | `evaluate_bloom.py --model_dir models/qwen_bloom_merged` | `figshare_bloom_v1_test.csv` |
 | Federated LoRA | `evaluate_bloom.py --model_dir models/qwen_bloom_federated_merged` | same |
 

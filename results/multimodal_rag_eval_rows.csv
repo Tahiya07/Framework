@@ -1,3 +1,0 @@
-case,status,n_chunks,answer_contains_expected,top_modality,top_source_suffix,refused,answer
-pdf,error,0,0.0,,,0.0,No module named 'reportlab'
-image,error,0,0.0,,,0.0,No module named 'PIL'

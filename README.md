@@ -39,8 +39,7 @@ streamlit run streamlit_app.py
 | Step | Script | Output |
 |------|--------|--------|
 | Bloom LoRA + optional SVM baseline | `evaluate_bloom.py` | `results/bloom_lora_eval.json` |
-| Student RAG (FAISS + GGUF) | `evaluate_qwen_rag.py` | `results/qwen_rag_eval.json` |
-| Multimodal smoke (PDF/image) | `evaluate_multimodal_rag.py` | `results/multimodal_rag_eval.json` |
+| Student RAG (FAISS + GGUF) + multimodal smoke | `evaluate_qwen_rag.py` | `results/qwen_rag_eval.json` |
 | OCR readiness | `evaluate_ocr_pipeline.py` | `results/ocr_image_pipeline_eval.json` |
 | Privacy guard | `privacy/evaluate_privacy_guard.py` | `results/privacy_guard_eval.json` |
 | Privacy baselines | `privacy/evaluate_privacy_benchmarks.py` | `results/privacy_benchmark_baselines.json` |

@@ -119,6 +119,12 @@ SYSTEM_PROMPT = (
     "\"I don't know based on the provided context.\""
 )
 
+SUMMARY_SYSTEM_PROMPT = (
+    "You summarize academic document excerpts. "
+    "Output ONLY the summary paragraph. "
+    "Never mention the user's request, the word query, PDF, or context."
+)
+
 # Bloom's revised taxonomy -> generation instruction
 BLOOM_INSTRUCTIONS: Dict[str, str] = {
     "remember":   "Provide accurate factual recall directly from the context.",
@@ -309,10 +315,36 @@ class RAGGenerator:
             + (f"\n{str(safety_instruction).strip()}" if safety_instruction and str(safety_instruction).strip() else "")
         )
 
-    def _to_chatml(self, body: str) -> str:
-        """Wrap the prompt body in Qwen-Instruct ChatML."""
+    def build_summary_prompt(
+        self,
+        task: str,
+        chunks: Sequence[Union[RetrievalResult, str]],
+        safety_instruction: Optional[str] = None,
+    ) -> str:
+        ctx_blocks: List[str] = []
+        for i, c in enumerate(chunks, start=1):
+            text = getattr(c, "text", None)
+            if text is None:
+                text = str(c)
+            text = text.strip()
+            if text:
+                ctx_blocks.append(f"[{i}] {text}")
+        ctx_str = "\n\n".join(ctx_blocks) if ctx_blocks else "(no context retrieved)"
         return (
-            f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
+            "[BOUNDED CONTEXT]\n"
+            f"{ctx_str}\n\n"
+            "[TASK]\n"
+            f"{task.strip()}\n\n"
+            "[INSTRUCTION]\n"
+            "Write the summary now. Begin with the document substance, not the task."
+            + (f"\n{str(safety_instruction).strip()}" if safety_instruction and str(safety_instruction).strip() else "")
+        )
+
+    def _to_chatml(self, body: str, *, system_prompt: Optional[str] = None) -> str:
+        """Wrap the prompt body in Qwen-Instruct ChatML."""
+        system = system_prompt or SYSTEM_PROMPT
+        return (
+            f"<|im_start|>system\n{system}<|im_end|>\n"
             f"<|im_start|>user\n{body}<|im_end|>\n"
             f"<|im_start|>assistant\n"
         )
@@ -362,6 +394,7 @@ class RAGGenerator:
         min_cosine: float = 0.22,
         max_chars_per_chunk: int = 700,
         max_total_chars: int = 2800,
+        summary_mode: bool = False,
     ) -> GenerationOutput:
         """Run generation from caller-supplied context chunks."""
         if not isinstance(query, str) or not query.strip():
@@ -397,12 +430,23 @@ class RAGGenerator:
                 metadata={"empty_context": True},
             )
 
-        prompt = self.build_prompt(query, norm, bl, safety_instruction=safety_instruction)
+        if summary_mode:
+            prompt = self.build_summary_prompt(query, norm, safety_instruction=safety_instruction)
+            chatml = self._to_chatml(prompt, system_prompt=SUMMARY_SYSTEM_PROMPT)
+        else:
+            prompt = self.build_prompt(query, norm, bl, safety_instruction=safety_instruction)
+            chatml = self._to_chatml(prompt)
         text, elapsed = self._run_chatml(
-            self._to_chatml(prompt),
+            chatml,
             max_tokens=max_tokens,
         )
-        text = sanitize_rag_answer(text, [c.text for c in norm])
+        chunk_texts = [c.text for c in norm]
+        if summary_mode:
+            from rag_utils import sanitize_summary_answer
+
+            text = sanitize_summary_answer(text, chunk_texts)
+        else:
+            text = sanitize_rag_answer(text, chunk_texts)
         return GenerationOutput(
             answer=text,
             chunks=norm,

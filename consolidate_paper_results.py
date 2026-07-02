@@ -77,7 +77,7 @@ def _baseline_comparison_rows(data: dict) -> List[Dict[str, Any]]:
                 accuracy=metrics.get("accuracy"),
                 within_one_level=metrics.get("within_one_level_accuracy"),
                 severe_error=metrics.get("severe_error_rate"),
-                interpretation="bloom_evaluation.py on shared 15% hold-out split",
+                interpretation="build_bloom_comparison.py (15% hold-out baselines when evaluation_outputs/ present)",
             )
         )
     ref = data.get("trained_model_reference") or {}
@@ -188,22 +188,6 @@ def _rag_rows(data: dict) -> List[Dict[str, Any]]:
             )
         )
     return rows
-
-
-def _multimodal_rows(data: dict) -> List[Dict[str, Any]]:
-    if not data:
-        return []
-    return [
-        _row(
-            evidence_area="multimodal ingestion",
-            protocol="multimodal_rag_smoke_v1",
-            setting="pdf + image",
-            model="MultiModalAcademicRAG",
-            primary_metric="answer_accuracy_on_ok_cases",
-            primary_value=data.get("answer_accuracy_on_ok_cases"),
-            interpretation="; ".join(data.get("limitations", [])[:2]),
-        )
-    ]
 
 
 def _ocr_rows(data: dict) -> List[Dict[str, Any]]:
@@ -335,8 +319,6 @@ def build_table() -> List[Dict[str, Any]]:
     rag = _load(RESULTS_DIR / "qwen_rag_eval.json")
     if rag:
         rows.extend(_rag_rows(rag))
-    mm = _load(RESULTS_DIR / "multimodal_rag_eval.json")
-    rows.extend(_multimodal_rows(mm or {}))
     ocr = _load(RESULTS_DIR / "ocr_image_pipeline_eval.json")
     rows.extend(_ocr_rows(ocr or {}))
     priv = _load(RESULTS_DIR / "privacy_guard_eval.json")

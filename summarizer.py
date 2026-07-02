@@ -69,7 +69,14 @@ from retriever import PrivacyRetriever, RetrievalResult
 from models import RAGGenerator, GenerationOutput, BLOOM_INSTRUCTIONS
 from predict_bloom import BLOOM_LEVELS, QwenBloomPredictor
 from uncertainty import UncertaintyEngine
-from rag_utils import DOCUMENT_SUMMARY_MIN_COSINE, sanitize_rag_answer
+from rag_utils import (
+    DOCUMENT_SUMMARY_MIN_COSINE,
+    build_document_summary_task,
+    is_document_summary_query,
+    looks_like_meta_summary,
+    sanitize_rag_answer,
+    sanitize_summary_answer,
+)
 
 # ----------------------------------------------------------------------------
 # Logging
@@ -276,6 +283,7 @@ class CognitiveSummarizer:
         min_cosine: float = DOCUMENT_SUMMARY_MIN_COSINE,
         max_chars_per_chunk: int = 900,
         max_total_chars: int = 4200,
+        document_summary: bool = False,
     ) -> SummaryOutput:
         """Run the full Cognitive-Aware RAG pipeline.
 
@@ -353,7 +361,15 @@ class CognitiveSummarizer:
             ]
 
         # 4. Build a style-conditioned summarisation query.
-        style_query = self._style_query(query, bloom_lc, style)
+        if document_summary or is_document_summary_query(query):
+            style_query = build_document_summary_task()
+            min_cosine = 0.0
+            max_chars_per_chunk = max(max_chars_per_chunk, 7200)
+            max_total_chars = max(max_total_chars, 7200)
+            summary_mode = True
+        else:
+            style_query = self._style_query(query, bloom_lc, style)
+            summary_mode = False
 
         # 5. Compose the final prompt manually so we can:
         #    - keep the Phase-2 prompt skeleton intact,
@@ -367,8 +383,14 @@ class CognitiveSummarizer:
             min_cosine=float(min_cosine),
             max_chars_per_chunk=int(max_chars_per_chunk),
             max_total_chars=int(max_total_chars),
+            summary_mode=summary_mode,
         )
-        summary = sanitize_rag_answer(gen.answer, [c.text for c in chunks])
+        if summary_mode:
+            summary = sanitize_summary_answer(gen.answer, [c.text for c in gen.chunks or chunks])
+            fallback = "extractive" if looks_like_meta_summary(gen.answer) else "llm"
+        else:
+            summary = sanitize_rag_answer(gen.answer, [c.text for c in chunks])
+            fallback = "llm"
 
         return SummaryOutput(
             summary=summary,
@@ -376,7 +398,7 @@ class CognitiveSummarizer:
             style=style,
             bloom_distribution=dist if auto else None,
             confidence=conf if auto else None,
-            chunks=list(chunks),
+            chunks=list(gen.chunks or chunks),
             prompt=gen.prompt,
             metadata={
                 "auto_bloom": auto,
@@ -388,6 +410,8 @@ class CognitiveSummarizer:
                 "style_query": style_query,
                 "retrieved_chunks_supplied": bool(retrieved_chunks is not None),
                 "bloom_gate": gate_metadata,
+                "summary_mode": summary_mode,
+                "summary_fallback": fallback,
             },
         )
 

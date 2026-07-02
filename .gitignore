@@ -26,6 +26,8 @@ data/vector_store/
 federated/updates/
 federated/bundles/
 federated/_client_cache/
+results/fydp/
+scripts/fydp/
 
 # OS
 .DS_Store

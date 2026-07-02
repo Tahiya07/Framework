@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Dict, Iterable, List
 
 from evaluate_qa_rag import DOCUMENTS, QA_ITEMS, _best_gold_f1, _exact_match, _rank, _tokens
-from evaluate_multimodal_rag import _make_image, _make_pdf
 from multimodal_rag import MultiModalAcademicRAG
 from multi_slm import task_registry_report
 from qwen_gguf_cli import QwenGgufCliGenerator
@@ -20,6 +19,29 @@ CSV_PATH = Path("results/qwen_rag_eval_rows.csv")
 
 def _contains(answer: str, expected: str) -> float:
     return float(expected.lower() in answer.lower())
+
+
+def _make_pdf(path: Path) -> None:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+
+    c = canvas.Canvas(str(path), pagesize=letter)
+    c.drawString(72, 720, "Ohm's law states that voltage equals current times resistance.")
+    c.drawString(72, 700, "Merge sort divides a list and runs in O(n log n) time.")
+    c.save()
+
+
+def _make_image(path: Path) -> None:
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.new("RGB", (1100, 180), "white")
+    draw = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype("arial.ttf", 34)
+    except Exception:
+        font = ImageFont.load_default()
+    draw.text((28, 60), "TCP provides reliable ordered delivery.", fill="black", font=font)
+    img.save(path)
 
 
 def _mean(values: Iterable[float]) -> float:

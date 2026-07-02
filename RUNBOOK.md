@@ -23,7 +23,7 @@ Required on disk: `models/qwen.gguf`, trained LoRA under `models/qwen_bloom_3000
 | Merge LoRA for inference | `python merge_model.py` |
 | Full publication eval | `python run_evaluation_pipeline.py` |
 | Federated LoRA + eval | `python federated/run_full_stack.py` |
-| Bloom baselines (SVM / zero-shot / LoRA) | `python bloom_evaluation.py` then `python build_bloom_comparison.py` |
+| Bloom LoRA + SVM baseline | `python evaluate_bloom.py --svm-baseline` then `python build_bloom_comparison.py` |
 
 Optional env vars for eval:
 
@@ -76,14 +76,15 @@ Called internally by `run_simulation.py` (not usually run alone): `federated/par
 1. `merge_model.py`
 2. `evaluate_bloom.py` (`--svm-baseline`)
 3. `build_bloom_comparison.py`
-4. `evaluate_qwen_rag.py` (optional if GGUF unavailable)
-5. `evaluate_multimodal_rag.py`
-6. `evaluate_ocr_pipeline.py`
-7. `privacy/train_federated_privacy_guard.py`
-8. `privacy/evaluate_privacy_guard.py`
-9. `privacy/evaluate_privacy_benchmarks.py`
-10. `consolidate_paper_results.py`
-11. `generate_paper_figures.py`
+4. `evaluate_qwen_rag.py` (optional if GGUF unavailable; includes multimodal PDF/image smoke)
+5. `evaluate_ocr_pipeline.py`
+6. `privacy/train_federated_privacy_guard.py`
+7. `privacy/evaluate_privacy_guard.py`
+8. `privacy/evaluate_privacy_benchmarks.py`
+9. `consolidate_paper_results.py`
+10. `generate_paper_figures.py`
+
+Bloom-only (run scripts individually): `merge_model.py` → `evaluate_bloom.py --svm-baseline` → `quantize_bloom.py --benchmark` → `build_bloom_comparison.py`
 
 ---
 
@@ -91,10 +92,8 @@ Called internally by `run_simulation.py` (not usually run alone): `federated/par
 
 | Script | Typical output |
 |--------|----------------|
-| `bloom_evaluation.py` | `evaluation_outputs/`, `results/bloom_baseline_comparison.json` |
 | `evaluate_bloom.py` | `results/bloom_lora_eval.json` |
-| `evaluate_qwen_rag.py` | `results/qwen_rag_eval.json` |
-| `evaluate_multimodal_rag.py` | `results/multimodal_rag_eval.json` |
+| `evaluate_qwen_rag.py` | `results/qwen_rag_eval.json` (academic QA + multimodal smoke) |
 | `evaluate_ocr_pipeline.py` | `results/ocr_image_pipeline_eval.json` |
 | `privacy/evaluate_privacy_guard.py` | `results/privacy_guard_eval.json` |
 | `privacy/evaluate_privacy_benchmarks.py` | `results/privacy_benchmark_baselines.json` |

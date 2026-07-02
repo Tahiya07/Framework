@@ -45,7 +45,12 @@ from role_access import (
     teacher_visible_chunks,
 )
 from architecture_compliance import check_all as architecture_compliance_report
-from rag_utils import boost_summary_retrieval_query, is_document_summary_query
+from rag_utils import (
+    DOCUMENT_SUMMARY_MIN_COSINE,
+    boost_summary_retrieval_query,
+    is_document_summary_query,
+    merged_document_retrieval_result,
+)
 from retrieval_config import get_retrieval_encoder_profile
 from retriever import PrivacyRetriever, RetrievalResult
 from summarizer import CognitiveSummarizer
@@ -524,6 +529,18 @@ def _run_qa(
     }
 
 
+def _resolve_summary_corpus(
+    visible_chunks: Sequence[DocumentChunk] | None,
+    retriever: PrivacyRetriever,
+) -> List[DocumentChunk]:
+    if visible_chunks:
+        return [c for c in visible_chunks if (c.text or "").strip()]
+    from ingestion import DocumentChunk
+
+    docs = getattr(retriever, "_docs", None) or []
+    return [d for d in docs if isinstance(d, DocumentChunk) and (d.text or "").strip()]
+
+
 def _run_summary(
     runtime: Dict[str, Any],
     query: str,
@@ -543,23 +560,28 @@ def _run_summary(
     t0 = time.perf_counter()
     retrieval_query = query
     pool_multiplier = 1.0
-    doc_summary = bool(visible_chunks) and is_document_summary_query(query)
+    corpus = _resolve_summary_corpus(visible_chunks, retriever)
+    doc_summary = bool(corpus)
+    summary_governor = "summary" if doc_summary else governor_preset
     if doc_summary:
-        retrieval_query = boost_summary_retrieval_query(
+        top_k = max(top_k, 8)
+        max_tokens = max(max_tokens, 256)
+        chunks = merged_document_retrieval_result(corpus, max_chars=7200)
+        retrieval_query = "(merged unique upload)"
+    else:
+        if is_document_summary_query(query):
+            retrieval_query = boost_summary_retrieval_query(query, [c.text for c in corpus])
+            pool_multiplier = 3.0
+            top_k = max(top_k, 8)
+        chunks = _governed_chunks(
+            retriever,
             query,
-            [c.text for c in visible_chunks],
+            top_k=top_k,
+            governor_preset=summary_governor,
+            student_mode=student_mode,
+            retrieval_query=retrieval_query if is_document_summary_query(query) else None,
+            pool_multiplier=pool_multiplier if is_document_summary_query(query) else 1.0,
         )
-        pool_multiplier = 3.0
-        top_k = max(top_k, 6)
-    chunks = _governed_chunks(
-        retriever,
-        query,
-        top_k=top_k,
-        governor_preset=governor_preset,
-        student_mode=student_mode,
-        retrieval_query=retrieval_query,
-        pool_multiplier=pool_multiplier,
-    )
     output = summarizer.summarize(
         query=query,
         bloom_level=bloom_level,
@@ -567,6 +589,10 @@ def _run_summary(
         max_tokens=max_tokens,
         retrieved_chunks=chunks,
         safety_instruction=safety_instruction,
+        document_summary=doc_summary,
+        min_cosine=0.0 if doc_summary else DOCUMENT_SUMMARY_MIN_COSINE,
+        max_chars_per_chunk=7200 if doc_summary else 900,
+        max_total_chars=7200 if doc_summary else 4200,
     )
     elapsed = time.perf_counter() - t0
     return {
@@ -578,6 +604,7 @@ def _run_summary(
             **output.metadata,
             "document_summary_mode": doc_summary,
             "retrieval_query": retrieval_query,
+            "summary_fallback": output.metadata.get("summary_fallback"),
         },
     }
 
@@ -982,10 +1009,12 @@ def main() -> None:
             metric_cols[4].metric("Retrieved Chunks", len(result["chunks"]))
             st.caption(f"Bloom routing: {bloom_pred['source']}.")
             if result.get("metadata", {}).get("document_summary_mode"):
+                n_chunks = len(result.get("chunks") or [])
                 st.caption(
-                    "Document-summary mode: retrieved broader context from your upload "
-                    f"({len(result['chunks'])} chunks used)."
+                    f"Document-summary mode: merged unique upload text ({n_chunks} context block(s))."
                 )
+                if result.get("metadata", {}).get("summary_fallback") == "extractive":
+                    st.caption("Extractive summary fallback used (small LLM echoed the request).")
             if bloom_pred.get("from_lora") and not bloom_gate["accepted"]:
                 st.warning(
                     "Bloom gate used generalized fallback "
