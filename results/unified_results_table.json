@@ -3,38 +3,50 @@
     {
       "evidence_area": "cognitive robustness",
       "protocol": "Bloom baseline comparison",
-      "setting": "15% stratified hold-out (figshare_combined_dataset.csv, random_state=42) (n=?)",
+      "setting": "15% stratified hold-out (figshare_combined_dataset.csv, random_state=42) (n=379)",
       "model": "TF-IDF + LinearSVC",
       "primary_metric": "macro_f1",
-      "primary_value": 0.8256,
-      "accuracy": 0.8391,
-      "within_one_level": 0.9156,
-      "severe_error": 0.0844,
-      "interpretation": "bloom_evaluation.py on shared 15% hold-out split"
+      "primary_value": 0.7253,
+      "accuracy": 0.7514,
+      "within_one_level": 0.8829,
+      "severe_error": 0.0657,
+      "interpretation": "build_bloom_comparison.py (15% hold-out baselines when evaluation_outputs/ present)"
     },
     {
       "evidence_area": "cognitive robustness",
       "protocol": "Bloom baseline comparison",
-      "setting": "15% stratified hold-out (figshare_combined_dataset.csv, random_state=42) (n=?)",
+      "setting": "15% stratified hold-out (figshare_combined_dataset.csv, random_state=42) (n=379)",
       "model": "Qwen2.5 zero-shot (GGUF)",
       "primary_metric": "macro_f1",
       "primary_value": 0.3691,
       "accuracy": 0.4406,
       "within_one_level": 0.686,
       "severe_error": 0.314,
-      "interpretation": "bloom_evaluation.py on shared 15% hold-out split"
+      "interpretation": "build_bloom_comparison.py (15% hold-out baselines when evaluation_outputs/ present)"
     },
     {
       "evidence_area": "cognitive robustness",
       "protocol": "Bloom baseline comparison",
-      "setting": "Official Figshare test split (evaluation_results from predict_bloom / training eval) (n=2330)",
+      "setting": "Official test split (data\\figshare_bloom_v1_test.csv, n=350) (n=350)",
       "model": "Qwen2.5 LoRA (trained)",
       "primary_metric": "macro_f1",
-      "primary_value": 0.7208,
-      "accuracy": 0.7476,
-      "within_one_level": 0.8798,
-      "severe_error": 0.0639,
-      "interpretation": "bloom_evaluation.py on shared 15% hold-out split"
+      "primary_value": 0.8308,
+      "accuracy": 0.84,
+      "within_one_level": 0.92,
+      "severe_error": 0.0343,
+      "interpretation": "build_bloom_comparison.py (15% hold-out baselines when evaluation_outputs/ present)"
+    },
+    {
+      "evidence_area": "cognitive robustness",
+      "protocol": "Bloom baseline comparison",
+      "setting": "Figshare (n=350)",
+      "model": "Qwen2.5 LoRA (INT8 CPU)",
+      "primary_metric": "macro_f1",
+      "primary_value": 0.8252,
+      "accuracy": 0.8314,
+      "within_one_level": 0.92,
+      "severe_error": 0.0371,
+      "interpretation": "build_bloom_comparison.py (15% hold-out baselines when evaluation_outputs/ present)"
     },
     {
       "evidence_area": "cognitive robustness",
@@ -42,11 +54,47 @@
       "setting": "Figshare official test split",
       "model": "Qwen2.5 LoRA (full test eval)",
       "primary_metric": "macro_f1",
-      "primary_value": 0.7207957545994641,
-      "accuracy": 0.7476394849785408,
-      "within_one_level": 0.8798,
-      "severe_error": 0.0639,
+      "primary_value": 0.8308,
+      "accuracy": 0.84,
+      "within_one_level": 0.92,
+      "severe_error": 0.0343,
       "interpretation": "evaluation_results/metrics.json from train_qwen_bloom.py"
+    },
+    {
+      "evidence_area": "cognitive robustness",
+      "protocol": "Bloom classification",
+      "setting": "Figshare held-out test",
+      "model": "Qwen2.5-1.5B LoRA",
+      "primary_metric": "macro_f1",
+      "primary_value": 0.8308,
+      "accuracy": 0.84,
+      "within_one_level": 0.92,
+      "severe_error": 0.0343,
+      "interpretation": "merged Qwen Bloom classifier (train_qwen_bloom.py + merge_model.py)"
+    },
+    {
+      "evidence_area": "cognitive robustness",
+      "protocol": "Bloom classification baseline",
+      "setting": "Figshare held-out test",
+      "model": "TF-IDF + LinearSVC",
+      "primary_metric": "macro_f1",
+      "primary_value": 0.7253,
+      "accuracy": 0.7514,
+      "within_one_level": 0.8829,
+      "severe_error": 0.0657,
+      "interpretation": "classical lexical baseline"
+    },
+    {
+      "evidence_area": "cognitive robustness",
+      "protocol": "LoRA vs SVM agreement",
+      "setting": "Figshare held-out test",
+      "model": "Qwen LoRA vs TF-IDF SVM",
+      "primary_metric": "agreement",
+      "primary_value": 0.8142857142857143,
+      "accuracy": null,
+      "within_one_level": null,
+      "severe_error": null,
+      "interpretation": "label agreement between neural and classical baselines"
     },
     {
       "evidence_area": "student learning (RAG)",
@@ -63,7 +111,7 @@
     {
       "evidence_area": "student learning (RAG)",
       "protocol": "retrieval hit@3",
-      "setting": "FAISS + MiniLM",
+      "setting": "FAISS + BGE-small",
       "model": "PrivacyRetriever",
       "primary_metric": "hit_at_3_mean",
       "primary_value": 1.0,
@@ -83,18 +131,6 @@
       "within_one_level": null,
       "severe_error": null,
       "interpretation": "extractive multimodal smoke test"
-    },
-    {
-      "evidence_area": "multimodal ingestion",
-      "protocol": "multimodal_rag_smoke_v1",
-      "setting": "pdf + image",
-      "model": "MultiModalAcademicRAG",
-      "primary_metric": "answer_accuracy_on_ok_cases",
-      "primary_value": 0.0,
-      "accuracy": null,
-      "within_one_level": null,
-      "severe_error": null,
-      "interpretation": "PDF RAG uses native text extraction from a generated text PDF.; Image RAG requires a working OCR backend; backend-unavailable is reported explicitly."
     },
     {
       "evidence_area": "multimodal ingestion",
@@ -126,7 +162,7 @@
       "setting": "benign study prompts",
       "model": "PrivacyGuard",
       "primary_metric": "allow_rate",
-      "primary_value": 0.8666666666666667,
+      "primary_value": 0.0,
       "accuracy": null,
       "within_one_level": null,
       "severe_error": null,
@@ -301,5 +337,5 @@
       "interpretation": "utility after federated guard training"
     }
   ],
-  "n_rows": 25
+  "n_rows": 28
 }

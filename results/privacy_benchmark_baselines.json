@@ -50,19 +50,19 @@
   "federated_model_metadata": {
     "architecture": "federated_privacy_guard",
     "num_clients": 39,
-    "rounds": 30,
+    "rounds": 5,
     "local_epochs": 4,
     "client_fraction": 1.0,
     "clip_norm": 2.5,
     "dp_noise": 0.2,
     "dp_delta": 1e-05,
-    "dp_epsilon_estimate": 131.41304424392328,
+    "dp_epsilon_estimate": 53.649150657233676,
     "rdp_accountant": {
-      "epsilon": 761.5129254649701,
+      "epsilon": 136.5129254649702,
       "best_order": 2
     },
     "dp_accounting_note": "RDP accountant is conservative for full-participation Gaussian clipped updates and ignores any privacy amplification from client subsampling.",
-    "threshold": 0.55,
+    "threshold": 0.62,
     "n_features": 2048,
     "server_receives": "secure-aggregation-compatible clipped/noised aggregate model updates only",
     "server_does_not_store": [
@@ -81,36 +81,6 @@
       },
       {
         "round": 5.0,
-        "accuracy": 0.8421052631578947,
-        "attack_block_rate": 1.0,
-        "benign_allow_rate": 0.0
-      },
-      {
-        "round": 10.0,
-        "accuracy": 0.8421052631578947,
-        "attack_block_rate": 1.0,
-        "benign_allow_rate": 0.0
-      },
-      {
-        "round": 15.0,
-        "accuracy": 0.8421052631578947,
-        "attack_block_rate": 1.0,
-        "benign_allow_rate": 0.0
-      },
-      {
-        "round": 20.0,
-        "accuracy": 0.8421052631578947,
-        "attack_block_rate": 1.0,
-        "benign_allow_rate": 0.0
-      },
-      {
-        "round": 25.0,
-        "accuracy": 0.8421052631578947,
-        "attack_block_rate": 1.0,
-        "benign_allow_rate": 0.0
-      },
-      {
-        "round": 30.0,
         "accuracy": 0.8421052631578947,
         "attack_block_rate": 1.0,
         "benign_allow_rate": 0.0

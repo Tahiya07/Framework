@@ -8,7 +8,9 @@
       "1.5b": "results\\bloom_lora_eval.json",
       "0.5b": "results\\bloom_lora_eval_0.5B.json"
     },
-    "quantized_eval_by_size": {}
+    "quantized_eval_by_size": {
+      "0.5b": "results\\bloom_quantized_eval_0.5B.json"
+    }
   },
   "n_test_lora": 350,
   "n_test_holdout": 379,
@@ -120,5 +122,61 @@
     "mean_ordinal_distance": 1.0739,
     "within_one_level_accuracy": 0.686,
     "severe_error_rate": 0.314
+  },
+  "lora_quantized_by_model_size": {
+    "0.5b": {
+      "accuracy": 0.8314,
+      "macro_f1": 0.8252,
+      "weighted_f1": 0.8324,
+      "cohen_kappa": 0.7835,
+      "quadratic_weighted_kappa": 0.8794,
+      "ece": 0.0542,
+      "mean_ordinal_distance": 0.2886,
+      "within_one_level_accuracy": 0.92,
+      "severe_error_rate": 0.0371
+    }
+  },
+  "quantization_by_model_size": {
+    "0.5b": {
+      "source": "results\\bloom_quantized_eval_0.5B.json",
+      "quantization": {
+        "format": "fp16_merged",
+        "model_size": "0.5b",
+        "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+        "source_merged_dir": "models\\qwen_bloom_merged0.5B",
+        "merged_size_mb": 1899.78,
+        "quantized_size_mb": 957.48,
+        "compression_ratio": 1.98,
+        "calibration_questions": 32,
+        "fp32_fp16_prediction_agreement": 1.0,
+        "notes": "FP16 merged weights (HF save_pretrained). Torch dynamic INT8 is not used for Qwen2 classifiers due to accuracy collapse."
+      }
+    }
+  },
+  "lora_quantized_int8": {
+    "accuracy": 0.8314,
+    "macro_f1": 0.8252,
+    "weighted_f1": 0.8324,
+    "cohen_kappa": 0.7835,
+    "quadratic_weighted_kappa": 0.8794,
+    "ece": 0.0542,
+    "mean_ordinal_distance": 0.2886,
+    "within_one_level_accuracy": 0.92,
+    "severe_error_rate": 0.0371
+  },
+  "quantization": {
+    "source": "results\\bloom_quantized_eval_0.5B.json",
+    "quantization": {
+      "format": "fp16_merged",
+      "model_size": "0.5b",
+      "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "source_merged_dir": "models\\qwen_bloom_merged0.5B",
+      "merged_size_mb": 1899.78,
+      "quantized_size_mb": 957.48,
+      "compression_ratio": 1.98,
+      "calibration_questions": 32,
+      "fp32_fp16_prediction_agreement": 1.0,
+      "notes": "FP16 merged weights (HF save_pretrained). Torch dynamic INT8 is not used for Qwen2 classifiers due to accuracy collapse."
+    }
   }
 }
