@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import math
 import numpy as np
-import random
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Sequence, Tuple, Any
+from typing import List, Optional, Sequence, Tuple
 
 
 # ---------------------------------------------------------
@@ -85,9 +84,6 @@ class UncertaintyEngine:
 
         return float((total / c) / JSD_MAX)  # normalized [0,1]
 
-    def compute_jsd_uncertainty(self, outputs: Sequence[np.ndarray]) -> float:
-        return self.compute_spu(outputs)
-
     # -------------------------
     def compute_entropy(self, p: Sequence[float]) -> Tuple[float, float]:
         p = _as_prob(p)
@@ -126,10 +122,6 @@ class UncertaintyEngine:
         stochastic: Optional[List[np.ndarray]] = None,
     ) -> UncertaintySummary:
         return self.aggregate(p=bloom_p, stochastic=stochastic)
-
-    def compute_bloom_uncertainty(self, p: Sequence[float]) -> float:
-        entropy_norm, _ = self.compute_entropy(p)
-        return float(entropy_norm)
 
     def compute_ece(
         self,

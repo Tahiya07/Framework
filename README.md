@@ -47,7 +47,7 @@ streamlit run streamlit_app.py
 | Unified table | `consolidate_paper_results.py` | `results/unified_results_table.{json,csv,md}` |
 | Figures | `generate_paper_figures.py` | `figures/` |
 
-Bloom **labels** use the trained LoRA (`predict_bloom.py`). Teacher **reason / rewrite** text uses local GGUF generation (`bloom_prompt.py`).
+Bloom **labels** use the trained LoRA (`predict_bloom.py`). Teacher **reason / rewrite** text uses local GGUF generation (`bloom_prompt.py`). Batch Bloom metrics: `evaluate_bloom.py` → `results/`.
 
 ## Core modules
 

@@ -225,13 +225,6 @@ def evaluate_predictions(
     return metrics
 
 
-def predictions_from_rows(rows: list[dict], label2id: dict[str, int]) -> tuple[list[int], list[int], list[float]]:
-    y_true = [label2id[str(r["gold"])] for r in rows]
-    y_pred = [label2id[str(r["prediction"])] for r in rows]
-    confidences = [float(r.get("confidence", 0.0)) for r in rows]
-    return y_true, y_pred, confidences
-
-
 def compare_model_predictions(
     rows_a: list[dict],
     rows_b: list[dict],

@@ -15,7 +15,7 @@ import torch
 from transformers import AutoModelForSequenceClassification
 
 from bloom_model_profiles import BLOOM_MODEL_PROFILES, DEFAULT_MODEL_SIZE, get_profile
-from predict_bloom import build_prompt, is_deploy_checkpoint, load_deploy_model, load_model, predict
+from predict_bloom import is_deploy_checkpoint, load_deploy_model, load_model, predict
 
 BENCHMARK_QUESTION = (
     "Compare and contrast the advantages of array-based and linked-list implementations "

@@ -45,9 +45,8 @@ from __future__ import annotations
 import logging
 import random
 import sys
-import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -66,7 +65,7 @@ except Exception:  # pragma: no cover
 # Phase-1/2/3 modules (imported, not modified)
 # ----------------------------------------------------------------------------
 from retriever import PrivacyRetriever, RetrievalResult
-from models import RAGGenerator, GenerationOutput, BLOOM_INSTRUCTIONS
+from models import RAGGenerator, BLOOM_INSTRUCTIONS
 from predict_bloom import BLOOM_LEVELS, QwenBloomPredictor
 from uncertainty import UncertaintyEngine
 from rag_utils import (

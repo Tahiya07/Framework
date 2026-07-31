@@ -243,34 +243,6 @@ def assess_student_query_against_protected_corpus(
     return PrivacyDecision(True, "ok", overlap)
 
 
-def partition_chunks(chunks: Sequence[DocumentChunk]) -> Dict[str, List[DocumentChunk]]:
-    out = {"public": [], "protected": []}
-    for chunk in chunks:
-        level = "protected" if getattr(chunk, "access_level", "public") == "protected" else "public"
-        out[level].append(chunk)
-    return out
-
-
-def allowed_chunks_for_role(
-    requester_role: str,
-    public_chunks: Sequence[DocumentChunk],
-    protected_chunks: Sequence[DocumentChunk],
-    access_scope: str,
-) -> List[DocumentChunk]:
-    from role_access import (
-        Role,
-        normalize_role,
-        student_visible_chunks,
-        teacher_visible_chunks,
-    )
-
-    role = normalize_role(requester_role)
-    scope = (access_scope or "public").lower().strip()
-    if role == Role.STUDENT:
-        return student_visible_chunks(public_chunks, protected_chunks)
-    return teacher_visible_chunks(public_chunks, protected_chunks, scope)
-
-
 def protected_text_union(chunks: Sequence[DocumentChunk], max_chars: int = 40_000) -> str:
     buf: List[str] = []
     total = 0

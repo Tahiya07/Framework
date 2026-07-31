@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import re
-from collections import Counter
 from functools import lru_cache
 from typing import Dict, List, Sequence
 
 from retriever import PrivacyRetriever
+from runtime_utils import exact_match, token_f1
 
 
 DOCUMENTS: List[Dict[str, str]] = [
@@ -110,26 +109,12 @@ QA_ITEMS: List[Dict[str, object]] = [
 ]
 
 
-def _tokens(text: str) -> List[str]:
-    return re.findall(r"[a-z0-9]+", (text or "").lower())
-
-
 def _exact_match(prediction: str, references: Sequence[str]) -> float:
-    pred = " ".join(_tokens(prediction))
-    return float(any(pred == " ".join(_tokens(ref)) for ref in references))
+    return float(any(exact_match(prediction, ref) for ref in references))
 
 
 def _token_f1(prediction: str, reference: str) -> float:
-    pred = Counter(_tokens(prediction))
-    ref = Counter(_tokens(reference))
-    if not pred or not ref:
-        return 0.0
-    overlap = sum((pred & ref).values())
-    if overlap == 0:
-        return 0.0
-    prec = overlap / sum(pred.values())
-    rec = overlap / sum(ref.values())
-    return float(2 * prec * rec / (prec + rec))
+    return token_f1(prediction, reference)
 
 
 def _best_gold_f1(prediction: str, references: Sequence[str]) -> float:

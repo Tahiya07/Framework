@@ -39,28 +39,6 @@ def is_document_summary_query(query: str) -> bool:
     return any(cue in q for cue in _DOCUMENT_SUMMARY_CUES)
 
 
-def chunks_to_retrieval_results(chunks: Sequence[Any]) -> List[RetrievalResult]:
-    """Map ingested document chunks to retrieval results (full-corpus summaries)."""
-    ordered = sorted(
-        chunks,
-        key=lambda c: (str(getattr(c, "source", "")), int(getattr(c, "page", 0) or 0), int(getattr(c, "chunk_id", 0))),
-    )
-    out: List[RetrievalResult] = []
-    for i, chunk in enumerate(ordered):
-        text = str(getattr(chunk, "text", "") or "").strip()
-        if not text:
-            continue
-        out.append(
-            RetrievalResult(
-                rank=i + 1,
-                doc_id=int(getattr(chunk, "chunk_id", i)),
-                text=text,
-                cosine=1.0,
-            )
-        )
-    return out
-
-
 def boost_summary_retrieval_query(
     query: str,
     corpus_chunks: Sequence[str],
@@ -71,37 +49,6 @@ def boost_summary_retrieval_query(
     if sample:
         return f"main topics themes key points interview questions {sample}"
     return f"document content themes key points {query.strip()}"
-
-
-def dedupe_retrieval_results(chunks: Sequence[RetrievalResult]) -> List[RetrievalResult]:
-    """Drop near-duplicate chunks (common with overlapping PDF chunking)."""
-    seen: set[str] = set()
-    out: List[RetrievalResult] = []
-    for chunk in chunks:
-        text = (chunk.text or "").strip()
-        if not text:
-            continue
-        key = _normalize(text[:280])
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(
-            RetrievalResult(
-                rank=len(out) + 1,
-                doc_id=chunk.doc_id,
-                text=text,
-                score=chunk.score,
-                cosine=chunk.cosine,
-                infonce_risk=chunk.infonce_risk,
-                privacy_score=chunk.privacy_score,
-                l2_distance=chunk.l2_distance,
-                bloom_level=chunk.bloom_level,
-                topic=chunk.topic,
-                difficulty=chunk.difficulty,
-                final_score=chunk.final_score,
-            )
-        )
-    return out
 
 
 def merge_corpus_for_summary(chunks: Sequence[Any], *, max_chars: int = 7200) -> str:

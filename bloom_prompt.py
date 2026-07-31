@@ -295,34 +295,6 @@ def moderate_bloom_question(
     )
 
 
-def analyze_bloom(question: str, *, predicted_level: Optional[str] = None) -> str:
-    level = _canonical_bloom_label(predicted_level or "Understand")
-    result = moderate_bloom_question(question, lora_level=level)
-    if result.error and result.higher_level_rewrite.startswith("[Auto-rewrite"):
-        raise RuntimeError(result.error)
-    return (
-        f"Bloom Level: {result.bloom_level}\n"
-        f"Reason: {result.reason}\n"
-        f"Higher-Level Rewrite: {result.higher_level_rewrite}"
-    )
-
-
-def predict_bloom_label(question: str) -> str:
-    from predict_bloom import QwenBloomPredictor
-
-    return QwenBloomPredictor().predict(question)["prediction"]
-
-
-def build_prompt(question: str, *, predicted_level: Optional[str] = None) -> str:
-    """Backward-compat alias — prefer build_rewrite_prompt for moderation."""
-    level = _canonical_bloom_label(predicted_level or "Understand")
-    return build_rewrite_prompt(
-        question,
-        lora_level=level,
-        target_level=_next_bloom_level(level),
-    )
-
-
 if __name__ == "__main__":
     print("Teacher Bloom moderation — label: predict_bloom.py; rewrite: GGUF")
     while True:

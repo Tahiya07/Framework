@@ -18,7 +18,7 @@ import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Optional, Union
+from typing import List, Optional, Union
 
 
 random.seed(42)
@@ -119,19 +119,6 @@ class DocumentChunk:
 
 
 @dataclass
-class SafeDocumentChunk:
-    chunk_id: int
-    source: str
-    modality: str
-    bloom_level: str
-    bloom_confidence: float
-    ordinal_risk: float
-    topic: Optional[str] = None
-    difficulty: Optional[str] = None
-    summary: Optional[str] = None
-
-
-@dataclass
 class RawDocumentChunk:
     chunk_id: int
     source: str
@@ -145,7 +132,6 @@ class DocumentIngestor:
 
     def __init__(
         self,
-        classifier: Optional[Callable[[str], object]] = None,
         chunk_size: int = 256,
         chunk_overlap: int = 32,
         normalize_whitespace: bool = True,
@@ -154,7 +140,6 @@ class DocumentIngestor:
             raise ValueError("chunk_size must be positive")
         if chunk_overlap < 0 or chunk_overlap >= chunk_size:
             raise ValueError("chunk_overlap must be >= 0 and smaller than chunk_size")
-        self.classifier = classifier
         self.chunk_size = int(chunk_size)
         self.chunk_overlap = int(chunk_overlap)
         self.normalize_whitespace = bool(normalize_whitespace)
@@ -305,35 +290,6 @@ class DocumentIngestor:
                 content_type=content_type,
             )
         raise ValueError(f"Unsupported file type: {path.suffix or '<none>'}")
-
-    def _predict_bloom(self, text: str) -> tuple[Optional[str], float, float]:
-        if self.classifier is None:
-            return None, 0.0, 0.0
-        predictor = getattr(self.classifier, "predict", self.classifier)
-        pred = predictor(text)
-        return (
-            getattr(pred, "label", None),
-            float(getattr(pred, "confidence", 0.0) or 0.0),
-            float(getattr(pred, "ordinal_risk", 0.0) or 0.0),
-        )
-
-    def _to_safe(self, raw: RawDocumentChunk) -> SafeDocumentChunk:
-        label, confidence, risk = self._predict_bloom(raw.text)
-        return SafeDocumentChunk(
-            chunk_id=raw.chunk_id,
-            source=raw.source,
-            modality=raw.modality,
-            bloom_level=label or "Unknown",
-            bloom_confidence=confidence,
-            ordinal_risk=risk,
-            summary=None,
-        )
-
-    def to_safe_chunks(self, raw_chunks: List[RawDocumentChunk]) -> List[SafeDocumentChunk]:
-        return [self._to_safe(chunk) for chunk in raw_chunks]
-
-    def process_pdf_safe(self, path: Union[str, Path]) -> List[SafeDocumentChunk]:
-        return self.to_safe_chunks(self._load_pdf_raw(Path(path)))
 
 
 def _self_test() -> None:

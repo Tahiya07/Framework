@@ -23,15 +23,7 @@ from federated.config import BLOOM_LABELS, FederatedLoraConfig, LORA_TARGET_MODU
 from federated.class_weights import resolve_class_weights  # noqa: E402
 from federated.lora_state import extract_trainable_state  # noqa: E402
 from federated.secure_bundle import pack_update, save_bundle  # noqa: E402
-
-
-def build_prompt(question: str) -> str:
-    return (
-        "Classify Bloom's Taxonomy level.\n"
-        "Focus on reasoning depth, not verbs.\n\n"
-        f"Question: {question}\n"
-        "Answer:"
-    )
+from predict_bloom import build_prompt  # noqa: E402
 
 
 class _BloomDS(torch.utils.data.Dataset):

@@ -93,7 +93,7 @@ def _baseline_comparison_rows(data: dict) -> List[Dict[str, Any]]:
                 accuracy=ref.get("accuracy"),
                 within_one_level=ref.get("within_one_level_accuracy"),
                 severe_error=ref.get("severe_error_rate"),
-                interpretation="evaluation_results/metrics.json from train_qwen_bloom.py",
+                interpretation="legacy evaluation_results/metrics.json reference (prefer evaluate_bloom.py → results/)",
             )
         )
     return rows

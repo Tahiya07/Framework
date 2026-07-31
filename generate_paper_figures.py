@@ -18,10 +18,6 @@ def _plot_bloom_confusion() -> None:
     data = json.loads(RESULTS.read_text(encoding="utf-8"))
     cm = np.array(data.get("confusion_matrix") or [], dtype=int)
     if cm.size == 0:
-        # fallback: regenerate from rows if only metrics saved
-        rows_path = Path("results/bloom_lora_eval_rows.csv")
-        if not rows_path.is_file():
-            return
         return
     labels = ["Remember", "Understand", "Apply", "Analyze", "Evaluate", "Create"]
     fig, ax = plt.subplots(figsize=(7, 6))

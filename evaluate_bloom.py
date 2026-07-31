@@ -31,8 +31,6 @@ from predict_bloom import (
     QwenBloomPredictor,
     is_deploy_checkpoint,
     is_lora_adapter,
-    is_quantized_checkpoint,
-    ordinal_metrics,
 )
 
 FIG_DIR = Path("figures")

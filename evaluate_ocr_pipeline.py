@@ -39,18 +39,9 @@ def _tokens(text: str) -> List[str]:
 
 
 def _token_f1(prediction: str, gold: str) -> float:
-    from collections import Counter
+    from runtime_utils import token_f1
 
-    pred = _tokens(prediction)
-    ref = _tokens(gold)
-    if not pred or not ref:
-        return 0.0
-    overlap = sum((Counter(pred) & Counter(ref)).values())
-    if overlap == 0:
-        return 0.0
-    precision = overlap / len(pred)
-    recall = overlap / len(ref)
-    return 2 * precision * recall / max(precision + recall, 1e-12)
+    return token_f1(prediction, gold)
 
 
 def _word_error_rate(prediction: str, gold: str) -> float:

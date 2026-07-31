@@ -1,8 +1,0 @@
-{
-  "accuracy": 0.7476394849785408,
-  "macro_f1": 0.7207957545994641,
-  "weighted_f1": 0.7414651573827361,
-  "mean_ordinal_distance": 0.4519,
-  "within_one_level_accuracy": 0.8798,
-  "severe_error_rate": 0.0639
-}

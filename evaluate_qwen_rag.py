@@ -3,11 +3,10 @@ from __future__ import annotations
 import csv
 import json
 import tempfile
-from collections import Counter
 from pathlib import Path
 from typing import Dict, Iterable, List
 
-from evaluate_qa_rag import DOCUMENTS, QA_ITEMS, _best_gold_f1, _exact_match, _rank, _tokens
+from evaluate_qa_rag import DOCUMENTS, QA_ITEMS, _best_gold_f1, _exact_match, _rank
 from multimodal_rag import MultiModalAcademicRAG
 from multi_slm import task_registry_report
 from qwen_gguf_cli import QwenGgufCliGenerator

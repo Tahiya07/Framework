@@ -134,8 +134,8 @@ def check_all() -> Dict[str, Any]:
         "4. Student mandate",
         "Public-only student retrieval policy",
         (ROOT / "role_access.py").is_file(),
-        "allowed_chunks_for_role + role_access enforcement.",
-        "privacy/privacy_guard.py, role_access.py",
+        "student_visible_chunks / teacher_visible_chunks enforcement.",
+        "role_access.py",
     )
     add(
         "4. Teacher mandate",

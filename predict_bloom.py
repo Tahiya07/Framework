@@ -1,32 +1,20 @@
 #!/usr/bin/env python
+"""Bloom taxonomy inference for trained Qwen LoRA / merged / deploy checkpoints.
 
-# ============================================================
-# BLOOM TAXONOMY EVALUATION + INFERENCE
-# FOR TRAINED QWEN LoRA CLASSIFIER
-# ============================================================
+Batch evaluation lives in ``evaluate_bloom.py`` (writes ``results/``).
+"""
 
-import os
-import json
+from __future__ import annotations
+
 import argparse
+import json
+import os
 from pathlib import Path
+
 import numpy as np
-import pandas as pd
 import torch
-import matplotlib.pyplot as plt
-
-from sklearn.metrics import (
-    classification_report,
-    confusion_matrix,
-    accuracy_score,
-    f1_score,
-)
-
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSequenceClassification,
-)
-
 from peft import PeftModel
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from bloom_model_profiles import (
     DEFAULT_MODEL_SIZE,
@@ -83,11 +71,8 @@ def _load_tokenizer(model_path: str):
         return AutoTokenizer.from_pretrained(model_path, **kwargs)
 
 
-# ============================================================
-# PROMPT TEMPLATE
-# ============================================================
-
-def build_prompt(question):
+def build_prompt(question: str) -> str:
+    """Shared train/infer prompt — import this from train and federated scripts."""
     return (
         "Classify Bloom's Taxonomy level.\n"
         "Focus on reasoning depth, not verbs.\n\n"
@@ -96,17 +81,8 @@ def build_prompt(question):
     )
 
 
-# ============================================================
-# LOAD MODEL (merged checkpoint or LoRA adapter)
-# ============================================================
-
 def is_lora_adapter(model_dir: str | os.PathLike) -> bool:
     return (Path(model_dir) / "adapter_config.json").is_file()
-
-
-def is_quantized_checkpoint(model_dir: str | os.PathLike) -> bool:
-    """Back-compat alias for lightweight deploy checkpoints."""
-    return is_deploy_checkpoint(model_dir)
 
 
 def is_deploy_checkpoint(model_dir: str | os.PathLike) -> bool:
@@ -154,11 +130,6 @@ def load_deploy_model(model_dir: str):
         return tokenizer, model
 
     raise FileNotFoundError(f"Unsupported deploy format at {path}")
-
-
-def load_quantized_model(model_dir: str):
-    """Back-compat alias."""
-    return load_deploy_model(model_dir)
 
 
 def resolve_model_dir(
@@ -214,12 +185,7 @@ def load_model(model_dir: str, base_model: str | None = None, *, quantized: bool
     return tokenizer, model
 
 
-# ============================================================
-# SINGLE PREDICTION
-# ============================================================
-
 def predict(question, tokenizer, model, max_length=256):
-
     prompt = build_prompt(question)
 
     inputs = tokenizer(
@@ -237,11 +203,8 @@ def predict(question, tokenizer, model, max_length=256):
 
     with torch.no_grad():
         outputs = model(**inputs)
-
         logits = outputs.logits
-
         probs = torch.softmax(logits, dim=-1)[0]
-
         pred_id = torch.argmax(probs).item()
 
     confidence = probs[pred_id].item()
@@ -316,27 +279,11 @@ class QwenBloomPredictor:
         }
 
 
-# ============================================================
-# ORDINAL ERROR
-# ============================================================
-
 def ordinal_metrics(y_true, y_pred) -> dict:
-
-    distances = [
-        abs(t - p)
-        for t, p in zip(y_true, y_pred)
-    ]
-
+    distances = [abs(t - p) for t, p in zip(y_true, y_pred)]
     mean_distance = np.mean(distances)
-
-    within_one = np.mean([
-        d <= 1 for d in distances
-    ])
-
-    severe_error = np.mean([
-        d >= 3 for d in distances
-    ])
-
+    within_one = np.mean([d <= 1 for d in distances])
+    severe_error = np.mean([d >= 3 for d in distances])
     return {
         "mean_ordinal_distance": round(float(mean_distance), 4),
         "within_one_level_accuracy": round(float(within_one), 4),
@@ -344,280 +291,44 @@ def ordinal_metrics(y_true, y_pred) -> dict:
     }
 
 
-# ============================================================
-# EVALUATE CSV
-# ============================================================
-
-def evaluate_csv(
-    csv_path,
-    text_col,
-    label_col,
-    tokenizer,
-    model,
-    output_dir,
-):
-
-    print("\nLoading evaluation dataset...")
-
-    df = pd.read_csv(csv_path).dropna()
-
-    label2id = {
-        "Remember": 0,
-        "Understand": 1,
-        "Apply": 2,
-        "Analyze": 3,
-        "Evaluate": 4,
-        "Create": 5,
-    }
-
-    df = df[df[label_col].isin(label2id)]
-
-    texts = df[text_col].tolist()
-
-    y_true = [
-        label2id[x]
-        for x in df[label_col]
-    ]
-
-    y_pred = []
-
-    print("\nRunning inference...\n")
-
-    for idx, text in enumerate(texts):
-
-        result = predict(text, tokenizer, model)
-
-        pred_label = result["prediction"]
-
-        pred_id = label2id[pred_label]
-
-        y_pred.append(pred_id)
-
-        if idx % 50 == 0:
-            print(f"{idx}/{len(texts)} complete")
-
-    # ========================================================
-    # METRICS
-    # ========================================================
-
-    acc = accuracy_score(y_true, y_pred)
-
-    macro_f1 = f1_score(
-        y_true,
-        y_pred,
-        average="macro",
-    )
-
-    weighted_f1 = f1_score(
-        y_true,
-        y_pred,
-        average="weighted",
-    )
-
-    report = classification_report(
-        y_true,
-        y_pred,
-        target_names=list(LABELS.values()),
-        digits=4,
-    )
-
-    ord_metrics = ordinal_metrics(y_true, y_pred)
-
-    # ========================================================
-    # PRINT
-    # ========================================================
-
-    print("\n==============================")
-    print("EVALUATION RESULTS")
-    print("==============================\n")
-
-    print(f"Accuracy      : {acc:.4f}")
-    print(f"Macro F1      : {macro_f1:.4f}")
-    print(f"Weighted F1   : {weighted_f1:.4f}")
-
-    print("\nOrdinal Metrics")
-    print(ord_metrics)
-
-    print("\nClassification Report\n")
-    print(report)
-
-    # ========================================================
-    # SAVE REPORT
-    # ========================================================
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    metrics = {
-        "accuracy": float(acc),
-        "macro_f1": float(macro_f1),
-        "weighted_f1": float(weighted_f1),
-        **ord_metrics,
-    }
-
-    with open(
-        os.path.join(output_dir, "metrics.json"),
-        "w",
-        encoding="utf-8",
-    ) as f:
-        json.dump(metrics, f, indent=2)
-
-    with open(
-        os.path.join(output_dir, "classification_report.txt"),
-        "w",
-        encoding="utf-8",
-    ) as f:
-        f.write(report)
-
-    # ========================================================
-    # CONFUSION MATRIX
-    # ========================================================
-
-    cm = confusion_matrix(y_true, y_pred)
-
-    plt.figure(figsize=(8, 8))
-
-    plt.imshow(cm)
-
-    plt.title("Bloom Taxonomy Confusion Matrix")
-
-    plt.colorbar()
-
-    tick_marks = np.arange(len(LABELS))
-
-    plt.xticks(
-        tick_marks,
-        LABELS.values(),
-        rotation=45,
-    )
-
-    plt.yticks(
-        tick_marks,
-        LABELS.values(),
-    )
-
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
-
-    for i in range(cm.shape[0]):
-        for j in range(cm.shape[1]):
-            plt.text(
-                j,
-                i,
-                str(cm[i, j]),
-                ha="center",
-                va="center",
-            )
-
-    plt.tight_layout()
-
-    cm_path = os.path.join(
-        output_dir,
-        "confusion_matrix.png",
-    )
-
-    plt.savefig(cm_path)
-
-    print(f"\nSaved confusion matrix -> {cm_path}")
-
-    return metrics
-
-
-# ============================================================
-# MAIN
-# ============================================================
-
 def main():
-
-    parser = argparse.ArgumentParser()
-
+    parser = argparse.ArgumentParser(description="Interactive Bloom classifier (use evaluate_bloom.py for batch eval).")
     parser.add_argument(
         "--model_dir",
         type=str,
         default=None,
         help="Merged dir or LoRA adapter dir (default: merged if present).",
     )
-
     parser.add_argument(
         "--base_model",
         type=str,
         default="Qwen/Qwen2.5-1.5B-Instruct",
     )
-
-    parser.add_argument(
-        "--eval_csv",
-        type=str,
-        default="data/figshare_bloom_v1.csv",
-    )
-
-    parser.add_argument(
-        "--text_col",
-        type=str,
-        default="question",
-    )
-
-    parser.add_argument(
-        "--label_col",
-        type=str,
-        default="bloom_level",
-    )
-
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default="evaluation_results",
-    )
-
     args = parser.parse_args()
 
     model_dir = resolve_model_dir(args.model_dir)
     base = args.base_model if is_lora_adapter(model_dir) else None
     tokenizer, model = load_model(model_dir, base)
 
-    # ========================================================
-    # FULL EVALUATION
-    # ========================================================
-
-    evaluate_csv(
-        csv_path=args.eval_csv,
-        text_col=args.text_col,
-        label_col=args.label_col,
-        tokenizer=tokenizer,
-        model=model,
-        output_dir=args.output_dir,
-    )
-
-    # ========================================================
-    # INTERACTIVE MODE
-    # ========================================================
-
     print("\n==============================")
     print("INTERACTIVE BLOOM CLASSIFIER")
     print("==============================")
+    print("(Batch evaluation: python evaluate_bloom.py)")
 
     while True:
-
         q = input("\nEnter question (or 'exit'): ")
-
         if q.lower() == "exit":
             break
 
         result = predict(q, tokenizer, model)
-
         print("\nPrediction:")
         print(result["prediction"])
-
         print("\nConfidence:")
         print(result["confidence"])
-
         print("\nClass Probabilities:")
-
         for k, v in result["probabilities"].items():
             print(f"{k:12s} -> {v}")
 
-
-# ============================================================
-# ENTRY
-# ============================================================
 
 if __name__ == "__main__":
     main()

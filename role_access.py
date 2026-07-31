@@ -15,12 +15,6 @@ class Role(str, Enum):
     TEACHER = "teacher"
 
 
-class TaskMode(str, Enum):
-    QA = "question_answering"
-    SUMMARIZE = "summarization"
-    BLOOM_MODERATION = "exam_question_classification"
-
-
 @dataclass(frozen=True)
 class AccessDecision:
     allowed: bool

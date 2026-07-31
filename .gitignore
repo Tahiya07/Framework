@@ -37,6 +37,8 @@ Thumbs.db
 evaluation_outputs/
 evaluation_results/
 paper_bundle/
+*.zip
+
 # ===========================
 # ML Models
 # ===========================
