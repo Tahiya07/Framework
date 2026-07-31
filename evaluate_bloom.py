@@ -29,6 +29,7 @@ from bloom_model_profiles import (
 from predict_bloom import (
     BLOOM_LABELS,
     QwenBloomPredictor,
+    build_prompt,
     is_deploy_checkpoint,
     is_lora_adapter,
 )
@@ -395,6 +396,11 @@ def main() -> int:
     print(f"[eval] model_size={profile.key} ({profile.display_name})")
     print(f"Test rows: {len(test_df)}")
 
+    if "Bloom Level:" not in build_prompt("__PROBE__"):
+        raise RuntimeError(
+            "predict_bloom.build_prompt must match train_qwen_bloom "
+            "(ending with 'Bloom Level:') or held-out accuracy will collapse."
+        )
     if args.quantized:
         model_dir = resolve_checkpoint_dir(profile, model_dir=args.quantized_dir, quantized=True)
         if not is_deploy_checkpoint(model_dir):
@@ -413,6 +419,7 @@ def main() -> int:
         model_dir = resolve_checkpoint_dir(profile, model_dir=args.model_dir, quantized=False)
         predictor = QwenBloomPredictor(model_dir=model_dir, base_model=base_model)
         checkpoint_type = "lora_adapter" if is_lora_adapter(model_dir) else "merged"
+    print(f"[eval] checkpoint={model_dir} ({checkpoint_type})")
     lora = _run_lora(
         test_df,
         args.text_col,

@@ -54,6 +54,16 @@ def merge_lora(
         )
 
     if out_path.is_dir() and (out_path / "config.json").is_file() and not force:
+        lora_mtime = max(
+            (p.stat().st_mtime for p in lora_path.glob("adapter_model.*")),
+            default=0.0,
+        )
+        merged_mtime = (out_path / "config.json").stat().st_mtime
+        if lora_mtime > merged_mtime:
+            print(
+                f"[merge] WARNING: LoRA at {lora_path} is newer than merged {out_path}. "
+                "Re-run with --force to pick up the latest adapter."
+            )
         print(f"[merge] Using existing merged model at {out_path}")
         return out_path
 
@@ -75,6 +85,7 @@ def merge_lora(
 
     out_path.mkdir(parents=True, exist_ok=True)
     merged.save_pretrained(out_path)
+    # Save tokenizer from the Hub base id (not a possibly-stale local copy).
     tokenizer.save_pretrained(out_path)
     print(f"[merge] Saved merged classifier -> {out_path}")
     return out_path

@@ -63,21 +63,44 @@ RAG_KEY_TO_LABEL: dict[str, str] = {v: k for k, v in LABEL_TO_RAG_KEY.items()}
 DEFAULT_MODEL_DIR = DEFAULT_MERGED_DIR
 
 
-def _load_tokenizer(model_path: str):
+def _load_tokenizer(model_path: str, *, fallback_path: str | None = None):
     kwargs = {"trust_remote_code": True}
-    try:
-        return AutoTokenizer.from_pretrained(model_path, fix_mistral_regex=True, **kwargs)
-    except TypeError:
-        return AutoTokenizer.from_pretrained(model_path, **kwargs)
+    candidates = [model_path]
+    if fallback_path and fallback_path != model_path:
+        candidates.append(fallback_path)
+
+    last_err: Exception | None = None
+    for path in candidates:
+        try:
+            try:
+                return AutoTokenizer.from_pretrained(path, fix_mistral_regex=True, **kwargs)
+            except TypeError:
+                return AutoTokenizer.from_pretrained(path, **kwargs)
+        except Exception as exc:  # noqa: BLE001 — fall back to base tokenizer if merge copy is corrupt
+            last_err = exc
+            print(f"[warn] tokenizer load failed for {path}: {exc}")
+    raise RuntimeError(f"Could not load tokenizer from {candidates}") from last_err
 
 
 def build_prompt(question: str) -> str:
-    """Shared train/infer prompt — import this from train and federated scripts."""
+    """Canonical Bloom classifier prompt — MUST match train_qwen_bloom exactly.
+
+    Train/val metrics (~84%) were produced with this template. Using a shorter
+    ``Answer:`` variant at inference collapses held-out accuracy (~49%).
+    """
     return (
-        "Classify Bloom's Taxonomy level.\n"
-        "Focus on reasoning depth, not verbs.\n\n"
-        f"Question: {question}\n"
-        "Answer:"
+        "You are an expert in educational assessment and Bloom's Taxonomy.\n\n"
+        "Your task is to classify the following question into exactly one of the six Bloom's Taxonomy cognitive levels.\n\n"
+        "Bloom's Taxonomy Levels:\n"
+        "- Remember: Recall facts, definitions, or basic concepts.\n"
+        "- Understand: Explain ideas or interpret concepts.\n"
+        "- Apply: Use knowledge to solve problems or complete tasks.\n"
+        "- Analyze: Break information into parts, identify relationships, or compare concepts.\n"
+        "- Evaluate: Make judgments, justify decisions, or critique based on evidence.\n"
+        "- Create: Generate, design, develop, or produce something original.\n\n"
+        "Focus on the reasoning required to answer the question rather than relying only on action verbs.\n\n"
+        f"Question:\n{question}\n\n"
+        "Bloom Level:"
     )
 
 
@@ -113,12 +136,12 @@ def load_deploy_model(model_dir: str):
         fmt = json.loads(meta_path.read_text(encoding="utf-8")).get("format", "")
 
     print(f"\nLoading lightweight Bloom classifier from {path} ({fmt or 'legacy'})...")
-    tokenizer = _load_tokenizer(str(path))
+    tokenizer = _load_tokenizer(str(path), fallback_path=DEFAULT_BASE_MODEL)
 
     if fmt == "fp16_merged":
         model = AutoModelForSequenceClassification.from_pretrained(
             str(path),
-            dtype=torch.float16,
+            torch_dtype=torch.float16,
             trust_remote_code=True,
         )
         model.eval().cpu()
@@ -152,7 +175,7 @@ def load_model(model_dir: str, base_model: str | None = None, *, quantized: bool
         return load_deploy_model(model_dir)
 
     path = Path(model_dir)
-    dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+    torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
     if is_lora_adapter(path):
         if not base_model:
@@ -162,7 +185,7 @@ def load_model(model_dir: str, base_model: str | None = None, *, quantized: bool
         model = AutoModelForSequenceClassification.from_pretrained(
             base_model,
             num_labels=6,
-            dtype=dtype,
+            torch_dtype=torch_dtype,
             trust_remote_code=True,
         )
         model = PeftModel.from_pretrained(model, str(path))
@@ -172,10 +195,10 @@ def load_model(model_dir: str, base_model: str | None = None, *, quantized: bool
                 f"No merged model at {path}. Run: python merge_model.py"
             )
         print(f"\nLoading merged Bloom classifier from {path}...")
-        tokenizer = _load_tokenizer(str(path))
+        tokenizer = _load_tokenizer(str(path), fallback_path=base_model or DEFAULT_BASE_MODEL)
         model = AutoModelForSequenceClassification.from_pretrained(
             str(path),
-            dtype=dtype,
+            torch_dtype=torch_dtype,
             trust_remote_code=True,
         )
 

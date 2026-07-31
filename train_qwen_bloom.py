@@ -21,15 +21,12 @@ from transformers import (
     TrainingArguments,
     DataCollatorWithPadding,
     EarlyStoppingCallback,
-    trainer,
 )
 
 from peft import LoraConfig, TaskType, get_peft_model
 
+from predict_bloom import build_prompt
 
-# ============================================================
-# SEED
-# ============================================================
 
 def set_seed(seed=42):
     random.seed(seed)
@@ -37,10 +34,6 @@ def set_seed(seed=42):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-
-# ============================================================
-# LABELS
-# ============================================================
 
 LABELS = {
     "Remember": 0,
@@ -51,10 +44,6 @@ LABELS = {
     "Create": 5,
 }
 
-
-# ============================================================
-# DATASET
-# ============================================================
 
 @dataclass
 class BloomDataset(torch.utils.data.Dataset):
@@ -70,10 +59,6 @@ class BloomDataset(torch.utils.data.Dataset):
         return item
 
 
-# ============================================================
-# AUGMENTATION (SAFE)
-# ============================================================
-
 def augment(text):
     if random.random() < 0.2:
         text = text.replace("explain", "describe")
@@ -81,32 +66,6 @@ def augment(text):
         text = text.replace("analyze", "examine")
     return text
 
-
-# ============================================================
-# PROMPT
-# ============================================================
-
-def build_prompt(q):
-    # Must stay identical to predict_bloom.build_prompt / federated client_train
-    # to avoid train/inference skew.
-    return (
-        "You are an expert in educational assessment and Bloom's Taxonomy.\n\n"
-        "Your task is to classify the following question into exactly one of the six Bloom's Taxonomy cognitive levels.\n\n"
-        "Bloom's Taxonomy Levels:\n"
-        "- Remember: Recall facts, definitions, or basic concepts.\n"
-        "- Understand: Explain ideas or interpret concepts.\n"
-        "- Apply: Use knowledge to solve problems or complete tasks.\n"
-        "- Analyze: Break information into parts, identify relationships, or compare concepts.\n"
-        "- Evaluate: Make judgments, justify decisions, or critique based on evidence.\n"
-        "- Create: Generate, design, develop, or produce something original.\n\n"
-        "Focus on the reasoning required to answer the question rather than relying only on action verbs.\n\n"
-        f"Question:\n{q}\n\n"
-        "Bloom Level:"
-    )
-
-# ============================================================
-# METRICS
-# ============================================================
 
 def compute_metrics(eval_pred):
     logits, labels = eval_pred

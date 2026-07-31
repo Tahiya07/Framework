@@ -1,351 +1,61 @@
 question,gold,prediction,confidence,rag_key
-Explain the SIX (6) power bases that determine effective leadership. Provide an example for each of the answers.,Understand,Analyze,0.3928,analyze
-Critically analyze and discuss the problems with secondary data. Provide relevant examples to support your answer.,Analyze,Analyze,0.8849,analyze
-Briefly explain why a parallel solution with less number of synchronisation phases is more preferred than other solution with a lot of synchronisation phases.,Understand,Analyze,0.6925,analyze
-Malaysia is currently having trade deficit and policy maker tries to improve the balance of trade by depreciate the Ringgit Malaysia. Discuss the impact of this policy by using an appropriate diagram.,Understand,Analyze,0.6222,analyze
-Explain FOUR (4) major forces which move water into wall claddings and measures to be taken to eliminate these problems. You are required to include illustrations in your explanation.,Understand,Create,0.407,create
-Compare and contrast Manufacturing Resource Planning (MRP-II) and Lean Manufacturing.,Analyze,Analyze,0.9181,analyze
-Draw a picture of the gown Cinderella wore to the ball.,Apply,Create,0.6902,create
-State the conductivity of a semiconductor at 0 K and clearly explain your answer.,Understand,Remember,0.4323,remember
-Identify and describe the FOUR (4) criteria for judging economic outcomes.,Understand,Analyze,0.4674,analyze
-Define and contrast digital certificate and digital signature.,Understand,Analyze,0.484,analyze
-What are the major products and exports of countries,Remember,Remember,0.445,remember
-Calculate the level of output Japan needs to achieve in order to maintain a balanced trade account.,Apply,Apply,0.9789,apply
-Outline the most important insight of the tale.,Understand,Analyze,0.2351,analyze
-Identify THREE (3) building related statutory laws in Malaysia.,Understand,Remember,0.8498,remember
-Indicate the variables that are important in each of the canonical variates.,Remember,Apply,0.5049,apply
-Determine the memory required to store a 2 minutes passage of stereophonic music.,Apply,Apply,0.886,apply
-You are the new online advertising consultant for Loreal Malaysia. Explain to your client SEVEN (7) important paid media metrics in online advertising.,Understand,Remember,0.4049,remember
-Demonstrate using the OPAC and your knowledge of library organization to find a book about turtles.,Apply,Apply,0.9313,apply
-Design or sketch a marketing strategy for your product using a known strategy as a model.,Apply,Create,0.4747,create
-How to inspect and maintain fresh water plumbing systems properly,Analyze,Apply,0.4404,apply
-Determine the doping levels in the respective regions.,Apply,Apply,0.6698,apply
-Provide the equations for the Eadie-Hofstee and Hanes-Woolf plot. Explain how these equations could be derived from the Michaelis-Menten equation.,Apply,Apply,0.5535,apply
-Use dynamic programming to make these allocations to maximize the total grade points to be obtained from the four courses.,Apply,Apply,0.9848,apply
-List down THREE (3) methods of excavation.,Remember,Remember,0.8945,remember
-When did you born ?,Remember,Remember,0.4222,remember
-Write an essay on the importance of comparative genomics.,Create,Create,0.5141,create
-Define graphic design and product design.,Remember,Remember,0.7934,remember
-"For any points which fall exactly on the curve, explain the combination of production for steel and bricks.",Understand,Analyze,0.4015,analyze
-"If an electron in a hydrogen atom jumps from the first excited state to ground state, find the wavelength of the photon emitted.",Understand,Apply,0.5066,apply
-Create a set of guidelines to determine the points of a plant susceptible to localized corrosion.,Create,Apply,0.5237,apply
-"There are two approaches to solve a problem, namely X and Y. Approach X uses a lot of synchronizations compared to approach Y. Briefly explain why the approach Y should be chosen to solve the problem.",Analyze,Analyze,0.4724,analyze
-Evaluate why a monopolist holds more undesirable characteristics in comparison to a perfect competitor. Give evidence from the graph to support your answer.,Evaluate,Analyze,0.7921,analyze
-Suggest THREE (3) specific types of application software that may help to support James's business activities.,Create,Create,0.7768,create
-Interpret the pictures.,Understand,Create,0.6695,create
-Define the basic concepts of Educational Technology.,Remember,Remember,0.6351,remember
-A solid cube with dimensions of 10.0 nm was dispersed into water to become colloidal particles with dimensions of 1.0 nm. Calculate the changes of surface area to volume (surface / volume).,Apply,Apply,0.7764,apply
-Suggest the most suitable growth model that could be applied to describe the growth of above-mentioned Lactobacillus acidophilus strain. Briefly explain the suggested growth model.,Create,Apply,0.4826,apply
-Explain how e-mail agents work.,Understand,Evaluate,0.4853,evaluate
-Explain the possible uses described in class for the space to the left of the vertical line.,Understand,Apply,0.4709,apply
-Draw Production Possibilities Frontier and Trading Possibilities Frontier for Korea and Indonesia.,Understand,Apply,0.6337,apply
-Comment on the introduction of seven “_” in the alignment.,Evaluate,Evaluate,0.5708,evaluate
-Determine the percentage of variation in the correlation matrix that is explained by the 4 factors.,Apply,Apply,0.5375,apply
-Draw the ‘market demand' and 'supply curve'.,Understand,Analyze,0.5184,analyze
-"Discuss in detail the Sharpe, Treynor, and Jensen measures of portfolio performance evaluation, by identifying the situations in which each measure is the most appropriate measure.",Apply,Apply,0.9051,apply
-Name FOUR (4) types of soil in-situ field test and its application.,Remember,Remember,0.5268,remember
-Describe dynamic load balancing using centralised work pool approach.,Understand,Apply,0.4682,apply
-"Recommend with justification, a value or range of values to the Board of Directors for the acquisition of ESL Berhad.",Evaluate,Evaluate,0.8258,evaluate
-Draw the energy band diagram of the pn junction.,Understand,Analyze,0.3479,analyze
-Name the food groups and at least two items of food in each group.,Remember,Remember,0.6241,remember
-Distinguish facts from hypotheses,Analyze,Analyze,0.7195,analyze
-"Referring to the advertisement design below, evaluate the usage of Dominance and Unity in principles of design.",Evaluate,Create,0.8586,create
-Scaling methods can improve the performance of the web site. Propose to Jane which scaling method suit her current business needs. Justify your answer.,Evaluate,Evaluate,0.7835,evaluate
-State FOUR (4) basic business activities that are performed in the revenue cycle.,Remember,Remember,0.8768,remember
-Illustrate your understanding for oligopoly competition and monopolistic competition using ONE (1) real life example for each.,Understand,Analyze,0.7664,analyze
-Is there a better solution to . . .?,Evaluate,Evaluate,0.7359,evaluate
-Propose and justify ONE (1) international market-entry strategy that you may consider to market your products internationally.,Evaluate,Evaluate,0.8383,evaluate
-Explain the importance of visual in a poster design.,Understand,Understand,0.5265,understand
-Information systems value is determined by the strong relationships among THREE (3) major components. Name them.,Remember,Create,0.4174,create
-List reserved words in C programming.,Remember,Remember,0.9776,remember
-Distinguish between ‘load bearing wall' and 'non-load bearing wall’.,Analyze,Analyze,0.9246,analyze
-Name two super secondary structures found within enzymes which involved formation of a-helices. Describe how the a-helices could be maintained in an enzyme.,Understand,Understand,0.3889,understand
-Explain in details FIVE (5) ways to make a brand name effective.,Understand,Evaluate,0.3185,evaluate
-Describe the sender-initiated task transfer method that used in dynamic load balancing.,Understand,Apply,0.4904,apply
-Determine the amount of shortage or surplus if government decides to impose the price at RM1.50/kg. Support your answer with numerical explanations.,Apply,Apply,0.4333,apply
-What is the title of the first movie you saw,Remember,Create,0.2844,create
-Write a poem about the story.,Create,Create,0.9522,create
-Explain TWO (2) defects which are usually occur on the surface of finished concrete.,Understand,Understand,0.4571,understand
-How does your pet differ from other animals?,Analyze,Analyze,0.909,analyze
-Construct a basic diagram or figure to demonstrate your understandings on what Information System is.,Understand,Apply,0.7184,apply
-"From the information given, can you develop a set of instructions about . . .?",Apply,Create,0.8629,create
-"""The monetary policy is always useful in stimulating the economic growth by increasing the money supply in the market."" Comment on this statement. Support your answer with an appropriate diagram.",Evaluate,Evaluate,0.6586,evaluate
-Describe FIVE (5) categories of space.,Remember,Remember,0.7135,remember
-Describe the concept or purpose of Qlassic and CIS (Construction Industry Standards) documents.,Understand,Analyze,0.5467,analyze
-Define FOUR (4) common authoring metaphors and its advantages and disadvantages.,Remember,Create,0.3124,create
-List the information that can be obtained from X-Ray Photoelectron Spectroscopy (XPS).,Remember,Create,0.5438,create
-Discuss the types of building defects commonly found on reinforced concrete flat roof which lead to water leaking and concrete cancer and how their cause of defects are defined under ISO 6241.,Understand,Evaluate,0.4314,evaluate
-Sketch the Type Il isotherm and provide a brief description of its nature and the processes that gives rise to the isotherm.,Apply,Apply,0.957,apply
-Name three 19th-century women English authors.,Remember,Remember,0.5321,remember
-"The technology of VLSI is defined by the feature size. With the aid of a diagram, explain the feature size.",Understand,Apply,0.3841,apply
-Can you justify the decisions you have made ?,Evaluate,Evaluate,0.9429,evaluate
-"Internal control system is among the most prominent monitoring mechanisms in promoting effective corporate governance. Assuming you are the manager of purchasing department, provide TWELVE (12) recommendations on how to prevent staffs from making personal gains from their positions.",Create,Evaluate,0.4723,evaluate
-Show how they have used creative writing strategies appropriate to the format,Apply,Apply,0.8232,apply
-Define four types of traceability.,Remember,Remember,0.6924,remember
-Explain why the electrical conductivity of a semiconductor is higher than an insulator by using the energy band diagram.,Understand,Understand,0.7188,understand
-Support your answers with ONE (1) example in everyday life for EACH theory.,Evaluate,Evaluate,0.7302,evaluate
-Distinguish between products from physical and chemical weathering.,Analyze,Analyze,0.538,analyze
-"Justify the following statement. ""It is possible for a firm to experience diminishing marginal return and diseconomies of scale at the same time”.",Evaluate,Evaluate,0.4822,evaluate
-Examine the connection and connectionless protocols using appropriate examples.,Analyze,Analyze,0.5549,analyze
-Distinguish between micro and macro economics.,Analyze,Analyze,0.961,analyze
-"Three sales sub-stages: qualification, proposition and negotiation are included in both OpenERP and SugarCRM, before a deal is won. Give a brief description of these sub-stages.",Understand,Analyze,0.5772,analyze
-Differentiate spoken and written language in FIVE (5) aspects.,Analyze,Analyze,0.8875,analyze
-Explain FIVE (5) reasons for the importance of global markets to marketers.,Understand,Understand,0.2893,understand
-Name the artist who painted the Mona Lisa.,Remember,Remember,0.7677,remember
-Discuss political risk in the Political-Legal Environment of the Host Country.,Understand,Analyze,0.3153,analyze
-Compute the volume of a cylinder,Apply,Apply,0.9742,apply
-"Given an argument on any position, enumerate the logical fallacies in that argument.",Evaluate,Remember,0.545,remember
-Identify the type of crisis based on time as a critical variable.,Understand,Remember,0.4621,remember
-"Discuss the adoption issues surrounding Facebook and internet, as well as their implications for e-marketers.",Understand,Analyze,0.5873,analyze
-Analyze the following questionnaire.,Analyze,Evaluate,0.444,evaluate
-"Marketers theorize that just as humans pass through stages in life from infancy to old age, products also pass through a product life cycle. Explain all FOUR (4) stages of a product life cycle.",Understand,Apply,0.8953,apply
-Differentiate between soil fertility and soil productivity.,Analyze,Analyze,0.6871,analyze
-Develop a time phased product structure.,Create,Create,0.6921,create
-Discuss the advantages of dynamic logic circuit compared to the conventional static combinational logic circuit.,Understand,Apply,0.5635,apply
-Draw TWO (2) logo design for food and beverage products.,Understand,Apply,0.4284,apply
-How would you compare SAS with the Visual Basic Application and SPSS for the processing and analysis of mainframe data,Understand,Analyze,0.4739,analyze
-Write what you might have done.,Apply,Create,0.8288,create
-Determine the next number in a sequence,Understand,Apply,0.8309,apply
-Managing and engaging stakeholders have gained important grounds in corporate decision making. Provide your justifications for companies to adopt stakeholder model.,Understand,Evaluate,0.7098,evaluate
-Define prosocial behaviors.,Remember,Remember,0.59,remember
-Write a logically organized argument in favor of a given position.,Create,Evaluate,0.4117,evaluate
-"Director independence is a pivotal element of corporate governance. Illustrate the requirements of ""Persons Connected with Directors"" as stipulated under Companies Act 2016 Section 197(1).",Understand,Analyze,0.2835,analyze
-State in your own words the rule for balls and strikes in baseball.,Understand,Apply,0.5388,apply
-"Within an organization, each employee holds different roles in the informal communication networks. Explain any FOUR (4) roles with an example for each role.",Apply,Apply,0.3185,apply
-Make a diagnosis or analyze a case study.,Analyze,Analyze,0.4088,analyze
-Critically examine the strengths and weaknesses of the positivist paradigm,Analyze,Analyze,0.6053,analyze
-Name a donor atom and acceptor atom for Si.,Remember,Create,0.4279,create
-"Considering linear multimedia and interactive multimedia, suggest the best solution to the shopping mall's management.",Create,Create,0.8154,create
-The Higgs Report (2003) is among the first report that discusses the importance of Senior Independent Non-Executive Director (Senior INED). Analyse the rationales of having Senior INED in a company.,Analyze,Analyze,0.8721,analyze
-"Draw a technology enhanced language learning classroom sketch for a writing lesson with 12 high proficiency students, aged 10. You should include FIVE (5) basic technology facilities with label which are essential to the integration of technology in the classroom.",Understand,Apply,0.7592,apply
-Categorise the pictures and add them to the wall display.,Apply,Evaluate,0.6392,evaluate
-List any TWO (2) real life examples of the organization that implement the clicks-and-bricks B2C E-Commerce.,Remember,Remember,0.6938,remember
-Explain the concept of narrowing conversion. Indicate in code how the conversion is done.,Understand,Analyze,0.4859,analyze
-State the problems that could arise from environmental overload of fixed nitrogen due to generous usage of nitrogen fertilizer and suggest a possible solution for this situation.,Create,Create,0.847,create
-"Calculate the surface tension of a wetting liquid, C (1.23 gml-l ) which rises 1.50 m in a vertical capillary tube with the internal radius of 0.15 mm.",Apply,Apply,0.7818,apply
-how the investigation was undertaken,Analyze,Create,0.8105,create
-How does Hawaii contrast and compare to Florida?,Analyze,Analyze,0.7053,analyze
-Explain and differentiate between TWO types of aggregations when colloidal particles are unstable.,Analyze,Analyze,0.8502,analyze
-"Just-in-time (JIT) attempts to remove delays, which do not add value. Explain how JIT copes with weather and its impact on crop harvest and transportation times.",Understand,Apply,0.8635,apply
-State TWO types of enzyme specificities that do not agree with lock and key model. Explain your answer.,Understand,Create,0.5449,create
-recall the supply voltage constraints,Remember,Remember,0.7667,remember
-Explain on multimedia delivering on World Wide Web.,Understand,Apply,0.278,apply
-Can you apply the method used to some experience of your own . . .?,Apply,Apply,0.8379,apply
-"State TWO examples for inorganic and organic contaminants, respectively.",Remember,Analyze,0.5863,analyze
-Explain types of price discriminations.,Understand,Apply,0.8112,apply
-Discuss in detail the criteria used to assess the success or failure of a newly released transgenic crop with improved tolerance to stress.,Analyze,Analyze,0.7759,analyze
-Develop and execute a program for this exercise,Create,Create,0.6178,create
-List any THREE (3) pairs of system functions that should be separated in the centralized computer services organization and describe a risk exposure if the functions are not separated.,Understand,Analyze,0.5444,analyze
-Name one character. Rewrite the story from this character's point of view.,Create,Create,0.7965,create
-Briefly discuss how TQM could be applied m the management of the newspapers' editorials.,Apply,Apply,0.9187,apply
-Summarize the basic tenets of deconstructionism.,Understand,Apply,0.4843,apply
-Analyze the selected information.,Analyze,Evaluate,0.426,evaluate
-Briefly explain the mechanism of RNA interference.,Understand,Understand,0.2747,understand
-Compare two of the characters in this book.,Analyze,Create,0.4743,create
-"As an educator, evaluate FIVE (5) advantages and FIVE (5) disadvantages of using technology in education.",Evaluate,Evaluate,0.9453,evaluate
-"Advise the five steps, as recommended by Porter and Millar, that can be applied by business managers in taking advantage of information technology.",Create,Create,0.6721,create
-State the TWO biological isoprene building blocks and the enzyme involved in synthesising the precursor.,Understand,Understand,0.496,understand
-Define soil horizon and relate it with soil profile.,Understand,Analyze,0.3301,analyze
-Describe what hydraulic engineering is in your own words showing concrete examples.,Understand,Apply,0.7531,apply
-Describe Prisoner Dilemma in the context of game theory.,Remember,Analyze,0.4545,analyze
-"Inspect each of these Boolean expressions, and determine whether each one is a sum of products, or a product of sums",Analyze,Apply,0.547,apply
-Suggest a way to deal with this scenario,Apply,Create,0.7627,create
-Discuss the importance of Philip Crosby's suggestion on “do it right the first time” by manufacturing company.,Understand,Create,0.4897,create
-Examine differences between the means of each individual switching factor.,Analyze,Analyze,0.9134,analyze
-You are appointed to identify building defects for a new building. Briefly identify SIX (6) common construction problems you would expect for modern buildings.,Understand,Apply,0.8548,apply
-"Discuss the role of an infomediary in the online distribution system and evaluate the benefits of this type of distribution system to the consumer, infomediary and advertiser.",Evaluate,Evaluate,0.5955,evaluate
-Advise Smith on any FIVE (5) types of information which should be included in the website.,Create,Create,0.7861,create
-Decide whether you learned enough about electricity from this book.,Evaluate,Evaluate,0.8866,evaluate
-Propose an admixture to increase the workability of concrete in the fresh state without reducing the engineering performance of the hardened concrete.,Create,Apply,0.5368,apply
-"improved, reformed or rejected?",Evaluate,Evaluate,0.8388,evaluate
-Explain creative brief.,Understand,Create,0.424,create
-Use a costing model to compute prices on goods to maximise profits and minimise costs.,Apply,Apply,0.9728,apply
-"""Investment strategies used by the investors of futures and forward markets help to maintain market efficiency"". Based on the above statement, differentiate THREE (3) main investment strategies used by futures and forward markets' investors.",Analyze,Analyze,0.6771,analyze
-"Discuss the level of trust consumers place in digital media, and how that trust helps or hinders e-marketers.",Understand,Evaluate,0.8808,evaluate
-Provide some justifications for the data warehouse architecture that you have chosen in Q2 (a).,Evaluate,Evaluate,0.4392,evaluate
-"“As additional units of a variable input are added to a fixed input, the marginal product of the variable input may at the beginning rises, subsequently falls and becomes negative in the short-run"". Explain this statement by using appropriate diagrams.",Understand,Analyze,0.4987,analyze
-Demonstrate how your unit’s specific student learning outcomes are linked to the mission of UAM.,Apply,Apply,0.9482,apply
-"Using transmission-gates, design and sketch an 8-to-1 multiplexer.",Create,Apply,0.6599,apply
-Define the term project in the context of project management.,Remember,Remember,0.6091,remember
-Explain on Brand Piracy.,Understand,Apply,0.294,apply
-Discover FOUR (4) characteristic of IT infrastructure to be considered.,Create,Remember,0.4722,remember
-How would the U.S.A. be different if the South had won the Civil War?,Create,Analyze,0.5719,analyze
-Distinguish Paradox of the Commons from Tragedy of the Commons.,Analyze,Analyze,0.9626,analyze
-Define Classical approach and Human Relations approach.,Remember,Remember,0.4707,remember
-Describe the THREE (3) causes of concrete blister.,Understand,Understand,0.3249,understand
-Briefly explain Financial Reporting System (FRS) and identify THREE (3) potential risks in FRS.,Understand,Evaluate,0.5473,evaluate
-"There are TWO (2) common methods used in the semiconductor industry to fabricate single crystal silicon. With the aid of diagrams, name and explain the methods.",Understand,Analyze,0.3996,analyze
-Explain the whole method of crushing,Understand,Evaluate,0.3818,evaluate
-List THREE (3) advantages and TWO (2) disadvantages codification.,Remember,Remember,0.5173,remember
-Determine the resistivity of a Si sample if it is doped with 10 phosphorus atoms/cm and H. = 750 cm Vs. Find the Hall coefficient of the sample.,Apply,Apply,0.6509,apply
-"The correlation between the S&P 500 index fund and the emerging market fund is zero. Consider portfolio A, which consists of 80% of the S&P index fund and 20% of the emerging-market fund. Calculate portfolio A's expected return and standard deviation.",Apply,Create,0.5417,create
-In a building there is always concern with fire safety. List what aspects you would assess in order to achieve strict compliance in the building design.,Understand,Remember,0.6412,remember
-Determine the number of possible colors and calculate how much memory is required to represent the following bitmap images.,Apply,Apply,0.5503,apply
-What factors would you change if . . .?,Apply,Apply,0.5831,apply
-Chymotrypsin belongs to serine protease family. Describe the catalytic mechanism of chymotrypsin emphasizing the role of the catalytic triad and substrate binding site in catalysis.,Understand,Create,0.4515,create
-Can you propose a model that would change . . . ?,Create,Create,0.5869,create
-Can you defend your position about ... ?,Evaluate,Evaluate,0.5675,evaluate
-Name the following conserved amino acids with their corresponding single letter codes: WMEADK.,Remember,Remember,0.8363,remember
-What is a textual index,Remember,Remember,0.9879,remember
-State in one word ...,Understand,Create,0.7409,create
-Make a radio announcement that advertise the book. Write it out.,Create,Apply,0.5576,apply
-Predict what will happen next in.,Evaluate,Remember,0.3552,remember
-"Given the data available on a research question, take a position and defend it.",Evaluate,Evaluate,0.7147,evaluate
-Illustrate with example the FOUR (4) advantages of photography.,Understand,Analyze,0.3528,analyze
-How would you classify the type of ...?,Understand,Create,0.6941,create
-Briefly discuss the advantage of C3 and C4 pathways for weeds.,Understand,Evaluate,0.7565,evaluate
-Place the following in order of priority...,Evaluate,Evaluate,0.7226,evaluate
-"structure, sorts the list in ascending order, displays the list on the screen and stores the list",Create,Evaluate,0.4322,evaluate
-Illustrate the needs of timber preservation and the techniques.,Understand,Apply,0.3224,apply
-Explain THREE (3) categories of treatment to enhance the durability of timber.,Understand,Analyze,0.3287,analyze
-Show your calculations for all THREE (3) options and then discuss which one of the options you prefer.,Analyze,Apply,0.7743,apply
-What changes to . . . would you recommend?,Evaluate,Evaluate,0.7334,evaluate
-Support your views with TWO (2) examples in everyday life for each tactic.,Evaluate,Evaluate,0.8363,evaluate
-Explain briefly how the aggregation processes could improve the water quality in a water treatment plant.,Understand,Understand,0.278,understand
-Daniel Kahneman and Amos Tversky believe that many stock investors are far from fully rational. Explain FOUR (4) common factors that create irrational market behavior.,Understand,Evaluate,0.3464,evaluate
-"Besides Field Programmable Gate Array (FPGA), name one other type of programmable logic device.",Remember,Apply,0.947,apply
-Explain in detail the Maslow Hierarchy of Needs.,Understand,Apply,0.6324,apply
-What solutions would you suggest for...?,Create,Create,0.8636,create
-State the SIX categories in soil taxonomy.,Remember,Remember,0.8819,remember
-State the five assumptions of an ideal diode.,Remember,Remember,0.8319,remember
-Explain FIVE (5) characteristics of the construction sector.,Understand,Apply,0.3707,apply
-Show how to modify Fitch's algorithm given in class today to accommodate non-binary,Apply,Apply,0.9855,apply
-Briefly explain about Nyquist Theorem.,Understand,Apply,0.8769,apply
-Explain why 3D animation requires much time consuming and complicated in the development phase compared to 2D animation.,Analyze,Analyze,0.3784,analyze
-Compare and contrast two characters in the book.,Analyze,Analyze,0.9122,analyze
-What does ICT stands for.,Remember,Remember,0.9366,remember
-suggest ways in which it could have responded more effectively,Evaluate,Create,0.5737,create
-"Compare and contrast the properties of clay brick and calcium silicate brick in terms of crushing strength, moisture movement, durability, appearance, fire resistance, colour, texture, sound and thermal insulation.",Analyze,Analyze,0.5599,analyze
-"Draw the band diagram of a reverse biased pn junction. With reference to the band diagram and charge carriers, explain why there is negligible current flow in the diode.",Understand,Remember,0.4087,remember
-Briefly describe TWO mating methods of commercial importance for the production of fertilised eggs from breeder birds.,Understand,Analyze,0.3679,analyze
-Find the reverse bias saturation current.,Understand,Remember,0.946,remember
-Support your answers with ONE (1) example from everyday life for each type of personality.,Evaluate,Create,0.532,create
-Compare and contrast the characteristics between hardwood and softwood.,Analyze,Analyze,0.916,analyze
-How to construct the selected information system,Apply,Evaluate,0.4913,evaluate
-State TWO (2) subsystems of AIS.,Remember,Remember,0.9018,remember
-Explain the possible flow patterns in the culvert depending on the level of the rain water in the car park and the drain channel.,Understand,Apply,0.3209,apply
-Summarize this magazine article.,Understand,Evaluate,0.5589,evaluate
-"As a defence strategy, most plant secondary metabolites exert adverse effects on herbivores. Discuss how plants avoid poisoning themselves with these metabolites.",Understand,Understand,0.3602,understand
-Explain the main purpose of LOCOS.,Understand,Apply,0.4657,apply
-Compare the seasoning method between softwood and hardwood.,Understand,Evaluate,0.4606,evaluate
-Detect error(s) in the following segment of codes and rewrite the codes with correction of the error(s).,Understand,Remember,0.5091,remember
-Explain the underlying assumptions of the price-leadership model by using appropriate diagrams.,Understand,Apply,0.6721,apply
-Tell in your own words how the setting of the story made it more interesting.,Understand,Analyze,0.5261,analyze
-How to Construct the Optimal Maintenance Problem,Apply,Apply,0.664,apply
-"Discuss the benefits of palm oil, in terms of versatility, diet-health relationship and sustainability.",Understand,Create,0.3529,create
-Name the TWO (2) categories and explain the differences between the two categories.,Understand,Analyze,0.6599,analyze
-Define mercantilism.,Remember,Remember,0.8433,remember
-"Using an appropriate example, describe how competitive ELISA works.",Understand,Apply,0.5897,apply
-Compare historical events to contemporary situations,Understand,Analyze,0.9692,analyze
-"Explain the trading behavior of hedger, speculator and arbitrageur.",Understand,Evaluate,0.5148,evaluate
-Identify and explain FIVE (5) countries that ban advertising to children.,Understand,Analyze,0.4365,analyze
-Briefly describe TEN (10) general characteristic of hardened concrete.,Understand,Evaluate,0.7569,evaluate
-Explain how instructional materials can facilitate the teaching and learning process. Give ONE (1) example.,Understand,Analyze,0.4451,analyze
-Propose TWO (2) factors that are relevant to the initiation of conflict in group.,Create,Create,0.5198,create
-Apply laws of statistics to evaluate the reliability of a written test.,Apply,Apply,0.3858,apply
-Sketch a diagram which shows these fractions or take photographs of the fractions.,Apply,Apply,0.4557,apply
-What are the structure or functions of Congress,Remember,Remember,0.4185,remember
-Suppose the two countries wish to specialize and trade. Specifically determine and explain which country enjoys comparative advantage in the production of jade and diamond.,Apply,Apply,0.8783,apply
-"Explain the microbe-related coupling of carbon, nitrogen, and oxygen in a lake that is experiencing a sudden bloom of cyanobacteria due to anthropogenic fertilizer inputs.",Understand,Apply,0.4451,apply
-Propose a set of alternatives for reducing dependence on fossil fuels that address both economic and environmental concerns.,Create,Create,0.4204,create
-Malaysian Code on Corporate Governance (2012) stipulates that there should not be any domination of power by any individual in the board. Responsibilities of the CEO and the Chairperson must be clearly defined and separated in order to ensure a balance of power and authority. Evaluate the advantages and disadvantages of CEO duality.,Evaluate,Evaluate,0.7819,evaluate
-"Based on the aspartate protease mechanism, explain the concept of using ""Crixivan"" to treat HIV patients.",Understand,Create,0.853,create
-Decide whether you are in favor of building on a floodplain; defend your position in a debate.,Evaluate,Evaluate,0.7391,evaluate
-"Outline an ""attack plan"" that will allow you to test your hypothesis using computational molecular modeling tools",Understand,Apply,0.9282,apply
-Draw the market demand and supply curve.,Understand,Analyze,0.3213,analyze
-"Paraphrase this poem about Sheik Schubli, explaining what he was saying about the characteristics of a friend",Understand,Analyze,0.5555,analyze
-State the pattern for expressing time in French.,Remember,Remember,0.9638,remember
-PERCEPTION STUDIES based on SURVEY METHOD are useful and common in both academic and market research. Critically evaluate the strategies used in data collection that can increase the response rate when conducting a survey.,Evaluate,Evaluate,0.9484,evaluate
-"Using an appropriate example, explain how static data can be shared effectively among several web resources.",Understand,Apply,0.6769,apply
-Name the following conserved amino acids for their corresponding single letter codes: SQYKRECP.,Remember,Remember,0.8398,remember
-Explain the idea of MIDI file format in storing and playback of audio data.,Understand,Apply,0.9635,apply
-Judge whether it would be possible to survive on an island alone and blinded. Write about it.,Evaluate,Create,0.4837,create
-Describe in your own words what is meant by a sprained ankle.,Understand,Apply,0.4351,apply
-Explain the concept of Java Bean with an appropriate example and code snippets in the context of Servlet and JSP technology.,Understand,Apply,0.3231,apply
-Simplify the return statement in the max method using the ternary operator,Understand,Apply,0.9417,apply
-Are there students who should not use the Cornell method?,Evaluate,Apply,0.4131,apply
-in what ways trajectory patterns differ according to ABC,Analyze,Analyze,0.804,analyze
-"The substrates of allosteric enzymes exhibit positive cooperativity. Explain positive cooperativity in terms of subunits, conformation, and activity of the active site.",Understand,Apply,0.3676,apply
-How could someone modify the Cornell Method to make it effective for researching a topic for a paper?,Apply,Apply,0.5798,apply
-Propose ONE (1) new local flavor Kit Kat for Malaysian consumers. Describe the need for the new flavor among the Malaysian consumer.,Create,Create,0.6941,create
-Relate FIVE (5) examples on how video often make new connections and discoveries between curriculum topics and the world outside the classroom.,Analyze,Evaluate,0.4573,evaluate
-Relate FOUR (4) disadvantages of Web-based learning as an emerging digital technology used in teaching and learning.,Understand,Analyze,0.3572,analyze
-What would you do if a heavy growth of bacteria had occurred,Apply,Apply,0.5309,apply
-Evaluate how the increase of the transconductance affects the operation of the transistor.,Evaluate,Evaluate,0.2472,evaluate
-Why don’t you devise your own way to deal with . . .?,Create,Create,0.7368,create
-List THREE factors in determining economic thresholds for weeds.,Remember,Remember,0.8589,remember
-Critically evaluate the JDBC and pooling method in the context of database connections.,Evaluate,Evaluate,0.4408,evaluate
-How would you rank the items given the criteria ?,Evaluate,Evaluate,0.6541,evaluate
-Write the definition of displaySize() method for each class,Apply,Apply,0.7311,apply
-Differentiate between repurchase agreement (repo) and reverse repurchase agreement.,Analyze,Analyze,0.8522,analyze
-Name five cities in US.,Remember,Remember,0.8749,remember
-Write a program that uses nested loops to print the following output:,Create,Create,0.7633,create
-How do we efficiently combine multiple subject graphs to construct an aig with choice,Create,Evaluate,0.4653,evaluate
-Describe the circumstances when tertiary treatment of wastewater is necessary.,Understand,Apply,0.7179,apply
-Identify FOUR (4) major crisis variables in organizing and analyzing crisis evolution data. Support your answer with explanation and ONE (1) example for each variable.,Understand,Evaluate,0.6808,evaluate
-Explain any FOUR (4) product design strategies you have learned. Evaluate the importance of each strategy.,Understand,Evaluate,0.8904,evaluate
-There is a relationship between the level of construction activity and a country's stage of development. Discuss.,Analyze,Analyze,0.8658,analyze
-How to construct simple solutions when problems are complex?,Apply,Create,0.3764,create
-"Illustrate with a drawing the biochemical pathway for natural rubber biosynthesis, beginning with acetyl CoA.",Understand,Apply,0.409,apply
-Design a testing scenario to assess the susceptibility of an alloy to be used in a given environment?,Create,Create,0.9053,create
-Briefly describe the formation of disulfide bond. Suggest ONE role of disulfide bond.,Create,Create,0.71,create
-What would you cite to defend the actions . . . ?,Evaluate,Evaluate,0.7753,evaluate
-Assess the relative effectiveness of different graphical representations of the same data or biological concept.,Evaluate,Evaluate,0.6599,evaluate
-About what proportion of the population of the US is living on farms?,Remember,Analyze,0.6598,analyze
-Explain why a less experienced multimedia developer (including non-programmers) always opts for multimedia authoring tools to easily create an interactive application.,Understand,Understand,0.6066,understand
-Explain THREE (3) benefits of JDBC pooling m the context of database connection.,Understand,Apply,0.8412,apply
-Write FOUR (4) purposes of poster.,Remember,Remember,0.6248,remember
-"Combine elements of drama, music, and dance into a stage presentation.",Create,Create,0.9847,create
-Soil organic matter content will differ depending on environmental conditions. Justify with TWO examples.,Evaluate,Evaluate,0.9059,evaluate
-Translate an equation into a spreadsheet formula.,Understand,Apply,0.8248,apply
-How did Chinese newspapers differ from US,Analyze,Analyze,0.9477,analyze
-Label the parts of the diagram,Remember,Remember,0.5376,remember
-Briefly discuss how spatial compression is different from temporal compression.,Understand,Analyze,0.581,analyze
-Thomas (1976) has identified five styles in resolving a conflict such as avoidance. Explain the other FOUR (4) styles in resolving a conflict.,Understand,Apply,0.5474,apply
-Illustrate the advantages of plastic material and its applications in construction.,Understand,Understand,0.449,understand
-"Microbiota-based models may be an alternative method to facilitate the use of data on the gut microbiota in certain diseases. For example, NextSeq 550 and NextSeq 550DX platforms have been used to detect gut microbiota in non communicable diseases. Compare and contrast both platforms with regards to their regulatory status, key applications and array scanning.",Analyze,Analyze,0.9811,analyze
-Develop a proof ... and justify each step ...,Evaluate,Apply,0.702,apply
-Write an explanation about this topic for others,Apply,Create,0.4905,create
-National income accounting refers to a set of rules and techniques that are used to measure the national income of a country. Explain EIGHT (8) significant factors of national income accounting.,Understand,Analyze,0.5394,analyze
-Draw a table indicating purification fold and yield at each step.,Understand,Apply,0.7488,apply
-Explain any FOUR (4) product design strategies that could help company to reduce cost.,Understand,Apply,0.4984,apply
-State two differences between a JFET and a BJT.,Understand,Apply,0.7036,apply
-Discuss THREE (3) differences between futures and forward contracts.,Understand,Evaluate,0.3189,evaluate
-"Propose a fertilizer placement method of nitrogen, phosphorus and potassium for a successful fertilization of a large mango tree. Justify your answer.",Create,Evaluate,0.702,evaluate
-"Propose a suitable preparatory demolition survey, method and shoring where some partial demolition work is included for the rear building portion.",Create,Apply,0.3741,apply
-What criteria would you use to evaluate if your answer is correct?,Evaluate,Create,0.4264,create
-Name the keyword in an ABAP program that can be used to invoke the debugging mode.,Remember,Remember,0.9565,remember
-Choose the best statements that apply ...,Apply,Apply,0.3617,apply
-Discuss FOUR (4) factors affecting exchange rate in the long run.,Understand,Create,0.2764,create
-"For international marketers, economic factors are important. Explain why economic factors are important to them.",Understand,Analyze,0.5638,analyze
-Provide THREE (3) justification on how would the university community be encouraged to place orders and become loyal customers.,Evaluate,Evaluate,0.3433,evaluate
-"List the three types of RNA involved in the transcription and translation, and briefly explain their functions.",Understand,Analyze,0.3873,analyze
-Explain the concept of clicks-and-bricks model in e-commerce.,Understand,Apply,0.6096,apply
-State THREE advantages of pregnancy diagnosis in animal breeding.,Remember,Remember,0.8213,remember
-Identify FIVE (5) lists giving advices of how organization can cominunicate with the public during the crisis. Explain your answer with ONE (1) example for each advice given.,Understand,Create,0.4178,create
-Can you state in your own words what the problem is asking you to do,Understand,Apply,0.4397,apply
-Explain how the future of social media can be explained by Web 3.0.,Understand,Apply,0.3344,apply
-"Explain the meaning of the expression ""robust model"". Specifically, justify your response if you heard a manager exclaim 'Uh-oh, we're in trouble! The calculated EOQ is wrong; actual demand is 10% greater than estimated'.",Evaluate,Evaluate,0.9285,evaluate
-Concisely define what SWOT analysis is and state why it is frequently producing conflicting views.,Understand,Evaluate,0.5906,evaluate
-Propose a strategy that minority can use to influence the majority. Support your answer with ONE (1) relevant example. Elaborate your example in details.,Create,Create,0.7826,create
-A client wishes to renovate his balcony at first floor by replacing the metal handrail with glass panel. Recommend a suitable type of glass to the client and justify your answer. Please be reminded that safety is the major factor in all cases.,Evaluate,Evaluate,0.8523,evaluate
-"Compare between URL, re-writing and Hidden Form field methods in respect of similarities and differences in the context of session management in Web environment.",Analyze,Analyze,0.9542,analyze
-The construction industry comprises a wide diversity of firms that it is impossible to categorise them all within one type of market structure. Discuss.,Analyze,Analyze,0.7295,analyze
-Interpret FIVE (5) emerging trends of technology application in education.,Understand,Understand,0.3539,understand
-How can we combine and abstract facts about a software system to create new knowledge?,Create,Create,0.6322,create
-Which of the following item does not belong to the set ?,Remember,Analyze,0.3759,analyze
-Personalization is becoming an important element in Electronic Commerce. Explain TWO (2) techniques that can be used to learn about consumer behavior and how it can be used to facilitate customer service.,Understand,Apply,0.2598,apply
-Discuss the comparison between 'Quantitative Instruments' and 'Qualitative Instruments' of monetary policy.,Understand,Analyze,0.617,analyze
-Can you think of an original way for collect and develop the . . . ?,Create,Create,0.7322,create
-Differentiate between “trial pits' and 'boreholes”.,Analyze,Analyze,0.5549,analyze
-Find the errors and rewrite the corrected codes.,Understand,Create,0.7426,create
-The design rules are usually described in TWO (2) ways. Describe these TWO (2) ways.,Understand,Understand,0.481,understand
-Identify the key enzymes and explain their roles in fatty acid biosynthesis that contribute to the unique fatty acid composition of palm mesocarp oil.,Understand,Create,0.4643,create
-Conclude and support which economic system leads to a higher standard of living.,Evaluate,Evaluate,0.6622,evaluate
-"how do the clauses and expressions given in the article which replace GOTO statements, lead to the three traditional control statements",Create,Apply,0.5528,apply
-Analyze SIX (6) types of modern construction problems as to how they negatively impact the various building functions.,Analyze,Analyze,0.8156,analyze
-Construct the Data Path of the RISC Processor given in the previous question,Apply,Apply,0.9692,apply
-Describe the Concept of Culture.,Remember,Understand,0.4036,understand
-Specify the thickness of a galvanized coating based on atmospheric data? (level 2),Apply,Apply,0.8837,apply
-"With the aid of pseudocode or source codes, assess the usage of fork, exec and wait functions in working together in inter process communication.",Evaluate,Analyze,0.3369,analyze
-List FIVE (5) phases of organizational conflict described by Pondy (1967).,Remember,Remember,0.9543,remember
+Explain the SIX (6) power bases that determine effective leadership. Provide an example for each of the answers.,Understand,Understand,0.8894,understand
+Critically analyze and discuss the problems with secondary data. Provide relevant examples to support your answer.,Analyze,Analyze,0.9678,analyze
+Briefly explain why a parallel solution with less number of synchronisation phases is more preferred than other solution with a lot of synchronisation phases.,Understand,Understand,0.8634,understand
+Malaysia is currently having trade deficit and policy maker tries to improve the balance of trade by depreciate the Ringgit Malaysia. Discuss the impact of this policy by using an appropriate diagram.,Understand,Understand,0.8876,understand
+Explain FOUR (4) major forces which move water into wall claddings and measures to be taken to eliminate these problems. You are required to include illustrations in your explanation.,Understand,Analyze,0.3028,analyze
+Compare and contrast Manufacturing Resource Planning (MRP-II) and Lean Manufacturing.,Analyze,Analyze,0.9605,analyze
+Draw a picture of the gown Cinderella wore to the ball.,Apply,Apply,0.8903,apply
+State the conductivity of a semiconductor at 0 K and clearly explain your answer.,Understand,Understand,0.8823,understand
+Identify and describe the FOUR (4) criteria for judging economic outcomes.,Understand,Understand,0.8346,understand
+Define and contrast digital certificate and digital signature.,Understand,Analyze,0.5118,analyze
+What are the major products and exports of countries,Remember,Remember,0.9209,remember
+Calculate the level of output Japan needs to achieve in order to maintain a balanced trade account.,Apply,Apply,0.9537,apply
+Outline the most important insight of the tale.,Understand,Understand,0.8708,understand
+Identify THREE (3) building related statutory laws in Malaysia.,Understand,Remember,0.9581,remember
+Indicate the variables that are important in each of the canonical variates.,Remember,Understand,0.7324,understand
+Determine the memory required to store a 2 minutes passage of stereophonic music.,Apply,Apply,0.958,apply
+You are the new online advertising consultant for Loreal Malaysia. Explain to your client SEVEN (7) important paid media metrics in online advertising.,Understand,Understand,0.8717,understand
+Demonstrate using the OPAC and your knowledge of library organization to find a book about turtles.,Apply,Apply,0.9574,apply
+Design or sketch a marketing strategy for your product using a known strategy as a model.,Apply,Create,0.8908,create
+How to inspect and maintain fresh water plumbing systems properly,Analyze,Analyze,0.8125,analyze
+Determine the doping levels in the respective regions.,Apply,Apply,0.9383,apply
+Provide the equations for the Eadie-Hofstee and Hanes-Woolf plot. Explain how these equations could be derived from the Michaelis-Menten equation.,Apply,Understand,0.3976,understand
+Use dynamic programming to make these allocations to maximize the total grade points to be obtained from the four courses.,Apply,Apply,0.9603,apply
+List down THREE (3) methods of excavation.,Remember,Remember,0.9623,remember
+When did you born ?,Remember,Remember,0.9542,remember
+Write an essay on the importance of comparative genomics.,Create,Create,0.6061,create
+Define graphic design and product design.,Remember,Remember,0.9655,remember
+"For any points which fall exactly on the curve, explain the combination of production for steel and bricks.",Understand,Understand,0.874,understand
+"If an electron in a hydrogen atom jumps from the first excited state to ground state, find the wavelength of the photon emitted.",Understand,Apply,0.8306,apply
+Create a set of guidelines to determine the points of a plant susceptible to localized corrosion.,Create,Create,0.9123,create
+"There are two approaches to solve a problem, namely X and Y. Approach X uses a lot of synchronizations compared to approach Y. Briefly explain why the approach Y should be chosen to solve the problem.",Analyze,Understand,0.6269,understand
+Evaluate why a monopolist holds more undesirable characteristics in comparison to a perfect competitor. Give evidence from the graph to support your answer.,Evaluate,Evaluate,0.9012,evaluate
+Suggest THREE (3) specific types of application software that may help to support James's business activities.,Create,Create,0.9603,create
+Interpret the pictures.,Understand,Understand,0.5995,understand
+Define the basic concepts of Educational Technology.,Remember,Remember,0.9504,remember
+A solid cube with dimensions of 10.0 nm was dispersed into water to become colloidal particles with dimensions of 1.0 nm. Calculate the changes of surface area to volume (surface / volume).,Apply,Apply,0.9422,apply
+Suggest the most suitable growth model that could be applied to describe the growth of above-mentioned Lactobacillus acidophilus strain. Briefly explain the suggested growth model.,Create,Create,0.7838,create
+Explain how e-mail agents work.,Understand,Understand,0.8879,understand
+Explain the possible uses described in class for the space to the left of the vertical line.,Understand,Understand,0.9128,understand
+Draw Production Possibilities Frontier and Trading Possibilities Frontier for Korea and Indonesia.,Understand,Understand,0.9201,understand
+Comment on the introduction of seven “_” in the alignment.,Evaluate,Evaluate,0.9215,evaluate
+Determine the percentage of variation in the correlation matrix that is explained by the 4 factors.,Apply,Apply,0.8923,apply
+Draw the ‘market demand' and 'supply curve'.,Understand,Understand,0.8623,understand
+"Discuss in detail the Sharpe, Treynor, and Jensen measures of portfolio performance evaluation, by identifying the situations in which each measure is the most appropriate measure.",Apply,Apply,0.9851,apply
+Name FOUR (4) types of soil in-situ field test and its application.,Remember,Understand,0.8454,understand
+Describe dynamic load balancing using centralised work pool approach.,Understand,Understand,0.8909,understand
+"Recommend with justification, a value or range of values to the Board of Directors for the acquisition of ESL Berhad.",Evaluate,Evaluate,0.9665,evaluate
+Draw the energy band diagram of the pn junction.,Understand,Understand,0.9117,understand
+Name the food groups and at least two items of food in each group.,Remember,Remember,0.5773,remember
+Distinguish facts from hypotheses,Analyze,Analyze,0.9635,analyze
+"Referring to the advertisement design below, evaluate the usage of Dominance and Unity in principles of design.",Evaluate,Evaluate,0.9475,evaluate
+Scaling methods can improve the performance of the web site. Propose to Jane which scaling method suit her current business needs. Justify your answer.,Evaluate,Evaluate,0.9628,evaluate
+State FOUR (4) basic business activities that are performed in the revenue cycle.,Remember,Remember,0.9663,remember
+Illustrate your understanding for oligopoly competition and monopolistic competition using ONE (1) real life example for each.,Understand,Understand,0.9013,understand
+Is there a better solution to . . .?,Evaluate,Evaluate,0.8106,evaluate
+Propose and justify ONE (1) international market-entry strategy that you may consider to market your products internationally.,Evaluate,Evaluate,0.9637,evaluate
+Explain the importance of visual in a poster design.,Understand,Understand,0.8976,understand
+Information systems value is determined by the strong relationships among THREE (3) major components. Name them.,Remember,Remember,0.9168,remember
+List reserved words in C programming.,Remember,Remember,0.9654,remember
+Distinguish between ‘load bearing wall' and 'non-load bearing wall’.,Analyze,Analyze,0.9707,analyze
