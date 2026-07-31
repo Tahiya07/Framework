@@ -7,80 +7,82 @@
   "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
   "checkpoint_type": "merged",
   "test_csv": "data\\figshare_bloom_v1_test.csv",
-  "n_test": 60,
+  "n_test": 350,
   "qwen_lora": {
-    "accuracy": 0.85,
-    "macro_f1": 0.8637,
-    "weighted_f1": 0.8505,
-    "cohen_kappa": 0.8091,
-    "quadratic_weighted_kappa": 0.9052,
-    "mean_ordinal_distance": 0.2333,
-    "within_one_level_accuracy": 0.9333,
-    "severe_error_rate": 0.0167,
+    "accuracy": 0.8486,
+    "macro_f1": 0.8421,
+    "weighted_f1": 0.8488,
+    "cohen_kappa": 0.8035,
+    "quadratic_weighted_kappa": 0.8532,
+    "mean_ordinal_distance": 0.3,
+    "within_one_level_accuracy": 0.9057,
+    "severe_error_rate": 0.0429,
     "per_class": {
       "Remember": {
-        "precision": 0.9,
-        "recall": 0.8182,
-        "f1": 0.8571,
-        "support": 11
+        "precision": 0.9535,
+        "recall": 0.8542,
+        "f1": 0.9011,
+        "support": 48
       },
       "Understand": {
-        "precision": 0.8095,
-        "recall": 0.8095,
-        "f1": 0.8095,
-        "support": 21
+        "precision": 0.8623,
+        "recall": 0.8623,
+        "f1": 0.8623,
+        "support": 138
       },
       "Apply": {
-        "precision": 0.9,
-        "recall": 0.8182,
-        "f1": 0.8571,
-        "support": 11
+        "precision": 0.7857,
+        "recall": 0.7674,
+        "f1": 0.7765,
+        "support": 43
       },
       "Analyze": {
-        "precision": 0.7143,
-        "recall": 0.8333,
-        "f1": 0.7692,
-        "support": 6
+        "precision": 0.7727,
+        "recall": 0.8293,
+        "f1": 0.8,
+        "support": 41
       },
       "Evaluate": {
-        "precision": 1.0,
-        "recall": 1.0,
-        "f1": 1.0,
-        "support": 7
+        "precision": 0.8333,
+        "recall": 0.9302,
+        "f1": 0.8791,
+        "support": 43
       },
       "Create": {
-        "precision": 0.8,
-        "recall": 1.0,
-        "f1": 0.8889,
-        "support": 4
+        "precision": 0.8571,
+        "recall": 0.8108,
+        "f1": 0.8333,
+        "support": 37
       }
     },
     "bootstrap_ci": {
       "accuracy": {
-        "mean": 0.8431,
-        "ci_low": 0.7333,
-        "ci_high": 0.9333,
-        "n_bootstrap": 200
+        "mean": 0.8486,
+        "ci_low": 0.8086,
+        "ci_high": 0.8857,
+        "n_bootstrap": 2000
       },
       "macro_f1": {
-        "mean": 0.8478,
-        "ci_low": 0.741,
-        "ci_high": 0.9375,
-        "n_bootstrap": 200
+        "mean": 0.8407,
+        "ci_low": 0.7981,
+        "ci_high": 0.8801,
+        "n_bootstrap": 2000
       },
       "quadratic_weighted_kappa": {
-        "mean": 0.8967,
-        "ci_low": 0.8091,
-        "ci_high": 0.9722,
-        "n_bootstrap": 200
+        "mean": 0.8529,
+        "ci_low": 0.7967,
+        "ci_high": 0.9026,
+        "n_bootstrap": 2000
       }
     },
-    "ece": 0.0491,
+    "ece": 0.0249,
     "calibration": {
-      "ece": 0.0491,
+      "ece": 0.0249,
       "reliability_bins": {
         "bin_centers": [
+          0.25,
           0.35,
+          0.45,
           0.55,
           0.65,
           0.75,
@@ -89,133 +91,139 @@
         ],
         "bin_accuracy": [
           0.0,
-          0.6667,
-          0.5,
-          0.5,
-          0.8421,
-          0.9688
+          0.1667,
+          0.4286,
+          0.6923,
+          0.6154,
+          0.64,
+          0.8807,
+          0.9371
         ],
         "bin_confidence": [
-          0.3502,
-          0.5629,
-          0.6165,
-          0.7581,
-          0.8676,
-          0.9468
+          0.2614,
+          0.3504,
+          0.4538,
+          0.5495,
+          0.6542,
+          0.7461,
+          0.874,
+          0.9438
         ],
         "bin_counts": [
           2,
-          3,
-          2,
-          2,
-          19,
-          32
+          6,
+          7,
+          13,
+          13,
+          25,
+          109,
+          175
         ]
       }
     },
     "selective_prediction": [
       {
         "threshold": 0.7,
-        "coverage": 0.8833,
-        "accuracy": 0.9057,
-        "n_accepted": 53.0,
-        "n_total": 60.0
+        "coverage": 0.8829,
+        "accuracy": 0.8932,
+        "n_accepted": 309.0,
+        "n_total": 350.0
       },
       {
         "threshold": 0.8,
-        "coverage": 0.85,
-        "accuracy": 0.9216,
-        "n_accepted": 51.0,
-        "n_total": 60.0
+        "coverage": 0.8114,
+        "accuracy": 0.9155,
+        "n_accepted": 284.0,
+        "n_total": 350.0
       },
       {
         "threshold": 0.9,
-        "coverage": 0.5333,
-        "accuracy": 0.9688,
-        "n_accepted": 32.0,
-        "n_total": 60.0
+        "coverage": 0.5,
+        "accuracy": 0.9371,
+        "n_accepted": 175.0,
+        "n_total": 350.0
       }
     ]
   },
   "confusion_matrix": [
     [
-      9,
-      2,
+      41,
+      6,
       0,
-      0,
+      1,
       0,
       0
     ],
     [
-      1,
-      17,
-      1,
       2,
-      0,
-      0
-    ],
-    [
-      0,
-      1,
-      9,
-      0,
-      0,
+      119,
+      5,
+      7,
+      4,
       1
     ],
     [
       0,
-      1,
+      4,
+      33,
+      0,
+      2,
+      4
+    ],
+    [
       0,
       5,
-      0,
+      1,
+      34,
+      1,
       0
     ],
     [
       0,
+      1,
+      2,
       0,
-      0,
-      0,
-      7,
+      40,
       0
     ],
     [
       0,
-      0,
-      0,
-      0,
-      0,
-      4
+      3,
+      1,
+      2,
+      1,
+      30
     ]
   ],
-  "classification_report": "              precision    recall  f1-score   support\n\n    Remember     0.9000    0.8182    0.8571        11\n  Understand     0.8095    0.8095    0.8095        21\n       Apply     0.9000    0.8182    0.8571        11\n     Analyze     0.7143    0.8333    0.7692         6\n    Evaluate     1.0000    1.0000    1.0000         7\n      Create     0.8000    1.0000    0.8889         4\n\n    accuracy                         0.8500        60\n   macro avg     0.8540    0.8799    0.8637        60\nweighted avg     0.8548    0.8500    0.8505        60\n",
+  "classification_report": "              precision    recall  f1-score   support\n\n    Remember     0.9535    0.8542    0.9011        48\n  Understand     0.8623    0.8623    0.8623       138\n       Apply     0.7857    0.7674    0.7765        43\n     Analyze     0.7727    0.8293    0.8000        41\n    Evaluate     0.8333    0.9302    0.8791        43\n      Create     0.8571    0.8108    0.8333        37\n\n    accuracy                         0.8486       350\n   macro avg     0.8441    0.8424    0.8421       350\nweighted avg     0.8508    0.8486    0.8488       350\n",
   "statistical_tests": {
     "bootstrap": {
       "accuracy": {
-        "mean": 0.8431,
-        "ci_low": 0.7333,
-        "ci_high": 0.9333,
-        "n_bootstrap": 200
+        "mean": 0.8486,
+        "ci_low": 0.8086,
+        "ci_high": 0.8857,
+        "n_bootstrap": 2000
       },
       "macro_f1": {
-        "mean": 0.8478,
-        "ci_low": 0.741,
-        "ci_high": 0.9375,
-        "n_bootstrap": 200
+        "mean": 0.8407,
+        "ci_low": 0.7981,
+        "ci_high": 0.8801,
+        "n_bootstrap": 2000
       },
       "quadratic_weighted_kappa": {
-        "mean": 0.8967,
-        "ci_low": 0.8091,
-        "ci_high": 0.9722,
-        "n_bootstrap": 200
+        "mean": 0.8529,
+        "ci_low": 0.7967,
+        "ci_high": 0.9026,
+        "n_bootstrap": 2000
       }
     },
     "mcnemar_vs_1.5b": {
       "statistic": "mcnemar_exact",
-      "n_discordant": 6,
-      "b_wrong_a_right": 3,
-      "c_right_a_wrong": 3,
-      "p_value": 1.0,
-      "n_aligned": 60,
+      "n_discordant": 29,
+      "b_wrong_a_right": 13,
+      "c_right_a_wrong": 16,
+      "p_value": 0.711071,
+      "n_aligned": 350,
       "reference_model": "Qwen2.5-1.5B"
     }
   },
