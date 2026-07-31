@@ -21,7 +21,7 @@ class BloomModelProfile:
     quant_confusion_fig: str
     comparison_table_fig: str
     quant_benchmark_json: str
-    federated_lora_dir: str = "models/qwen_bloom_federated"
+    federated_lora_dir: str = "models/qwen_bloom_federated0.5B"
 
 
 COMBINED_COMPARISON_TABLE_FIG = "figures/bloom_eval_comparison_table.png"

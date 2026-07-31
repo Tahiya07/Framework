@@ -70,6 +70,14 @@ def add_dp_noise(
     return {k: v + torch.randn_like(v) * sigma for k, v in delta.items()}
 
 
+def trainable_nbytes(state: Dict[str, torch.Tensor]) -> int:
+    return int(sum(int(v.numel() * v.element_size()) for v in state.values()))
+
+
+def trainable_param_count(state: Dict[str, torch.Tensor]) -> int:
+    return int(sum(int(v.numel()) for v in state.values()))
+
+
 def fedavg_state_dicts(
     weighted_states: Sequence[Tuple[int, Dict[str, torch.Tensor]]],
 ) -> Dict[str, torch.Tensor]:

@@ -102,12 +102,14 @@ def _baseline_comparison_rows(data: dict) -> List[Dict[str, Any]]:
 def _bloom_rows(data: dict) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     lora = data.get("qwen_lora", {})
+    size = str(data.get("model_size") or "1.5b")
+    display = "Qwen2.5-0.5B LoRA" if size.startswith("0.5") else "Qwen2.5-1.5B LoRA"
     rows.append(
         _row(
             evidence_area="cognitive robustness",
             protocol="Bloom classification",
             setting="Figshare held-out test",
-            model="Qwen2.5-1.5B LoRA",
+            model=display,
             primary_metric="macro_f1",
             primary_value=lora.get("macro_f1"),
             accuracy=lora.get("accuracy"),
@@ -293,26 +295,66 @@ def _federated_rows(data: dict) -> List[Dict[str, Any]]:
 def _federated_lora_rows(data: dict) -> List[Dict[str, Any]]:
     if not data:
         return []
+    final = data.get("final_test_metrics") or {}
+    algo = str(data.get("algorithm") or "fedavg").upper()
+    partition = data.get("partition") or "unknown"
     return [
         _row(
-            evidence_area="federated LLM layer",
-            protocol="teacher Bloom LoRA FedAvg",
-            setting=f"{data.get('num_clients', '?')} simulated clients",
-            model="Qwen2.5-1.5B LoRA",
-            primary_metric="rounds",
-            primary_value=float(data.get("rounds", 0)),
-            interpretation="encrypted adapter bundles aggregated server-side; raw questions stay on clients",
+            evidence_area="federated Bloom LoRA",
+            protocol=f"federatedly trained Qwen2.5-0.5B LoRA ({algo})",
+            setting=f"{data.get('num_clients', '?')} clients / {partition}",
+            model="Qwen2.5-0.5B LoRA (federated)",
+            primary_metric="macro_f1",
+            primary_value=final.get("macro_f1"),
+            accuracy=final.get("accuracy"),
+            interpretation=(
+                "raw Bloom questions stay on clients; only LoRA+score updates are aggregated. "
+                "Does not claim formal SecAgg/DP."
+            ),
         )
     ]
 
 
+def _federated_comparison_rows(data: dict) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    for item in data.get("rows") or []:
+        rows.append(
+            _row(
+                evidence_area="federated vs centralized Bloom",
+                protocol=str(item.get("setting") or "comparison"),
+                setting=str(item.get("partition") or "—"),
+                model=str(item.get("algorithm") or "—"),
+                primary_metric="macro_f1",
+                primary_value=item.get("macro_f1"),
+                accuracy=item.get("accuracy"),
+                interpretation=(
+                    f"QWK={item.get('quadratic_weighted_kappa')}; "
+                    f"comm_mb={item.get('total_communication_mb')}"
+                ),
+            )
+        )
+    return rows
+
+
 def build_table() -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
-    fl_sim = _load(RESULTS_DIR / "federated_lora_simulation.json")
-    rows.extend(_federated_lora_rows(fl_sim or {}))
+    # Prefer paper comparison table if present
+    fl_cmp = _load(RESULTS_DIR / "federated_bloom_comparison.json")
+    if fl_cmp:
+        rows.extend(_federated_comparison_rows(fl_cmp))
+    else:
+        for path in sorted(RESULTS_DIR.glob("federated_lora_*.json")):
+            if "comparison" in path.name:
+                continue
+            rows.extend(_federated_lora_rows(_load(path) or {}))
+        legacy = _load(RESULTS_DIR / "federated_lora_simulation.json")
+        rows.extend(_federated_lora_rows(legacy or {}))
     baseline = _load(RESULTS_DIR / "bloom_baseline_comparison.json")
     if baseline:
         rows.extend(_baseline_comparison_rows(baseline))
+    bloom05 = _load(RESULTS_DIR / "bloom_lora_eval_0.5B.json")
+    if bloom05:
+        rows.extend(_bloom_rows(bloom05))
     bloom = _load(RESULTS_DIR / "bloom_lora_eval.json")
     if bloom:
         rows.extend(_bloom_rows(bloom))

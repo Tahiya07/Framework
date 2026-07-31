@@ -16,12 +16,14 @@ python train_qwen_bloom.py
 python train_qwen_bloom.py
 python merge_model.py
 
-# Option B — federated teacher Bloom LoRA (matches architecture diagram)
-python federated/run_simulation.py
-python merge_model.py   # auto-picks models/qwen_bloom_federated
+# Option B — federatedly trained teacher Bloom LoRA (matches paper matrix)
+python federated/run_simulation.py --clients 8 --rounds 5 --partition iid --algorithm fedavg --from-scratch
+python federated/run_simulation.py --clients 8 --rounds 5 --partition non_iid_label --alpha 0.5 --algorithm fedprox --prox-mu 0.01
+python build_federated_comparison.py
 
-# Full stack: federated LoRA + merge + privacy guard + evaluation
-python federated/run_full_stack.py
+# Full stack: federated LoRA + merge + eval (privacy guard opt-in)
+python federated/run_full_stack.py --algorithm fedavg --partition iid
+# python federated/run_full_stack.py --with-privacy-guard   # optional case study only
 
 # Run publication evaluation pipeline
 python run_evaluation_pipeline.py

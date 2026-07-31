@@ -193,26 +193,29 @@ def evaluate_predictions(
             metrics[key] = round(value, 4)
 
     metrics["per_class"] = per_class_f1(y_true, y_pred)
-    metrics["bootstrap_ci"] = {
-        "accuracy": bootstrap_ci(
-            y_true,
-            y_pred,
-            lambda yt, yp: accuracy_score(yt, yp),
-            n_samples=bootstrap_samples,
-        ),
-        "macro_f1": bootstrap_ci(
-            y_true,
-            y_pred,
-            lambda yt, yp: f1_score(yt, yp, average="macro", zero_division=0),
-            n_samples=bootstrap_samples,
-        ),
-        "quadratic_weighted_kappa": bootstrap_ci(
-            y_true,
-            y_pred,
-            lambda yt, yp: cohen_kappa_score(yt, yp, weights="quadratic"),
-            n_samples=bootstrap_samples,
-        ),
-    }
+    if bootstrap_samples and bootstrap_samples > 0:
+        metrics["bootstrap_ci"] = {
+            "accuracy": bootstrap_ci(
+                y_true,
+                y_pred,
+                lambda yt, yp: accuracy_score(yt, yp),
+                n_samples=bootstrap_samples,
+            ),
+            "macro_f1": bootstrap_ci(
+                y_true,
+                y_pred,
+                lambda yt, yp: f1_score(yt, yp, average="macro", zero_division=0),
+                n_samples=bootstrap_samples,
+            ),
+            "quadratic_weighted_kappa": bootstrap_ci(
+                y_true,
+                y_pred,
+                lambda yt, yp: cohen_kappa_score(yt, yp, weights="quadratic"),
+                n_samples=bootstrap_samples,
+            ),
+        }
+    else:
+        metrics["bootstrap_ci"] = {}
 
     if confidences is not None and len(confidences) == len(y_true):
         cal = calibration_metrics(y_true, y_pred, confidences)
