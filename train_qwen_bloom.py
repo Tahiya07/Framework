@@ -90,12 +90,19 @@ def build_prompt(q):
     # Must stay identical to predict_bloom.build_prompt / federated client_train
     # to avoid train/inference skew.
     return (
-        "Classify Bloom's Taxonomy level.\n"
-        "Focus on reasoning depth, not verbs.\n\n"
-        f"Question: {q}\n"
-        "Answer:"
+        "You are an expert in educational assessment and Bloom's Taxonomy.\n\n"
+        "Your task is to classify the following question into exactly one of the six Bloom's Taxonomy cognitive levels.\n\n"
+        "Bloom's Taxonomy Levels:\n"
+        "- Remember: Recall facts, definitions, or basic concepts.\n"
+        "- Understand: Explain ideas or interpret concepts.\n"
+        "- Apply: Use knowledge to solve problems or complete tasks.\n"
+        "- Analyze: Break information into parts, identify relationships, or compare concepts.\n"
+        "- Evaluate: Make judgments, justify decisions, or critique based on evidence.\n"
+        "- Create: Generate, design, develop, or produce something original.\n\n"
+        "Focus on the reasoning required to answer the question rather than relying only on action verbs.\n\n"
+        f"Question:\n{q}\n\n"
+        "Bloom Level:"
     )
-
 
 # ============================================================
 # METRICS
@@ -152,11 +159,11 @@ def main():
     parser.add_argument("--text_col", type=str, default="question")
     parser.add_argument("--label_col", type=str, default="bloom_level")
 
-    # parser.add_argument("--model_name", type=str, default="Qwen/Qwen2.5-1.5B-Instruct")
-    # parser.add_argument("--output_dir", type=str, default="models/qwen_bloom_trained")
-
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
     parser.add_argument("--output_dir", type=str, default="models/qwen_bloom_trained0.5B")
+
+    # parser.add_argument("--model_name", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
+    # parser.add_argument("--output_dir", type=str, default="models/qwen_bloom_trained0.5B6")
 
     parser.add_argument("--max_length", type=int, default=256)
 
@@ -251,18 +258,21 @@ def main():
     # ========================================================
 
     peft_config = LoraConfig(
-        task_type=TaskType.SEQ_CLS,
-        r=16,
-        lora_alpha=32,
-        lora_dropout=0.1,
-        # Adapt all attention + MLP projections (not just q/v): biggest
-        # accuracy lever for a 1.5B classifier on a few-thousand-row set.
-        target_modules=[
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
-        ],
+    task_type=TaskType.SEQ_CLS,
+    r=32,
+    lora_alpha=64,
+    lora_dropout=0.1,
+    target_modules=[
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj",
+    ],
+    modules_to_save=["score"],
     )
-
     model = get_peft_model(model, peft_config)
 
     # ========================================================

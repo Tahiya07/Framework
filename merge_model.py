@@ -13,10 +13,10 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from bloom_model_profiles import BLOOM_MODEL_PROFILES, DEFAULT_MODEL_SIZE, get_profile
 
 
-DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
-DEFAULT_LORA_DIR = "models/qwen_bloom_trained"
+DEFAULT_BASE_MODEL = "Qwen/Qwen2.5-0.5B-Instruct"
+DEFAULT_LORA_DIR = "models/qwen_bloom_trained0.5B"
 DEFAULT_FEDERATED_LORA_DIR = "models/qwen_bloom_federated"
-DEFAULT_MERGED_DIR = "models/qwen_bloom_merged"
+DEFAULT_MERGED_DIR = "models/qwen_bloom_merged0.5B"
 
 
 def resolve_lora_dir(explicit: str | Path | None = None) -> Path:
