@@ -60,26 +60,26 @@ def _plot_unified_table() -> None:
     plt.close(fig)
 
 
-def _plot_privacy_bars() -> None:
-    if not PRIVACY.is_file():
-        return
-    data = json.loads(PRIVACY.read_text(encoding="utf-8"))
-    labels = ["Attack block", "Benign allow", "Teacher allow"]
-    values = [
-        float(data.get("student_attack_block_rate", 0)),
-        float(data.get("student_benign_allow_rate", 0)),
-        float(data.get("teacher_moderation_allow_rate", 0)),
-    ]
-    fig, ax = plt.subplots(figsize=(7, 4))
-    ax.bar(labels, values, color=["#d62728", "#2ca02c", "#1f77b4"])
-    ax.set_ylim(0, 1.05)
-    ax.set_ylabel("Rate")
-    ax.set_title("PrivacyGuard Role-Aware Outcomes")
-    for i, v in enumerate(values):
-        ax.text(i, v + 0.02, f"{v:.2f}", ha="center")
-    fig.tight_layout()
-    fig.savefig(FIG_DIR / "privacy_guard_summary.png", dpi=220, bbox_inches="tight")
-    plt.close(fig)
+# def _plot_privacy_bars() -> None:
+#     if not PRIVACY.is_file():
+#         return
+#     data = json.loads(PRIVACY.read_text(encoding="utf-8"))
+#     labels = ["Attack block", "Benign allow", "Teacher allow"]
+#     values = [
+#         float(data.get("student_attack_block_rate", 0)),
+#         float(data.get("student_benign_allow_rate", 0)),
+#         float(data.get("teacher_moderation_allow_rate", 0)),
+#     ]
+#     fig, ax = plt.subplots(figsize=(7, 4))
+#     ax.bar(labels, values, color=["#d62728", "#2ca02c", "#1f77b4"])
+#     ax.set_ylim(0, 1.05)
+#     ax.set_ylabel("Rate")
+#     ax.set_title("PrivacyGuard Role-Aware Outcomes")
+#     for i, v in enumerate(values):
+#         ax.text(i, v + 0.02, f"{v:.2f}", ha="center")
+#     fig.tight_layout()
+#     fig.savefig(FIG_DIR / "privacy_guard_summary.png", dpi=220, bbox_inches="tight")
+#     plt.close(fig)
 
 
 def main() -> None:
@@ -87,7 +87,7 @@ def main() -> None:
     if RESULTS.is_file():
         _plot_bloom_confusion()
     _plot_unified_table()
-    _plot_privacy_bars()
+    # _plot_privacy_bars()
     print("figures-generated")
 
 

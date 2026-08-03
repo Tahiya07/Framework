@@ -2,7 +2,7 @@
   "sources": {
     "trained_lora": "results\\bloom_lora_eval.json",
     "lora_split": "Official test split (data\\figshare_bloom_v1_test.csv, n=350)",
-    "holdout_baselines": "evaluation_outputs\\evaluation_report.json",
+    "holdout_baselines": null,
     "holdout_split": "15% stratified hold-out (figshare_combined_dataset.csv, random_state=42)",
     "lora_eval_by_size": {
       "1.5b": "results\\bloom_lora_eval.json",
@@ -13,7 +13,7 @@
     }
   },
   "n_test_lora": 350,
-  "n_test_holdout": 379,
+  "n_test_holdout": null,
   "lora_trained": {
     "accuracy": 0.84,
     "macro_f1": 0.8308,
@@ -50,15 +50,15 @@
       "severe_error_rate": 0.0343
     },
     "0.5b": {
-      "accuracy": 0.8314,
-      "macro_f1": 0.8252,
-      "weighted_f1": 0.8324,
-      "cohen_kappa": 0.7835,
-      "quadratic_weighted_kappa": 0.8794,
-      "ece": 0.0488,
-      "mean_ordinal_distance": 0.2886,
-      "within_one_level_accuracy": 0.92,
-      "severe_error_rate": 0.0371
+      "accuracy": 0.8486,
+      "macro_f1": 0.8421,
+      "weighted_f1": 0.8488,
+      "cohen_kappa": 0.8035,
+      "quadratic_weighted_kappa": 0.8532,
+      "ece": 0.0249,
+      "mean_ordinal_distance": 0.3,
+      "within_one_level_accuracy": 0.9057,
+      "severe_error_rate": 0.0429
     }
   },
   "lora_meta_by_model_size": {
@@ -100,28 +100,6 @@
     "mean_ordinal_distance": 0.4743,
     "within_one_level_accuracy": 0.8829,
     "severe_error_rate": 0.0657
-  },
-  "zero_shot_gguf": {
-    "accuracy": 0.4406,
-    "macro_f1": 0.3691,
-    "weighted_f1": 0.4239,
-    "cohen_kappa": 0.0,
-    "quadratic_weighted_kappa": 0.2444,
-    "ece": null,
-    "mean_ordinal_distance": 1.0739,
-    "within_one_level_accuracy": 0.686,
-    "severe_error_rate": 0.314
-  },
-  "QWEN": {
-    "accuracy": 0.4406,
-    "macro_f1": 0.3691,
-    "weighted_f1": 0.4239,
-    "cohen_kappa": 0.0,
-    "quadratic_weighted_kappa": 0.2444,
-    "ece": null,
-    "mean_ordinal_distance": 1.0739,
-    "within_one_level_accuracy": 0.686,
-    "severe_error_rate": 0.314
   },
   "lora_quantized_by_model_size": {
     "0.5b": {
