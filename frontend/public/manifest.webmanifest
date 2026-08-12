@@ -1,0 +1,10 @@
+{
+  "name": "Framework Academic Intelligence",
+  "short_name": "Framework",
+  "description": "Local Bloom-aware academic assistance.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#edf6fb",
+  "theme_color": "#294f7b",
+  "icons": [{ "src": "/framework-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

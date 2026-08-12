@@ -1,0 +1,22 @@
+# Railway source uploads are only the Python inference application. Local
+# environments, research artifacts, model assets, and the web frontend are
+# deployed/provisioned separately.
+.git/
+.venv/
+.venv_web/
+frontend/
+models/
+data/
+federated/
+llama.cpp/
+figures/
+results/
+node_modules/
+__pycache__/
+*.py[cod]
+*.gguf
+*.safetensors
+*.pt
+*.pth
+*.bin
+.env

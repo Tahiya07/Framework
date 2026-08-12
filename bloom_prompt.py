@@ -247,6 +247,7 @@ def moderate_bloom_question(
     lora_level: str,
     lora_confidence: float = 0.0,
     probabilities: dict[str, float] | None = None,
+    rewrite_generator=None,
 ) -> BloomModerationResult:
     """LoRA label + aligned rationale + GGUF higher-order rewrite."""
     short_level = _canonical_bloom_label(lora_level)
@@ -268,7 +269,11 @@ def moderate_bloom_question(
             lora_level=short_level,
             target_level=target_level,
         )
-        rewrite, backend, latency_s = _generate_rewrite(prompt)
+        if rewrite_generator is None:
+            rewrite, backend, latency_s = _generate_rewrite(prompt)
+        else:
+            rewrite, backend, latency_s = rewrite_generator(prompt)
+            rewrite = _clean_rewrite(rewrite)
         raw = rewrite
         if not rewrite or len(rewrite.split()) < 6:
             raise RuntimeError("rewrite_too_short")

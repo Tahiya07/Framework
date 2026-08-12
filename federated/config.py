@@ -61,8 +61,8 @@ class FederatedLoraConfig:
     num_clients: int = 8
     rounds: int = 5
     local_epochs: float = 3.0
-    learning_rate: float = 5e-5
-    finetune_learning_rate: float = 2e-5
+    learning_rate: float = 1e-4
+    finetune_learning_rate: float = 1e-4
     weight_decay: float = 0.01
     warmup_ratio: float = 0.1
     lr_scheduler_type: str = "cosine"

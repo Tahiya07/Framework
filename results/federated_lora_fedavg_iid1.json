@@ -1,0 +1,227 @@
+{
+  "simulation": "federatedly_trained_qwen25_0.5b_bloom_lora",
+  "terminology": "federatedly trained LoRA classifier (base model is frozen/local)",
+  "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "algorithm": "fedavg",
+  "prox_mu": 0.0,
+  "partition": "iid",
+  "dirichlet_alpha": null,
+  "from_scratch": true,
+  "num_clients": 8,
+  "rounds": 5,
+  "participation": "full",
+  "seed": 42,
+  "lora": {
+    "r": 32,
+    "lora_alpha": 64,
+    "lora_dropout": 0.1,
+    "target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "modules_to_save": [
+      "score"
+    ],
+    "task_type": "SEQ_CLS"
+  },
+  "train_csv": "C:\\Users\\USER\\Downloads\\Framework\\Framework\\data\\figshare_bloom_v1_train.csv",
+  "test_csv": "C:\\Users\\USER\\Downloads\\Framework\\Framework\\data\\figshare_bloom_v1_test.csv",
+  "clip_norm": 1.0,
+  "dp_noise": 0.0,
+  "setting_tag": "fedavg_iid",
+  "global_adapter": "C:\\Users\\USER\\Downloads\\Framework\\Framework\\models\\qwen_bloom_federated0.5B_fedavg_iid",
+  "client_label_distribution": {
+    "teacher_site_00": {
+      "Remember": 0.141463,
+      "Understand": 0.390244,
+      "Apply": 0.121951,
+      "Analyze": 0.117073,
+      "Evaluate": 0.121951,
+      "Create": 0.107317
+    },
+    "teacher_site_01": {
+      "Remember": 0.137255,
+      "Understand": 0.392157,
+      "Apply": 0.122549,
+      "Analyze": 0.117647,
+      "Evaluate": 0.122549,
+      "Create": 0.107843
+    },
+    "teacher_site_02": {
+      "Remember": 0.137255,
+      "Understand": 0.392157,
+      "Apply": 0.122549,
+      "Analyze": 0.117647,
+      "Evaluate": 0.122549,
+      "Create": 0.107843
+    },
+    "teacher_site_03": {
+      "Remember": 0.137255,
+      "Understand": 0.392157,
+      "Apply": 0.122549,
+      "Analyze": 0.117647,
+      "Evaluate": 0.122549,
+      "Create": 0.107843
+    },
+    "teacher_site_04": {
+      "Remember": 0.137255,
+      "Understand": 0.392157,
+      "Apply": 0.122549,
+      "Analyze": 0.117647,
+      "Evaluate": 0.122549,
+      "Create": 0.107843
+    },
+    "teacher_site_05": {
+      "Remember": 0.137255,
+      "Understand": 0.392157,
+      "Apply": 0.122549,
+      "Analyze": 0.117647,
+      "Evaluate": 0.122549,
+      "Create": 0.107843
+    },
+    "teacher_site_06": {
+      "Remember": 0.137255,
+      "Understand": 0.392157,
+      "Apply": 0.122549,
+      "Analyze": 0.117647,
+      "Evaluate": 0.122549,
+      "Create": 0.107843
+    },
+    "teacher_site_07": {
+      "Remember": 0.138614,
+      "Understand": 0.39604,
+      "Apply": 0.118812,
+      "Analyze": 0.118812,
+      "Evaluate": 0.118812,
+      "Create": 0.108911
+    }
+  },
+  "client_sizes": {
+    "teacher_site_00": 205,
+    "teacher_site_01": 204,
+    "teacher_site_02": 204,
+    "teacher_site_03": 204,
+    "teacher_site_04": 204,
+    "teacher_site_05": 204,
+    "teacher_site_06": 204,
+    "teacher_site_07": 202
+  },
+  "communication": {
+    "trainable_parameters": null,
+    "adapter_size_mb": 0.0,
+    "upload_per_client_per_round_mb": 0.0,
+    "download_per_client_per_round_mb": 0.0,
+    "total_upload_mb": 0.0,
+    "total_download_mb": 0.0,
+    "total_communication_mb": 0.0,
+    "notes": "Upload = client\u2192server LoRA+score update; download = server\u2192client global adapter broadcast."
+  },
+  "history": [
+    {
+      "round": 1,
+      "n_clients": 8,
+      "upload_bytes": 0,
+      "download_bytes": 0,
+      "upload_mb": 0.0,
+      "download_mb": 0.0,
+      "communication_mb": 0.0,
+      "accuracy": 0.0974,
+      "macro_f1": 0.0505,
+      "quadratic_weighted_kappa": 0.0009,
+      "within_one_level_accuracy": 0.3496,
+      "severe_error_rate": 0.361,
+      "ece": 0.4781,
+      "n_eval": 349
+    },
+    {
+      "round": 2,
+      "n_clients": 8,
+      "upload_bytes": 0,
+      "download_bytes": 0,
+      "upload_mb": 0.0,
+      "download_mb": 0.0,
+      "communication_mb": 0.0,
+      "accuracy": 0.2779,
+      "macro_f1": 0.1619,
+      "quadratic_weighted_kappa": 0.0366,
+      "within_one_level_accuracy": 0.49,
+      "severe_error_rate": 0.3238,
+      "ece": 0.1072,
+      "n_eval": 349
+    },
+    {
+      "round": 3,
+      "n_clients": 8,
+      "upload_bytes": 0,
+      "download_bytes": 0,
+      "upload_mb": 0.0,
+      "download_mb": 0.0,
+      "communication_mb": 0.0,
+      "accuracy": 0.3639,
+      "macro_f1": 0.2331,
+      "quadratic_weighted_kappa": 0.0943,
+      "within_one_level_accuracy": 0.5989,
+      "severe_error_rate": 0.2378,
+      "ece": 0.0513,
+      "n_eval": 349
+    },
+    {
+      "round": 4,
+      "n_clients": 8,
+      "upload_bytes": 0,
+      "download_bytes": 0,
+      "upload_mb": 0.0,
+      "download_mb": 0.0,
+      "communication_mb": 0.0,
+      "accuracy": 0.4527,
+      "macro_f1": 0.3419,
+      "quadratic_weighted_kappa": 0.2776,
+      "within_one_level_accuracy": 0.6819,
+      "severe_error_rate": 0.2006,
+      "ece": 0.1361,
+      "n_eval": 349
+    },
+    {
+      "round": 5,
+      "n_clients": 8,
+      "upload_bytes": 0,
+      "download_bytes": 0,
+      "upload_mb": 0.0,
+      "download_mb": 0.0,
+      "communication_mb": 0.0,
+      "accuracy": 0.4785,
+      "macro_f1": 0.3912,
+      "quadratic_weighted_kappa": 0.3153,
+      "within_one_level_accuracy": 0.6963,
+      "severe_error_rate": 0.1948,
+      "ece": 0.132,
+      "n_eval": 349
+    }
+  ],
+  "final_test_metrics": {
+    "accuracy": 0.5029,
+    "macro_f1": 0.4262,
+    "quadratic_weighted_kappa": 0.4454,
+    "within_one_level_accuracy": 0.6943,
+    "severe_error_rate": 0.1743,
+    "ece": 0.1698,
+    "n_eval": 350
+  },
+  "centralized_baseline_reference": {
+    "results_json": "results/bloom_lora_eval_0.5B.json",
+    "accuracy": 0.8486,
+    "macro_f1": 0.8421,
+    "note": "Locked centralized baseline \u2014 do not overwrite."
+  },
+  "next_steps": [
+    "python merge_model.py --model-size 0.5b --lora-dir C:\\Users\\USER\\Downloads\\Framework\\Framework\\models\\qwen_bloom_federated0.5B_fedavg_iid --output-dir models/qwen_bloom_federated0.5B_fedavg_iid_merged --force",
+    "python evaluate_bloom.py --model-size 0.5b --model-dir models/qwen_bloom_federated0.5B_fedavg_iid_merged --results-json results/federated_bloom_eval_fedavg_iid.json",
+    "python quantize_bloom.py --model-size 0.5b --merged-dir models/qwen_bloom_federated0.5B_fedavg_iid_merged --output-dir models/qwen_bloom_federated0.5B_fedavg_iid_fp16 --force"
+  ],
+  "privacy_disclaimer": "Federated training keeps raw client data local during collaborative optimization but does not by itself provide formal protection against inference attacks on updates, secure aggregation, or differential privacy."
+}
