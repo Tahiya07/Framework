@@ -4,14 +4,14 @@ __pycache__/
 *$py.class
 *.so
 .Python
-venv/
-.venv/
+venv_web/
+.venv_web/
 env/
 *.egg-info/
 .eggs/
 dist/
 build/
-
+node_modules/
 # PyCharm / IDE (regenerated locally)
 .idea/
 
@@ -55,3 +55,27 @@ models/
 *.onnx
 
 checkpoint-*/
+node_modules
+
+# Local runtime configuration (keep the safe template in version control)
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+.venv/
+.venv_web/
+venv/
+
+# JavaScript build and test output
+frontend/.next/
+frontend/out/
+frontend/coverage/
+coverage/
+
+# Railway CLI local project link
+.railway/
+
+# Persistent local application state
+data/web_sessions/
+
