@@ -79,6 +79,13 @@ def _load_tokenizer(model_path: str, *, fallback_path: str | None = None):
         except Exception as exc:  # noqa: BLE001 — fall back to base tokenizer if merge copy is corrupt
             last_err = exc
             print(f"[warn] tokenizer load failed for {path}: {exc}")
+            # Use local vocab/merges when tokenizer.json is malformed. This
+            # avoids a remote fallback in offline Railway deployments.
+            try:
+                return AutoTokenizer.from_pretrained(path, use_fast=False, **kwargs)
+            except Exception as slow_exc:  # noqa: BLE001
+                last_err = slow_exc
+                print(f"[warn] slow tokenizer load failed for {path}: {slow_exc}")
     raise RuntimeError(f"Could not load tokenizer from {candidates}") from last_err
 
 

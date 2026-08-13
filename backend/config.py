@@ -17,6 +17,14 @@ class Settings(BaseSettings):
     max_upload_mb: int = 20
     max_question_chars: int = 4000
     bloom_gate_threshold: float = 0.40
+    # Railway containers can report the host CPU count rather than their actual
+    # allocation. Conservative CPU defaults avoid thread contention during GGUF
+    # decoding; increase these only after measuring the deployed service.
+    generator_threads: int = 4
+    generator_context_tokens: int = 1024
+    generator_answer_tokens: int = 96
+    generator_summary_tokens: int = 120
+    generator_moderation_tokens: int = 96
     session_secret: str = "change-me-before-deployment"
     student_access_code: str = "student-local"
     teacher_access_code: str = "teacher-local"

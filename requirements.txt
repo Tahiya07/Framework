@@ -118,3 +118,7 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 python-multipart==0.0.20
 pydantic-settings==2.7.1
+
+# Optional CPU deployment experiment (export_bloom_onnx_cpu.py)
+# onnx==1.16.2
+# onnxruntime==1.18.1

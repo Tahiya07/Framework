@@ -13,7 +13,7 @@ from predict_bloom import BLOOM_LABELS, QwenBloomPredictor, is_deploy_checkpoint
 from privacy.privacy_guard import STUDENT_REFUSAL, assess_student_query_against_protected_corpus, policy_instruction, screen_generation_output
 from retriever import PrivacyRetriever, RetrievalResult
 from role_access import Role, check_retriever_binding
-from runtime_utils import DEFAULT_N_CTX, DEFAULT_N_THREADS, _apply_retrieval_governor
+from runtime_utils import _apply_retrieval_governor
 from uncertainty import UncertaintyEngine
 from bloom_prompt import moderate_bloom_question
 from .config import settings
@@ -104,17 +104,49 @@ class FrameworkService:
                         "The local Qwen GGUF generator is not ready. Set GENERATOR_MODEL_PATH in .env "
                         "to an existing GGUF file, for example models/qwen.gguf."
                     )
-                self._generator = RAGGenerator(retriever=retriever, model_path=str(model_path), n_ctx=DEFAULT_N_CTX, n_threads=DEFAULT_N_THREADS, max_tokens=220)
+                self._generator = RAGGenerator(
+                    retriever=retriever,
+                    model_path=str(model_path),
+                    n_ctx=settings.generator_context_tokens,
+                    n_threads=settings.generator_threads,
+                    max_tokens=settings.generator_answer_tokens,
+                )
             return self._generator
 
     @staticmethod
     def _sources(chunks: list[RetrievalResult]) -> list[dict[str, Any]]:
         return [{"rank": c.rank, "snippet": c.text[:220], "score": round(c.cosine, 3)} for c in chunks]
 
+    def _local_chat(self, retriever: PrivacyRetriever, question: str, history: list[dict[str, str]], summary: bool = False) -> dict[str, Any]:
+        """Small, local-only GGUF conversation path used by students without a corpus."""
+        recent = history[-6:]
+        transcript = "\n".join(f"{item['role'].title()}: {item['content']}" for item in recent)
+        instruction = "Summarize the user's text clearly and concisely." if summary else "Answer helpfully and accurately. If you are uncertain, say so."
+        prompt = f"{instruction}\n\n"
+        if transcript:
+            prompt += f"Conversation:\n{transcript}\n\n"
+        prompt += f"User: {question}"
+        generator = self._generator_instance(retriever)
+        chatml = generator._to_chatml(prompt)
+        answer, elapsed = generator._run_chatml(chatml, max_tokens=settings.generator_summary_tokens if summary else settings.generator_answer_tokens)
+        return {"answer": answer, "refused": False, "privacy_status": "local", "sources": [], "metadata": {"elapsed_s": round(elapsed, 3), "context_chunks": 0, "mode": "local_gguf"}}
+
+    def student_chat(self, sid: str, role: str, question: str, scope: str, top_k: int, history: list[dict[str, str]], summary: bool = False) -> dict[str, Any]:
+        if role != "student":
+            raise PermissionError("Local chat is available in the student workspace only.")
+        self._authorize_scope(role, scope)
+        ws = self.workspace(sid)
+        if not ws["chunks"][scope]:
+            return self._local_chat(ws[scope], question, history, summary=summary)
+        return self.answer(sid, role, question, scope, top_k, summary=summary)
+
     def answer(self, sid: str, role: str, question: str, scope: str, top_k: int, summary: bool = False) -> dict[str, Any]:
         self._authorize_scope(role, scope)
         ws = self.workspace(sid); retriever = ws[scope]
-        if not ws["chunks"][scope]: raise ValueError("This corpus is empty. Upload or paste learning material first.")
+        if not ws["chunks"][scope]:
+            if role == "student":
+                return self._local_chat(retriever, question, [], summary=summary)
+            raise ValueError("This corpus is empty. Upload or paste learning material first.")
         protected = ws["chunks"]["protected"]
         if role == "student":
             privacy = assess_student_query_against_protected_corpus(question, protected)
@@ -125,7 +157,15 @@ class FrameworkService:
         instruction = policy_instruction(role, scope) + "\n" + compose_instruction(bloom["effective_level"], task="summarization" if summary else "question answering")
         generator = self._generator_instance(retriever)
         task = "Summarize the supplied academic material." if summary else question
-        result = generator.generate_from_chunks(task, chunks, bloom_level=bloom["effective_level"].lower(), max_tokens=180, safety_instruction=instruction, summary_mode=summary, min_cosine=0.0 if summary else 0.22)
+        result = generator.generate_from_chunks(
+            task,
+            chunks,
+            bloom_level=bloom["effective_level"].lower(),
+            max_tokens=settings.generator_summary_tokens if summary else settings.generator_answer_tokens,
+            safety_instruction=instruction,
+            summary_mode=summary,
+            min_cosine=0.0 if summary else 0.22,
+        )
         screened = screen_generation_output(role, question, result.answer, protected)
         if not screened.allowed: return {"answer": STUDENT_REFUSAL if role == "student" else "The response was withheld because it may reproduce protected material.", "refused": True, "privacy_status": "screened", "sources": []}
         return {"answer": result.answer, "refused": False, "privacy_status": "safe", "bloom": bloom, "sources": self._sources(result.chunks), "metadata": {"elapsed_s": result.metadata.get("elapsed_s"), "context_chunks": len(result.chunks)}}
@@ -140,7 +180,7 @@ class FrameworkService:
             reset = getattr(generator.llm, "reset", None)
             if callable(reset): reset()
             started = time.perf_counter()
-            output = generator.llm(prompt, max_tokens=180, temperature=0.2, top_p=0.9, top_k=40, repeat_penalty=1.1, stop=["<|im_end|>", "<|im_start|>"], echo=False, seed=generator.seed)
+            output = generator.llm(prompt, max_tokens=settings.generator_moderation_tokens, temperature=0.2, top_p=0.9, top_k=40, repeat_penalty=1.1, stop=["<|im_end|>", "<|im_start|>"], echo=False, seed=generator.seed)
             text = str(output["choices"][0]["text"] or "").strip()
             return text, "llama-cpp-python-cpu-gguf", time.perf_counter() - started
 

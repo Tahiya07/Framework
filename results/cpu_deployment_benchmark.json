@@ -1,0 +1,35 @@
+{
+  "cpu": "Intel64 Family 6 Model 154 Stepping 4, GenuineIntel",
+  "torch_threads": 4,
+  "runs": 20,
+  "results": [
+    {
+      "name": "merged",
+      "path": "models\\qwen_bloom_merged0.5B",
+      "status": "ok",
+      "format": "merged_fp32",
+      "size_mib": 1899.78,
+      "load_seconds": 7.718,
+      "rss_delta_mib": 57.94,
+      "latency_p50_ms": 1161.27,
+      "latency_p95_ms": 1245.5,
+      "mean_latency_ms": 1178.14,
+      "throughput_requests_per_second": 0.849,
+      "error": null
+    },
+    {
+      "name": "lightweight",
+      "path": "models\\qwen_bloom_quantized0.5B",
+      "status": "ok",
+      "format": "fp16_merged",
+      "size_mib": 957.48,
+      "load_seconds": 3.92,
+      "rss_delta_mib": -193.23,
+      "latency_p50_ms": 290859.23,
+      "latency_p95_ms": 339460.97,
+      "mean_latency_ms": 272621.3,
+      "throughput_requests_per_second": 0.004,
+      "error": null
+    }
+  ]
+}

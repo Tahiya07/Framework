@@ -3,7 +3,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from .auth import create_token, current_session, require_teacher
 from .config import settings
-from .schemas import BloomRequest, IndexTextRequest, LoginRequest, ModerationReviewRequest, TextRequest
+from .schemas import BloomRequest, ChatRequest, IndexTextRequest, LoginRequest, ModerationReviewRequest, TextRequest
 from .service import service
 
 app = FastAPI(title="Framework Academic API", version="1.0.0")
@@ -38,6 +38,8 @@ def moderate_exam(body: BloomRequest, session: dict = Depends(require_teacher)):
 def review_exam(body: ModerationReviewRequest, session: dict = Depends(require_teacher)): return service.record_moderation_review(session["sid"], body.question, body.decision, body.notes)
 @app.post("/qa")
 def qa(body: TextRequest, session: dict = Depends(current_session)): return run(lambda: service.answer(session["sid"], session["role"], body.question, body.scope, body.top_k))
+@app.post("/chat")
+def chat(body: ChatRequest, session: dict = Depends(current_session)): return run(lambda: service.student_chat(session["sid"], session["role"], body.question, body.scope, body.top_k, [turn.model_dump() for turn in body.history], summary=body.summary))
 @app.post("/summarize")
 def summarize(body: TextRequest, session: dict = Depends(current_session)): return run(lambda: service.answer(session["sid"], session["role"], body.question, body.scope, body.top_k, summary=True))
 @app.post("/retrieval/search")
