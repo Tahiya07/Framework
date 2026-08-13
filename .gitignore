@@ -6,7 +6,8 @@ __pycache__/
 .Python
 venv_web/
 .venv_web/
-env/
+venv/
+.venv/
 *.egg-info/
 .eggs/
 dist/
@@ -58,9 +59,8 @@ checkpoint-*/
 node_modules
 
 # Local runtime configuration (keep the safe template in version control)
-.env
-.env.*
-!.env.example
+
+
 
 # Python virtual environments
 .venv/

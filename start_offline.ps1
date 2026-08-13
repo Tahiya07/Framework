@@ -6,7 +6,7 @@ The browser talks only to loopback services (127.0.0.1); no external API is used
 param([switch]$Development)
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$python = Join-Path $root ".venv_web\Scripts\python.exe"
+$python = Join-Path $root ".venv\Scripts\python.exe"
 $frontend = Join-Path $root "frontend"
 if (-not (Test-Path -LiteralPath $python)) { throw "Missing .venv_web. Create it with Python 3.11 and install requirements.txt." }
 if (-not (Test-Path -LiteralPath (Join-Path $frontend "node_modules"))) { throw "Missing frontend/node_modules. Run npm ci in frontend once while dependencies are available." }
